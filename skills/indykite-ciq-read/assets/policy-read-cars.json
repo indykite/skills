@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "policy_version": "1.0-ciq"
+  },
+  "subject": {
+    "type": "Person"
+  },
+  "condition": {
+    "cypher": "MATCH (subject:Person)-[r:OWNS]->(car:Car)",
+    "filter": [
+      {
+        "operator": "=",
+        "attribute": "subject.external_id",
+        "value": "$person_external_id"
+      }
+    ]
+  },
+  "allowed_reads": {
+    "nodes": ["subject", "subject.*", "car", "car.*"],
+    "relationships": ["r", "r.*"]
+  }
+}

@@ -1,0 +1,20 @@
+# macOS-specific files
+.DS_Store
+
+# Editor directories and files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.*
+
+# Local tooling
+.sixth/

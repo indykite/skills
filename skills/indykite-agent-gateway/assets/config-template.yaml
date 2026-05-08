@@ -1,0 +1,65 @@
+# IAG starter config.yaml
+#
+# Copy this file, set every <PLACEHOLDER>, and pass it to the IAG container with
+#   --config=/app/config.yaml
+#
+# Per-instance overrides (when running multiple IAG instances): change service.name,
+# service.port, protected_agent.base_url, and protected_agent.authentication.client_id /
+# client_secret. Everything else can stay shared across instances.
+#
+# Field-by-field documentation: see ../references/configuration.md
+---
+service:
+  name: <SERVICE_NAME>            # e.g. orchestrator-iag
+  port: <SERVICE_PORT>            # e.g. 8881
+  environment: <ENVIRONMENT>      # demo, staging, prod
+  log_level: info                 # debug, info, warn, error
+
+identity_provider:
+  base_url: <IDP_BASE_URL>        
+  introspect_endpoint: oauth-introspect
+  client_credential_endpoint: oauth-token
+  exchange_endpoint: oauth-token
+
+protected_agent:
+  base_url: <PROTECTED_AGENT_BASE_URL>   # e.g. http://orchestrator:6001
+  authentication:
+    type: credentials
+    client_id: <PROTECTED_AGENT_CLIENT_ID>
+    client_secret: <PROTECTED_AGENT_CLIENT_SECRET>
+
+authzen:
+  base_url: <INDYKITE_BASE_URL>/access/v1
+  action: CAN_TRIGGER
+  subject_types:
+    - User
+    # add Person, Agent, etc. as needed
+  cache_ttl: 5m
+  cache_update_after: 5m
+  cache_update_after_error: 10s
+
+contx_iq:
+  base_url: <INDYKITE_BASE_URL>/contx-iq/v1
+  query_id: <CIQ_QUERY_ID>
+  app_agent_credentials_token: <APP_AGENT_CREDENTIALS_TOKEN>
+  allowed_workflow_id: <WORKFLOW_ID>     # optional; restricts to a single workflow
+  cache_ttl: 5m
+  cache_update_after: 5m
+  cache_update_after_error: 10s
+
+# Audit is optional. Pick one delivery form and delete the other.
+audit:
+  delivery: webhook
+  http:
+    url: <AUDIT_WEBHOOK_URL>
+    method: post
+    auth:
+      type: no-auth                # no-auth | api-key | basic | mTLS
+
+# audit:
+#   delivery: file
+#   storage_path: /var/log/iag
+#   format: json                   # csv | json | txt
+#   rotation_strategy: size_and_time
+#   rotation_interval: 24h
+#   rotation_max_bytes: 100MiB
