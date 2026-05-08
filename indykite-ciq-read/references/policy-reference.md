@@ -25,7 +25,7 @@ For a read-only policy: include `meta`, `subject`, `condition`, `allowed_reads`.
 
 ## `meta.policy_version`
 
-Currently `1.0-ciq`. The platform rejects unknown versions.
+Currently `1.0-ciq`. IndyKite rejects unknown versions.
 
 ## `subject.type`
 

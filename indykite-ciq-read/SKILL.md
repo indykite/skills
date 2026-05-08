@@ -1,6 +1,6 @@
 ---
 name: indykite-ciq-read
-description: Author a read-only IndyKite ContX IQ (CIQ) policy plus its Knowledge Query, then execute it through `POST /contx-iq/v1/execute`. Use when the user wants to expose nodes, relationships, or aggregate values from the IndyKite Graph (IKG) as a parameterized read query — no upserts, no deletes — for an authenticated subject (`Person`, `User`, or `_Application`).
+description: Author a read-only IndyKite ContX IQ (CIQ) policy plus its Knowledge Query, then run it via `POST /contx-iq/v1/execute`. Use when exposing IKG nodes, relationships, or aggregate values as a parameterized read query — no upserts, no deletes.
 ---
 
 # IndyKite ContX IQ — read-only policy + Knowledge Query
@@ -179,7 +179,7 @@ When this skill has been applied successfully:
 
 ## Agent-specific notes
 
-This skill uses generic markdown instructions and works across all agents listed in the [README](../../README.md). The agent needs to be able to issue HTTP requests (`curl`, an HTTP client, or the IndyKite Terraform provider — see References). No Claude Code hooks, Cursor `@`-mentions, or Copilot workspace context are required.
+This skill uses generic markdown instructions and works across all agents listed in the [README](../README.md). The agent needs to be able to issue HTTP requests (`curl`, an HTTP client, or the IndyKite Terraform provider — see References). No Claude Code hooks, Cursor `@`-mentions, or Copilot workspace context are required.
 
 ## References
 

@@ -51,7 +51,7 @@ curl -X POST "$API_URL/configs/v1/mcp-servers" \
 ## Field interactions worth knowing
 
 - **`scopes_supported` mirrors into `.well-known/oauth-protected-resource`.** An MCP client that sees a `401` and parses the metadata only sees the scopes you list here. If you forget a scope, clients will request the wrong set.
-- **Adding new IdPs to the metadata is a separate IndyKite-side action** — the platform team must register your IdPs against the project so they appear in the `.well-known` document. `scopes_supported` does not control IdP listing.
+- **Adding new IdPs to the metadata is a separate IndyKite-side action** — the IndyKite team must register your IdPs against the project so they appear in the `.well-known` document. `scopes_supported` does not control IdP listing.
 - **`enabled: false`** is the supported way to take an MCP server offline without deleting the configuration. Useful while rotating credentials or migrating between AppAgents.
 - **`name` is immutable.** Choose carefully; renaming requires creating a new configuration.
 

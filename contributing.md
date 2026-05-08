@@ -45,6 +45,35 @@ Before opening a PR:
 
 Note in the PR which agents and models you tested with. "Tested in Claude Code with Opus 4.7" is more useful than "tested it."
 
+## Validating your skill
+
+Behavioural testing in an agent (above) confirms the skill *triggers and runs*. The checks below confirm it meets the technical constraints in [§ skills.sh acceptance criteria](#skillssh-acceptance-criteria) — encoding, frontmatter parse, script syntax, asset validity. Run them from the repo root before opening a PR.
+
+```bash
+# 1. Loader dry-run — frontmatter parse + structure + discovery.
+#    The skills CLI has no dedicated `validate` subcommand; `add --list`
+#    is the equivalent dry-run. If the skill is not listed, fix the
+#    structure or frontmatter before doing anything else.
+npx skills add ./<skill-name> --list
+
+# 2. Shell script syntax (only if the skill ships scripts).
+bash -n <skill-name>/scripts/*.sh
+
+# 3. JSON asset validity (only if the skill ships JSON assets).
+jq empty <skill-name>/assets/*.json
+
+# 4. File hygiene — UTF-8 / LF / no BOM.
+file <skill-name>/SKILL.md           # expect "ASCII text" or "UTF-8 Unicode text"
+grep -rl $'\r' <skill-name>/ || true # expect no output (no CRLF anywhere); grep exits 1 when nothing matches, which is the success case here — `|| true` keeps CI scripts happy.
+head -c 3 <skill-name>/SKILL.md | od -An -tx1
+                                     # expect content bytes (e.g. 2d 2d 2d for `---`)
+                                     # — if you see ef bb bf, strip the UTF-8 BOM
+```
+
+If any check fails, fix the underlying issue rather than working around it. The loader dry-run alone is not enough — it parses YAML and walks the directory but will not flag CRLF line endings, an unlabelled code fence, or a syntactically broken script.
+
+To validate the whole repo at once: `npx skills add . --list` from the root.
+
 ## Modifying an existing skill
 
 - Small fixes (typos, clarifications) — open a PR directly.
@@ -119,8 +148,8 @@ Other expectations:
 2. **Branch** off `main`: `git checkout -b add-<skill-name>`.
 3. **Add the skill** under one of the discovery locations — usually the repo root or `skills/`. Use `skills/.experimental/` if you want the skill discoverable but flagged as not-yet-stable.
 4. **Self-test** following the [Testing your skill](#testing-your-skill) checklist above. Validate against at least one agent and, where feasible, a second.
-5. **Smoke-test discovery** with the `skills` CLI: `npx skills add ./<path-to-skill> --list` runs the loader's local-path validation, parses the frontmatter, and shows the resolved name/description. If the CLI doesn't list your skill, fix the structure or frontmatter before opening a PR. (There is no dedicated `validate` subcommand — `add --list` is the equivalent dry-run.)
-6. **Open a PR** against `main`. Use the PR template (filename, what it does, when it triggers, agents tested, any known gaps). One skill per PR.
+5. **Validate locally.** Run the checks in [§ Validating your skill](#validating-your-skill) above — the loader dry-run plus script syntax, JSON validity, and file-hygiene commands. The loader alone does not catch CRLF line endings, an unlabelled code fence, or a broken shell script.
+6. **Open a PR** against `main`. The repo's [PR template](.github/PULL_REQUEST_TEMPLATE.md) auto-fills — fill in *what this PR does*, *when the skill should activate* (quoting the `description` and `## When to use`), *agents and models tested*, and any *known gaps*. One skill per PR.
 7. **Automated checks** will run on the PR: structural validation, frontmatter parse, security audit (the same audit skills.sh runs on indexed skills), and any project-level lint. Fix any failures before requesting review.
 8. **Maintainer review** focuses on three things: does the description trigger reliably without colliding with other skills, do the steps actually accomplish the stated outcome, and is there anything in the content or scripts that the security audit could miss. Expect at least one round of revision; treat review notes as a collaboration rather than a gate.
 9. **Merge** is squash-by-default to keep `main` clean. The maintainer merging will tag the commit with the skill name so it shows up cleanly in the changelog.

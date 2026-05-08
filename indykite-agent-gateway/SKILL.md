@@ -1,6 +1,6 @@
 ---
 name: indykite-agent-gateway
-description: Deploy and configure Indykite Agent Gateway (IAG) in front of A2A agents to enforce caller, workflow, and delegation-chain checks. Use when the user is wiring up agent-to-agent (A2A) workflows that need policy enforcement, modeling A2A workflows in the IKG, or troubleshooting IAG 401/403 responses.
+description: Deploy and configure IndyKite Agent Gateway (IAG) in front of agent-to-agent (A2A) workflows. Use when wiring up A2A policy enforcement, modeling workflows in the IKG, or debugging IAG 401/403 responses.
 ---
 
 # IndyKite Agent Gateway
@@ -142,7 +142,7 @@ When this skill has been applied successfully:
 
 ## Agent-specific notes
 
-This skill uses generic markdown instructions and works across all agents listed in the [README](../../README.md). It does not require Claude Code hooks, Cursor `@`-mentions, Copilot workspace context, or any agent-specific feature. Network access (`curl`, the agent's web tools, or MCP) is needed only if the agent will call IndyKite APIs directly during a task; for setup-only work no special tools are required.
+This skill uses generic markdown instructions and works across all agents listed in the [README](../README.md). It does not require Claude Code hooks, Cursor `@`-mentions, Copilot workspace context, or any agent-specific feature. Network access (`curl`, the agent's web tools, or MCP) is needed only if the agent will call IndyKite APIs directly during a task; for setup-only work no special tools are required.
 
 ## References
 

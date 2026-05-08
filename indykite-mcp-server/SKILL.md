@@ -1,6 +1,6 @@
 ---
 name: indykite-mcp-server
-description: Call the IndyKite MCP server to make AuthZEN authorization decisions and execute ContX IQ knowledge queries. Use when the user is initializing an MCP session against `eu.mcp.indykite.com` or `us.mcp.indykite.com`, listing tools/resources, calling `authzen_evaluate` / `authzen_evaluations` / `authzen_search_resource` / `authzen_search_action` / `ciq_execute`, configuring an MCP server (`POST /configs/v1/mcp-servers`), or debugging the two-layer auth (X-IK-ClientKey + Bearer).
+description: Call the IndyKite MCP server to make AuthZEN authorization decisions and execute ContX IQ Knowledge Queries. Use when initializing an MCP session, calling its tools, configuring an MCP server, or debugging its two-layer auth.
 ---
 
 # IndyKite MCP Server
@@ -158,7 +158,7 @@ When this skill has been applied successfully:
 
 ## Agent-specific notes
 
-This skill uses generic markdown instructions and works across all agents listed in the [README](../../README.md). It assumes the agent can issue HTTP requests (Bash + `curl`, an HTTP MCP client, or an SDK such as the [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk)). No Claude Code hooks, Cursor `@`-mentions, or Copilot workspace context are required.
+This skill uses generic markdown instructions and works across all agents listed in the [README](../README.md). It assumes the agent can issue HTTP requests (Bash + `curl`, an HTTP MCP client, or an SDK such as the [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk)). No Claude Code hooks, Cursor `@`-mentions, or Copilot workspace context are required.
 
 ## References
 
