@@ -1,0 +1,29 @@
+{
+  "name": "ciq-app-create-track",
+  "display_name": "App: Create new Track",
+  "description": "Allow an _Application subject to create a new Track node in the IKG catalog.",
+  "policy": {
+    "meta": {
+      "policy_version": "1.0-ciq"
+    },
+    "subject": {
+      "type": "_Application"
+    },
+    "condition": {
+      "cypher": "MATCH (subject:_Application)",
+      "filter": [
+        {
+          "operator": "=",
+          "attribute": "subject.external_id",
+          "value": "$_appId"
+        }
+      ]
+    },
+    "allowed_upserts": {
+      "nodes": {
+        "node_types": ["Track"]
+      }
+    }
+  },
+  "status": "ACTIVE"
+}

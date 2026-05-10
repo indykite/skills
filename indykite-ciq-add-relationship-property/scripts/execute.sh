@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# execute.sh — call POST /contx-iq/v1/execute with the right headers.
+# execute.sh — call POST /contx-iq/v1/execute to run a relationship-property-write Knowledge Query.
 #
 # Required env vars:
 #   API_URL       e.g. https://us.api.indykite.com  (no trailing slash)
@@ -11,13 +11,13 @@
 #                 subject.type is NOT _Application; omit otherwise.
 #
 # Arguments:
-#   $1            Path to a JSON file containing input_params, e.g.
-#                 { "person_external_id": "alice" }
+#   $1            Path to a JSON file containing input_params.
 #                 Use "-" to read from stdin.
 #
 # Usage:
 #   ./execute.sh input_params.json
-#   echo '{"person_external_id":"alice"}' | ./execute.sh -
+#   echo '{"track_external_id":"track-99","venue_external_id":"venue-1","first_played_at":"2026-04-22T19:00:00Z"}' \
+#     | ./execute.sh -
 
 set -euo pipefail
 

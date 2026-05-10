@@ -1,0 +1,46 @@
+{
+  "name": "ciq-app-create-contract",
+  "display_name": "App: Create Contract and link to Vehicle and Person",
+  "description": "Allow an _Application subject to create a new Contract node and wire it to an existing Vehicle (via COVERS) and an existing Person (via ACCEPTED) in one atomic operation. Modelled on the developer-hub policyAllowWriteContract resource.",
+  "policy": {
+    "meta": {
+      "policy_version": "1.0-ciq"
+    },
+    "subject": {
+      "type": "_Application"
+    },
+    "condition": {
+      "cypher": "MATCH (subject:_Application)-[r1:HAS_AGREEMENT_WITH]->(company:Company)-[r2:OWNS]->(vehicle:Vehicle) MATCH (person:Person)",
+      "filter": [
+        {
+          "operator": "AND",
+          "operands": [
+            { "operator": "=", "attribute": "subject.external_id", "value": "$_appId" },
+            { "operator": "=", "attribute": "vehicle.external_id", "value": "$vehicleID" },
+            { "operator": "=", "attribute": "person.external_id",  "value": "$personID" }
+          ]
+        }
+      ]
+    },
+    "allowed_upserts": {
+      "nodes": {
+        "node_types": ["Contract"]
+      },
+      "relationships": {
+        "relationship_types": [
+          {
+            "type": "COVERS",
+            "source_node_label": "Contract",
+            "target_node_label": "Vehicle"
+          },
+          {
+            "type": "ACCEPTED",
+            "source_node_label": "Person",
+            "target_node_label": "Contract"
+          }
+        ]
+      }
+    }
+  },
+  "status": "ACTIVE"
+}

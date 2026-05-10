@@ -16,7 +16,15 @@
     ]
   },
   "allowed_reads": {
-    "nodes": ["subject", "subject.*", "car", "car.*"],
-    "relationships": ["r", "r.*"]
+    "nodes": [
+      "subject",
+      "subject.*",
+      "car",
+      "car.*"
+    ],
+    "relationships": [
+      "r",
+      "r.*"
+    ]
   }
 }

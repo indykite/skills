@@ -1,0 +1,19 @@
+{
+  "name": "kq-app-create-played-at",
+  "display_name": "App Query: Create Track-PLAYED_AT->Venue",
+  "description": "Create a new PLAYED_AT relationship from an existing Track to an existing Venue, given both external_ids.",
+  "policy_id": "<paste-policy-gid-here>",
+  "query": {
+    "upsert_relationships": [
+      {
+        "name": "newPlayedAt",
+        "source": "track",
+        "target": "venue",
+        "type": "PLAYED_AT"
+      }
+    ],
+    "nodes": ["track.external_id", "venue.external_id"],
+    "relationships": ["newPlayedAt"]
+  },
+  "status": "ACTIVE"
+}

@@ -1,0 +1,137 @@
+# CIQ Policy Reference (create-relationship focused)
+
+This reference covers the fields a *relationship-create-only* CIQ policy uses, plus the parts of the schema you need to recognise even if you do not write them.
+
+For node creation see [`indykite-ciq-create-node/references/policy-reference.md`](../../indykite-ciq-create-node/references/policy-reference.md). For reads see [`indykite-ciq-read/references/policy-reference.md`](../../indykite-ciq-read/references/policy-reference.md).
+
+## Skeleton
+
+```json
+{
+  "meta":      { "policy_version": "1.0-ciq" },
+  "subject":   { "type": "<_Application | Person | User | …>" },
+  "condition": {
+    "cypher": "<MATCH (subject:…) MATCH (source:…) MATCH (target:…)>",
+    "filter": [ { ... } ]
+  },
+  "allowed_upserts": {
+    "relationships": {
+      "relationship_types": [
+        {
+          "type":              "<RELATIONSHIP_LABEL>",
+          "source_node_label": "<SourceLabel>",
+          "target_node_label": "<TargetLabel>"
+        }
+      ]
+    }
+  }
+}
+```
+
+For a relationship-create-only policy: include `meta`, `subject`, `condition`, and `allowed_upserts.relationships.relationship_types`. **Omit** `allowed_reads`, `allowed_deletes`, and the other `allowed_upserts` sub-fields. Omitting a block is the supported way to forbid that operation.
+
+## `meta.policy_version`
+
+Currently `1.0-ciq`. IndyKite rejects unknown versions.
+
+## `subject.type`
+
+Exactly one type per policy.
+
+- **`_Application`** — system-side wiring (catalog ingestion, ETL pipelines, batch linking). At execute time, only `X-IK-ClientKey` is required; the reserved `$_appId` parameter is auto-filled. Filter on `subject.external_id = $_appId`.
+- **`Person` / `User`** — user-driven linking (a user marks a Track as a favourite, accepts a Contract, etc.). Requires both `X-IK-ClientKey` and `Authorization: Bearer <user-token>`. Filter on `subject.external_id = $token.sub`.
+
+If two subject types need to create the same relationship, write two policies.
+
+## `condition.cypher`
+
+Must `MATCH` the subject **and** the source and target endpoint nodes. The new relationship is **not** declared here; it's declared in the Knowledge Query's `upsert_relationships`.
+
+Use disjoint `MATCH` clauses (separated by spaces) when the endpoints don't need to be connected by an existing path:
+
+```cypher
+MATCH (subject:_Application)
+MATCH (track:Track)
+MATCH (venue:Venue)
+```
+
+Use a connected pattern when they do. For example, requiring a pre-existing `:CATALOGED_BY` link before allowing a `PLAYED_AT` link:
+
+```cypher
+MATCH (subject:_Application)-[:HAS_AGREEMENT_WITH]->(:Catalog)<-[:CATALOGED_BY]-(track:Track)
+MATCH (venue:Venue)
+```
+
+The connectivity you express in the cypher is the gate the platform enforces before the new edge can be added.
+
+Each variable name (`subject`, `track`, `venue`, …) is a **string identifier** the Knowledge Query's `upsert_relationships` will use as `source` / `target`. Do **not** confuse variable names with node labels — the policy's cypher binds the label to the variable; the KQ uses only the variable.
+
+## `condition.filter`
+
+Constrains the match to specific endpoint nodes. Same operator and attribute conventions as the read-side policy schema.
+
+For `_Application` subjects, the canonical filter pins all three identifiers:
+
+```json
+[
+  {
+    "operator": "AND",
+    "operands": [
+      { "operator": "=", "attribute": "subject.external_id", "value": "$_appId" },
+      { "operator": "=", "attribute": "track.external_id",   "value": "$track_external_id" },
+      { "operator": "=", "attribute": "venue.external_id",   "value": "$venue_external_id" }
+    ]
+  }
+]
+```
+
+`$_appId` is reserved (do not pass it in `input_params`). The other two `$param`s become required keys in the execute call's `input_params`.
+
+For `Person` subjects, replace the `$_appId` clause with `subject.external_id = $token.sub` and keep the endpoint clauses.
+
+## `allowed_upserts.relationships`
+
+The only `allowed_upserts` sub-field a relationship-create-only policy uses.
+
+### `relationship_types` — what this skill is about
+
+```json
+"allowed_upserts": {
+  "relationships": {
+    "relationship_types": [
+      {
+        "type":              "PLAYED_AT",
+        "source_node_label": "Track",
+        "target_node_label": "Venue"
+      }
+    ]
+  }
+}
+```
+
+Each triple is an entry in the array. The Knowledge Query's `upsert_relationships` may create only relationships matching one of these triples — `type`, `source_node_label`, **and** `target_node_label` must all match. Direction matters: `(Track)-[:PLAYED_AT]->(Venue)` and `(Venue)-[:PLAYED_AT]->(Track)` are *different* triples and need two entries (or two policies) to permit both.
+
+You may declare multiple triples in a single policy when one Knowledge Query needs to write more than one relationship in the same call (e.g. one `(Person)-[:ACCEPTED]->(Contract)` plus one `(Contract)-[:COVERS]->(Vehicle)`).
+
+### `existing_relationships` — out of scope
+
+```json
+"allowed_upserts": {
+  "relationships": {
+    "existing_relationships": ["r1"]
+  }
+}
+```
+
+`existing_relationships` whitelists relationship variables from `cypher` whose properties may be **updated** in place. This is the *update-existing-relationship* path and is not covered by this skill. Both keys can co-exist if the policy needs to allow both creation of new edges and property updates on already-matched edges.
+
+## What the other blocks would do (and why we omit them)
+
+For completeness — out of scope here:
+
+- `allowed_upserts.nodes.node_types` — labels that may be created as **new nodes**. Use [`indykite-ciq-create-node`](../../indykite-ciq-create-node/SKILL.md) for that.
+- `allowed_upserts.nodes.existing_nodes` — variables from `cypher` whose properties can be updated.
+- `allowed_deletes.nodes` / `allowed_deletes.relationships` — variables that can be deleted.
+- `allowed_reads` — what may be projected. Useful even on a write-only policy if you need to read other context alongside the create — but if you only need the new relationship and its endpoints echoed back, the Knowledge Query's `nodes` and `relationships` arrays are sufficient.
+
+Omitting these blocks means the corresponding Knowledge Query arrays will be rejected at execute time as not allowed.

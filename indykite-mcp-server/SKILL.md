@@ -1,6 +1,8 @@
 ---
 name: indykite-mcp-server
 description: Call the IndyKite MCP server to make AuthZEN authorization decisions and execute ContX IQ Knowledge Queries. Use when initializing an MCP session, calling its tools, configuring an MCP server, or debugging its two-layer auth.
+license: Apache-2.0
+compatibility: Requires curl and bash 4+. Network access to eu.mcp.indykite.com or us.mcp.indykite.com, plus the OAuth IdP that issues Bearer tokens, is required at runtime.
 ---
 
 # IndyKite MCP Server

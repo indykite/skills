@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# execute.sh — call POST /contx-iq/v1/execute with the right headers.
+# execute.sh — call POST /contx-iq/v1/execute to run a property-write Knowledge Query.
 #
 # Required env vars:
 #   API_URL       e.g. https://us.api.indykite.com  (no trailing slash)
@@ -9,15 +9,19 @@
 # Optional env vars:
 #   BEARER_TOKEN  User OAuth access token. Required when the policy's
 #                 subject.type is NOT _Application; omit otherwise.
+#                 For the running example (subject Person, "update own profile")
+#                 this MUST be set.
 #
 # Arguments:
 #   $1            Path to a JSON file containing input_params, e.g.
-#                 { "person_external_id": "alice" }
+#                 { "new_music_mood": "Acoustic Sadness",
+#                   "new_dance_skill": 0.67 }
 #                 Use "-" to read from stdin.
 #
 # Usage:
 #   ./execute.sh input_params.json
-#   echo '{"person_external_id":"alice"}' | ./execute.sh -
+#   echo '{"new_music_mood":"Acoustic Sadness","new_dance_skill":0.67}' \
+#     | ./execute.sh -
 
 set -euo pipefail
 

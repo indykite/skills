@@ -1,0 +1,21 @@
+{
+  "name": "kq-app-create-track",
+  "display_name": "App Query: Create new Track",
+  "description": "Create a new Track node with parameterized external_id, title, and loudness.",
+  "policy_id": "<paste-policy-gid-here>",
+  "query": {
+    "upsert_nodes": [
+      {
+        "name": "newTrack",
+        "type": "Track",
+        "external_id": "$track_external_id",
+        "properties": [
+          { "type": "title",    "value": "$track_title" },
+          { "type": "loudness", "value": "$track_loudness" }
+        ]
+      }
+    ],
+    "nodes": ["newTrack"]
+  },
+  "status": "ACTIVE"
+}

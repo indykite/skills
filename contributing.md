@@ -47,22 +47,28 @@ Note in the PR which agents and models you tested with. "Tested in Claude Code w
 
 ## Validating your skill
 
-Behavioural testing in an agent (above) confirms the skill *triggers and runs*. The checks below confirm it meets the technical constraints in [§ skills.sh acceptance criteria](#skillssh-acceptance-criteria) — encoding, frontmatter parse, script syntax, asset validity. Run them from the repo root before opening a PR.
+Behavioural testing in an agent (above) confirms the skill *triggers and runs*. The checks below confirm it meets the [Agent Skills specification](https://agentskills.io/specification) and the technical constraints listed in [§ Agent Skills specification compliance](#agent-skills-specification-compliance) — encoding, frontmatter parse, script syntax, asset validity. Run them from the repo root before opening a PR.
 
 ```bash
-# 1. Loader dry-run — frontmatter parse + structure + discovery.
-#    The skills CLI has no dedicated `validate` subcommand; `add --list`
-#    is the equivalent dry-run. If the skill is not listed, fix the
-#    structure or frontmatter before doing anything else.
+# 1. Spec-compliance check (canonical).
+#    `skills-ref` is the reference validator from agentskills.io. It checks
+#    the YAML frontmatter against the spec (name format, length limits,
+#    required fields). Install once via `pipx`; reuse across repos.
+skills-ref validate ./<skill-name>
+
+# 2. Loader dry-run — confirms the `skills` CLI (skills.sh ecosystem,
+#    one of the most common consumer loaders) discovers the skill.
+#    Catches some structural issues skills-ref doesn't (e.g. discovery-
+#    location mistakes when nested too deep).
 npx skills add ./<skill-name> --list
 
-# 2. Shell script syntax (only if the skill ships scripts).
+# 3. Shell script syntax (only if the skill ships scripts).
 bash -n <skill-name>/scripts/*.sh
 
-# 3. JSON asset validity (only if the skill ships JSON assets).
+# 4. JSON asset validity (only if the skill ships JSON assets).
 jq empty <skill-name>/assets/*.json
 
-# 4. File hygiene — UTF-8 / LF / no BOM.
+# 5. File hygiene — UTF-8 / LF / no BOM.
 file <skill-name>/SKILL.md           # expect "ASCII text" or "UTF-8 Unicode text"
 grep -rl $'\r' <skill-name>/ || true # expect no output (no CRLF anywhere); grep exits 1 when nothing matches, which is the success case here — `|| true` keeps CI scripts happy.
 head -c 3 <skill-name>/SKILL.md | od -An -tx1
@@ -70,9 +76,17 @@ head -c 3 <skill-name>/SKILL.md | od -An -tx1
                                      # — if you see ef bb bf, strip the UTF-8 BOM
 ```
 
-If any check fails, fix the underlying issue rather than working around it. The loader dry-run alone is not enough — it parses YAML and walks the directory but will not flag CRLF line endings, an unlabelled code fence, or a syntactically broken script.
+If any check fails, fix the underlying issue rather than working around it. `skills-ref` and the loader dry-run together cover spec compliance and discovery; the remaining commands cover encoding, scripts, and assets that neither tool flags.
 
-To validate the whole repo at once: `npx skills add . --list` from the root.
+To validate the whole repo at once:
+
+```bash
+for s in */; do skills-ref validate "$s" 2>&1; done   # spec
+npx skills add . --list                                # loader
+
+# Or use the all-in-one harness:
+./testing/e2e-ciq.sh
+```
 
 ## Modifying an existing skill
 
@@ -80,16 +94,16 @@ To validate the whole repo at once: `npx skills add . --list` from the root.
 - Behavior changes — open an issue first if the skill has been around for a while; someone may be relying on the current behavior.
 - Breaking changes to the trigger description — call this out explicitly in the PR title and body.
 
-## skills.sh acceptance criteria
+## Agent Skills specification compliance
 
-Skills in this repo follow the [skills.sh](https://skills.sh) / [vercel-labs/skills](https://github.com/vercel-labs/skills) Agent Skills specification so that the same directory can be installed across the 50+ agents the `skills` CLI supports. A skill that doesn't follow these rules will fail discovery, fail the routine security audit, or be rejected at PR review.
+Skills in this repo conform to the [Agent Skills specification](https://agentskills.io/specification) hosted at agentskills.io. The canonical validator is `skills-ref` (Python; `pipx install <agentskills-repo>/skills-ref`); the [`skills`](https://skills.sh) CLI / [`vercel-labs/skills`](https://github.com/vercel-labs/skills) is one of 50+ consumer agents that loads skills following the same spec. A skill that doesn't satisfy the spec will fail `skills-ref validate`, fail the loader's discovery scan, or be rejected at PR review.
 
 ### 1. File structure
 
-- Every skill is a directory; the directory name is the skill's slug (lowercase, hyphens allowed, no spaces or uppercase).
-- The directory **must** contain a file named exactly `SKILL.md` (case-sensitive). The CLI's loader keys off this filename and will not find `skill.md`, `Skill.md`, `README.md`, or anything else.
-- Optional subdirectories: `scripts/`, `references/`, `assets/`. Anything outside these is ignored by most loaders — don't rely on it.
-- The skill directory must live in one of the discovery locations the CLI scans: the repo root, `skills/`, `skills/.curated/`, `skills/.experimental/`, `skills/.system/`, or an agent-specific path (`.claude/skills/`, `.cursor/skills/`, `.agents/skills/`, etc.). Skills nested deeper will not be found.
+- Every skill is a directory; the directory name is the skill's slug.
+- The directory **must** contain a file named exactly `SKILL.md` (case-sensitive). The loader keys off this filename and will not find `skill.md`, `Skill.md`, `README.md`, or anything else.
+- Optional subdirectories named by the spec: `scripts/`, `references/`, `assets/`. Additional files and directories are allowed by the spec, though most loaders ignore them.
+- The skill directory should live in one of the discovery locations the `skills` CLI scans (when used as the loader): the repo root, `skills/`, `skills/.curated/`, `skills/.experimental/`, `skills/.system/`, or an agent-specific path (`.claude/skills/`, `.cursor/skills/`, `.agents/skills/`, etc.). This repo places skills at the root.
 - No symlinks, no executable bit on `SKILL.md`, no binary files at the skill root.
 
 ### 2. Frontmatter
@@ -99,22 +113,25 @@ Skills in this repo follow the [skills.sh](https://skills.sh) / [vercel-labs/ski
 ```yaml
 ---
 name: your-skill-name
-description: One sentence describing what it does. Use when [trigger conditions].
+description: One or two sentences describing what it does and when to invoke it.
+license: Apache-2.0
+compatibility: Requires curl, bash 4+, and network access to the relevant IndyKite endpoints.
 ---
 ```
 
-**Required fields**
+**Required fields** (per [the spec](https://agentskills.io/specification)):
 
-- `name` — unique within this repo, lowercase, hyphens allowed, no spaces, no uppercase, no leading/trailing dashes. It should match the directory name.
-- `description` — a single sentence (or two short ones) that names *what* the skill does and *when* to invoke it. This string is what agents match on, so vague descriptions get vague triggering. Don't include angle brackets (`<`, `>`) — they break some YAML parsers downstream.
+- `name` — 1–64 characters, lowercase letters / digits / hyphens only, no leading/trailing/consecutive hyphens. **Must match the parent directory name.**
+- `description` — 1–1024 characters, non-empty. Must describe what the skill does *and* when to invoke it; the agent matches on this string, so vague descriptions get vague triggering. Aim for a precise two-sentence form.
 
-**Optional fields**
+**Optional fields** (per the spec):
 
-- `metadata.internal: true` — hides the skill from normal discovery. Only the `INSTALL_INTERNAL_SKILLS=1` flag surfaces it. Use sparingly, and only for skills that wouldn't be useful to a general audience.
-- `allowed-tools` — restricts which tools the agent may call while the skill is active. Note: not all agents honor this field; treat it as advisory.
-- `context: fork` — runs the skill in a forked context. Same caveat: limited compatibility, do not rely on it as your only safety boundary.
+- `license` — short license name or reference to a bundled file. This repo uses `Apache-2.0`.
+- `compatibility` — 1–500 characters describing environment requirements (intended product, system packages, network access). Most CIQ skills here use `"Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API …"`. Omit if your skill has no real requirements.
+- `metadata` — arbitrary key-value mapping. The spec recommends reasonably-unique keys to avoid collisions. Some loaders (e.g. the `skills` CLI) recognise `metadata.internal: true` as "hide from default discovery" — that's a loader extension, not a core spec field.
+- `allowed-tools` — space-separated string of pre-approved tools (experimental; honoured by some agents, ignored by others).
 
-Anything else in frontmatter is non-standard and may be stripped by the loader. Don't add fields the spec doesn't define.
+Anything not listed above is non-standard. Don't invent new top-level fields; use `metadata.<key>` for project-specific extensions.
 
 ### 3. Content requirements
 

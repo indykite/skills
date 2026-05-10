@@ -1,0 +1,19 @@
+{
+  "name": "kq-app-annotate-played-at",
+  "display_name": "App Query: Annotate Track-PLAYED_AT->Venue",
+  "description": "Set verified and first_played_at on an existing PLAYED_AT relationship between a given Track and Venue.",
+  "policy_id": "<paste-policy-gid-here>",
+  "query": {
+    "upsert_relationships": [
+      {
+        "name": "r",
+        "properties": [
+          { "type": "verified",        "value": true },
+          { "type": "first_played_at", "value": "$first_played_at" }
+        ]
+      }
+    ],
+    "relationships": ["r"]
+  },
+  "status": "ACTIVE"
+}

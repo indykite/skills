@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# execute.sh — call POST /contx-iq/v1/execute with the right headers.
+# execute.sh — call POST /contx-iq/v1/execute to run a combined-create Knowledge Query.
 #
 # Required env vars:
 #   API_URL       e.g. https://us.api.indykite.com  (no trailing slash)
@@ -11,13 +11,13 @@
 #                 subject.type is NOT _Application; omit otherwise.
 #
 # Arguments:
-#   $1            Path to a JSON file containing input_params, e.g.
-#                 { "person_external_id": "alice" }
+#   $1            Path to a JSON file containing input_params.
 #                 Use "-" to read from stdin.
 #
 # Usage:
 #   ./execute.sh input_params.json
-#   echo '{"person_external_id":"alice"}' | ./execute.sh -
+#   echo '{"vehicleID":"car2","personID":"ryan","contract_external_id":"ct853","contractNumber":"rbjh853"}' \
+#     | ./execute.sh -
 
 set -euo pipefail
 

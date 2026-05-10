@@ -1,6 +1,8 @@
 ---
 name: indykite-agent-gateway
 description: Deploy and configure IndyKite Agent Gateway (IAG) in front of agent-to-agent (A2A) workflows. Use when wiring up A2A policy enforcement, modeling workflows in the IKG, or debugging IAG 401/403 responses.
+license: Apache-2.0
+compatibility: Requires Docker and Docker Compose for the iag-demo reference deployment, or a Kubernetes cluster for production. Runtime network access to the configured IndyKite Hub, OAuth IdP, AuthZEN, and ContX IQ endpoints is required.
 ---
 
 # IndyKite Agent Gateway

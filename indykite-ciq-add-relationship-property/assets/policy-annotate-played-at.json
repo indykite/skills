@@ -1,0 +1,44 @@
+{
+  "name": "ciq-app-annotate-played-at",
+  "display_name": "App: Annotate Track-PLAYED_AT->Venue relationship",
+  "description": "Allow an _Application subject to set verified and first_played_at properties on an existing PLAYED_AT relationship.",
+  "policy": {
+    "meta": {
+      "policy_version": "1.0-ciq"
+    },
+    "subject": {
+      "type": "_Application"
+    },
+    "condition": {
+      "cypher": "MATCH (subject:_Application) MATCH (track:Track)-[r:PLAYED_AT]->(venue:Venue)",
+      "filter": [
+        {
+          "operator": "AND",
+          "operands": [
+            {
+              "operator": "=",
+              "attribute": "subject.external_id",
+              "value": "$_appId"
+            },
+            {
+              "operator": "=",
+              "attribute": "track.external_id",
+              "value": "$track_external_id"
+            },
+            {
+              "operator": "=",
+              "attribute": "venue.external_id",
+              "value": "$venue_external_id"
+            }
+          ]
+        }
+      ]
+    },
+    "allowed_upserts": {
+      "relationships": {
+        "existing_relationships": ["r"]
+      }
+    }
+  },
+  "status": "ACTIVE"
+}

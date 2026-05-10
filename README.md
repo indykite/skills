@@ -11,6 +11,28 @@ A skill is a self-contained bundle of instructions — and optionally scripts, r
 | [`indykite-agent-gateway`](indykite-agent-gateway/SKILL.md)     | Deploy and configure Indykite Agent Gateway (IAG) in front of A2A agents to enforce caller, workflow, and delegation-chain checks. |
 | [`indykite-mcp-server`](indykite-mcp-server/SKILL.md)           | Call the IndyKite MCP server (initialize session, list tools, call AuthZEN and ContX IQ tools) and configure the MCP server endpoint for a project. |
 | [`indykite-ciq-read`](indykite-ciq-read/SKILL.md)               | Author a read-only IndyKite ContX IQ (CIQ) policy and Knowledge Query, then run it via `POST /contx-iq/v1/execute`. |
+| [`indykite-ciq-create-node`](indykite-ciq-create-node/SKILL.md) | Author an IndyKite CIQ policy + Knowledge Query that creates a brand-new node in the IKG, then run it via `POST /contx-iq/v1/execute`. |
+| [`indykite-ciq-create-relationship`](indykite-ciq-create-relationship/SKILL.md) | Author an IndyKite CIQ policy + Knowledge Query that creates a brand-new relationship between two existing nodes in the IKG, then run it via `POST /contx-iq/v1/execute`. |
+| [`indykite-ciq-add-property`](indykite-ciq-add-property/SKILL.md) | Author an IndyKite CIQ policy + Knowledge Query that sets one or more properties on an existing node in the IKG, then run it via `POST /contx-iq/v1/execute`. |
+| [`indykite-ciq-add-relationship-property`](indykite-ciq-add-relationship-property/SKILL.md) | Author an IndyKite CIQ policy + Knowledge Query that sets one or more properties on an existing relationship in the IKG, then run it via `POST /contx-iq/v1/execute`. |
+| [`indykite-ciq-delete`](indykite-ciq-delete/SKILL.md) | Author an IndyKite CIQ policy + Knowledge Query that deletes a node, a relationship, or one or more properties from the IKG, then run it via `POST /contx-iq/v1/execute`. |
+| [`indykite-ciq-create-node-with-link`](indykite-ciq-create-node-with-link/SKILL.md) | Author an IndyKite CIQ policy + Knowledge Query that creates a brand-new node AND links it to one or more existing nodes via new relationships in a single atomic execute. |
+
+## Examples gallery
+
+Sample prompts each skill is *designed* to handle. Derived from each skill's `description` and `## When to use` — they describe the kinds of asks the skill targets. **Activation isn't guaranteed**: which skill actually fires depends on the agent's matching algorithm, the model, and which other skills are installed. Verify routing in your own setup before relying on it.
+
+| Skill                                       | Example prompt                                                                                          |
+|---------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `indykite-agent-gateway`                     | "Deploy IAG in front of my three A2A agents and wire up the workflow in the IKG."                       |
+| `indykite-mcp-server`                        | "How do I initialise an MCP session against `eu.mcp.indykite.com` and call `authzen_evaluate`?"          |
+| `indykite-ciq-read`                          | "Expose `Person`-`OWNS`-`Car` as a parameterised read query through ContX IQ."                          |
+| `indykite-ciq-create-node`                   | "Create a new `Track` node in the IKG with `title` and `loudness`, via CIQ."                            |
+| `indykite-ciq-create-relationship`           | "Add a `PLAYED_AT` relationship between an existing `Track` and an existing `Venue`."                    |
+| `indykite-ciq-create-node-with-link`         | "Create a new `Contract` and atomically link it to an existing `Vehicle` and `Person`."                   |
+| `indykite-ciq-add-property`                  | "Let a `Person` update their own `music_mood` property."                                                |
+| `indykite-ciq-add-relationship-property`     | "Annotate an existing `PLAYED_AT` relationship with a `verified` flag and timestamp."                    |
+| `indykite-ciq-delete`                        | "Clear the `music_mood` property from a `Person` — GDPR-style erase."                                   |
 
 ## Supported agents
 
@@ -132,6 +154,7 @@ description: What it does. Use when [trigger conditions].
 
 ## Contributing & security
 
-- Want to add a new skill, fix one, or change the conventions? See [`contributing.md`](contributing.md) — it covers the quality bar, style, testing checklist, the skills.sh acceptance criteria, the submission process, and the code of conduct.
+- Want to add a new skill, fix one, or change the conventions? See [`contributing.md`](contributing.md) — it covers the quality bar, style, testing checklist, [Agent Skills specification](https://agentskills.io/specification) compliance, the submission process, and the code of conduct.
+- Want to *exercise* the skills (structural validation, dry-run smoke tests, or live API roundtrips)? See [`testing/README.md`](testing/README.md). The runnable harness is `./testing/e2e-ciq.sh`.
 - Found a security issue (a skill that produces unsafe instructions, leaks secrets, or could be used to attack consumers)? See [`responsible_disclosure.md`](responsible_disclosure.md) before opening a public issue.
 - The `LICENSE` at the repo root applies to every file in the tree.

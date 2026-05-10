@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# execute.sh — call POST /contx-iq/v1/execute with the right headers.
+# execute.sh — call POST /contx-iq/v1/execute to run a create-relationship Knowledge Query.
 #
 # Required env vars:
 #   API_URL       e.g. https://us.api.indykite.com  (no trailing slash)
@@ -9,15 +9,19 @@
 # Optional env vars:
 #   BEARER_TOKEN  User OAuth access token. Required when the policy's
 #                 subject.type is NOT _Application; omit otherwise.
+#                 For the running example (subject _Application) this is
+#                 NOT set.
 #
 # Arguments:
 #   $1            Path to a JSON file containing input_params, e.g.
-#                 { "person_external_id": "alice" }
+#                 { "track_external_id": "track-99",
+#                   "venue_external_id": "venue-1" }
 #                 Use "-" to read from stdin.
 #
 # Usage:
 #   ./execute.sh input_params.json
-#   echo '{"person_external_id":"alice"}' | ./execute.sh -
+#   echo '{"track_external_id":"track-99","venue_external_id":"venue-1"}' \
+#     | ./execute.sh -
 
 set -euo pipefail
 

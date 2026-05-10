@@ -1,4 +1,9 @@
 {
-  "nodes": ["subject", "car"],
-  "relationships": ["r"]
+  "nodes": [
+    "subject",
+    "car"
+  ],
+  "relationships": [
+    "r"
+  ]
 }

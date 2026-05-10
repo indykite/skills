@@ -1,6 +1,8 @@
 ---
 name: indykite-ciq-read
 description: Author a read-only IndyKite ContX IQ (CIQ) policy plus its Knowledge Query, then run it via `POST /contx-iq/v1/execute`. Use when exposing IKG nodes, relationships, or aggregate values as a parameterized read query — no upserts, no deletes.
+license: Apache-2.0
+compatibility: Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
 
 # IndyKite ContX IQ — read-only policy + Knowledge Query
@@ -43,10 +45,16 @@ If any of these are missing, stop and tell the user — fixing them first is muc
 
 ### 1. Pick the subject and the Cypher pattern
 
-Decide:
+**Subject type** — pick one. The schema is identical across both choices; only `subject.type`, the filter, and the execute-time auth differ:
 
-- **Subject type** — exactly one (e.g. `Person`). The subject is the entity whose access you are authorizing; its variable in `cypher` will usually be named `subject` to match conventions.
-- **Cypher pattern** — the `MATCH` / `OPTIONAL MATCH` clauses naming every node and relationship the query will touch. Each one must have a **variable name** so the policy and Knowledge Query can reference it.
+| Subject           | Use when                                                       | Auth at execute time                                | Filter convention                              |
+|-------------------|----------------------------------------------------------------|------------------------------------------------------|------------------------------------------------|
+| `_Application`    | System-side / ETL / catalog work; no user in the loop.          | `X-IK-ClientKey` only.                               | `subject.external_id = $_appId` (reserved).    |
+| `Person` / `User` | The authenticated user is performing the operation themselves.  | `X-IK-ClientKey` + `Authorization: Bearer <token>`.  | `subject.external_id = $token.sub`.            |
+
+A policy is restricted to a single subject type — if both should be allowed, write two policies. The subject's variable in `cypher` is conventionally named `subject`. The runnable example below uses `Person`; an `_Application` variant — for example, a service reading the catalog — differs only in `subject.type`, the filter, and the execute headers.
+
+**Cypher pattern** — the `MATCH` / `OPTIONAL MATCH` clauses naming every node and relationship the query will touch. Each one must have a **variable name** so the policy and Knowledge Query can reference it.
 
 Working example used throughout this skill:
 

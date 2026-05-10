@@ -1,0 +1,27 @@
+{
+  "name": "ciq-person-delete-music-mood",
+  "display_name": "Person: Delete Own music_mood",
+  "description": "Allow a Person subject to delete the music_mood property on their own Person node.",
+  "policy": {
+    "meta": {
+      "policy_version": "1.0-ciq"
+    },
+    "subject": {
+      "type": "Person"
+    },
+    "condition": {
+      "cypher": "MATCH (subject:Person)",
+      "filter": [
+        {
+          "operator": "=",
+          "attribute": "subject.external_id",
+          "value": "$token.sub"
+        }
+      ]
+    },
+    "allowed_deletes": {
+      "nodes": ["subject.property.music_mood"]
+    }
+  },
+  "status": "ACTIVE"
+}

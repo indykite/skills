@@ -1,0 +1,29 @@
+{
+  "name": "ciq-person-update-own-profile",
+  "display_name": "Person: Update Own Profile",
+  "description": "Allow a Person subject to set properties on their own Person node. Identity comes from the Bearer token's sub claim.",
+  "policy": {
+    "meta": {
+      "policy_version": "1.0-ciq"
+    },
+    "subject": {
+      "type": "Person"
+    },
+    "condition": {
+      "cypher": "MATCH (subject:Person)",
+      "filter": [
+        {
+          "operator": "=",
+          "attribute": "subject.external_id",
+          "value": "$token.sub"
+        }
+      ]
+    },
+    "allowed_upserts": {
+      "nodes": {
+        "existing_nodes": ["subject"]
+      }
+    }
+  },
+  "status": "ACTIVE"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "kq-person-delete-music-mood",
+  "display_name": "Person Query: Delete Own music_mood",
+  "description": "Delete the music_mood property on the authenticated user's Person node.",
+  "policy_id": "<paste-policy-gid-here>",
+  "query": {
+    "delete_nodes": ["subject.property.music_mood"]
+  },
+  "status": "ACTIVE"
+}

@@ -1,0 +1,36 @@
+{
+  "name": "kq-app-create-contract",
+  "display_name": "App Query: Create Contract and link to Vehicle + Person",
+  "description": "Atomic combined-create: a new Contract node, a COVERS relationship to an existing Vehicle, and an ACCEPTED relationship from an existing Person.",
+  "policy_id": "<paste-policy-gid-here>",
+  "query": {
+    "upsert_nodes": [
+      {
+        "name": "contract",
+        "type": "Contract",
+        "external_id": "$contract_external_id",
+        "properties": [
+          { "type": "number", "value": "$contractNumber" },
+          { "type": "status", "value": "Active" }
+        ]
+      }
+    ],
+    "upsert_relationships": [
+      {
+        "name": "r3",
+        "source": "contract",
+        "target": "vehicle",
+        "type": "COVERS"
+      },
+      {
+        "name": "r4",
+        "source": "person",
+        "target": "contract",
+        "type": "ACCEPTED"
+      }
+    ],
+    "nodes": ["contract.external_id", "contract.property.number"],
+    "relationships": ["r3", "r4"]
+  },
+  "status": "ACTIVE"
+}

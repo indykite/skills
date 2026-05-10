@@ -1,0 +1,50 @@
+{
+  "name": "ciq-app-create-played-at",
+  "display_name": "App: Create Track-PLAYED_AT->Venue relationship",
+  "description": "Allow an _Application subject to add a PLAYED_AT relationship from an existing Track to an existing Venue.",
+  "policy": {
+    "meta": {
+      "policy_version": "1.0-ciq"
+    },
+    "subject": {
+      "type": "_Application"
+    },
+    "condition": {
+      "cypher": "MATCH (subject:_Application) MATCH (track:Track) MATCH (venue:Venue)",
+      "filter": [
+        {
+          "operator": "AND",
+          "operands": [
+            {
+              "operator": "=",
+              "attribute": "subject.external_id",
+              "value": "$_appId"
+            },
+            {
+              "operator": "=",
+              "attribute": "track.external_id",
+              "value": "$track_external_id"
+            },
+            {
+              "operator": "=",
+              "attribute": "venue.external_id",
+              "value": "$venue_external_id"
+            }
+          ]
+        }
+      ]
+    },
+    "allowed_upserts": {
+      "relationships": {
+        "relationship_types": [
+          {
+            "type": "PLAYED_AT",
+            "source_node_label": "Track",
+            "target_node_label": "Venue"
+          }
+        ]
+      }
+    }
+  },
+  "status": "ACTIVE"
+}

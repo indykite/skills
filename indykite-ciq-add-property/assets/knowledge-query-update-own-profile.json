@@ -1,0 +1,22 @@
+{
+  "name": "kq-person-update-own-profile",
+  "display_name": "Person Query: Update Own Profile",
+  "description": "Set music_mood and dance_skill properties on the authenticated user's Person node.",
+  "policy_id": "<paste-policy-gid-here>",
+  "query": {
+    "upsert_nodes": [
+      {
+        "name": "subject",
+        "properties": [
+          { "type": "music_mood",  "value": "$new_music_mood" },
+          { "type": "dance_skill", "value": "$new_dance_skill" }
+        ]
+      }
+    ],
+    "nodes": [
+      "subject.property.music_mood",
+      "subject.property.dance_skill"
+    ]
+  },
+  "status": "ACTIVE"
+}
