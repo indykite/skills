@@ -4,6 +4,19 @@ This reference covers the fields a *create-only* CIQ policy uses, plus the parts
 
 For the read-focused variant, see [`indykite-ciq-read/references/policy-reference.md`](../../indykite-ciq-read/references/policy-reference.md).
 
+## Top-level structure
+
+The policy has four top-level keys, all siblings:
+
+| Key                | Use                                                                                        |
+|--------------------|--------------------------------------------------------------------------------------------|
+| `meta`             | Set `policy_version: "1.0-ciq"`.                                                            |
+| `subject`          | Set `type` to the authenticating entity (e.g. `_Application`, `Person`).                    |
+| `condition`        | Anchor the subject with a `MATCH` clause and pin it with a filter.                          |
+| `allowed_upserts`  | Use `nodes.node_types` to whitelist the labels the Knowledge Query may create as new nodes. |
+
+When adapting to a new domain, only the *contents* of `condition` and `allowed_upserts.nodes.node_types` change; the four-key structure stays the same.
+
 ## Skeleton
 
 ```json

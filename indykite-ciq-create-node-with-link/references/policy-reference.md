@@ -4,6 +4,19 @@ This reference covers the fields a *combined-create* CIQ policy uses (creating a
 
 For the single-operation variants see [`indykite-ciq-create-node`](../../indykite-ciq-create-node/references/policy-reference.md) and [`indykite-ciq-create-relationship`](../../indykite-ciq-create-relationship/references/policy-reference.md).
 
+## Top-level structure
+
+The policy has four top-level keys, all siblings:
+
+| Key                | Use                                                                                                                       |
+|--------------------|---------------------------------------------------------------------------------------------------------------------------|
+| `meta`             | Set `policy_version: "1.0-ciq"`.                                                                                           |
+| `subject`          | Set `type` to the authenticating entity (e.g. `_Application`).                                                              |
+| `condition`        | Match the subject AND every existing endpoint the new node will link to; pin them with filters.                              |
+| `allowed_upserts`  | Use `nodes.node_types` to whitelist the new node's label *and* `relationships.relationship_types` for each new edge's triple. |
+
+When adapting to a new domain, only the *contents* of `condition` and the two `allowed_upserts` sub-blocks change; the four-key structure stays the same.
+
 ## Skeleton
 
 ```json

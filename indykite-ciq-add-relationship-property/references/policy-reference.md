@@ -4,6 +4,19 @@ This reference covers the fields a *relationship-property-write-only* CIQ policy
 
 For the node-property variant see [`indykite-ciq-add-property/references/policy-reference.md`](../../indykite-ciq-add-property/references/policy-reference.md). For relationship creation see [`indykite-ciq-create-relationship/references/policy-reference.md`](../../indykite-ciq-create-relationship/references/policy-reference.md).
 
+## Top-level structure
+
+The policy has four top-level keys, all siblings:
+
+| Key                | Use                                                                                                                |
+|--------------------|--------------------------------------------------------------------------------------------------------------------|
+| `meta`             | Set `policy_version: "1.0-ciq"`.                                                                                    |
+| `subject`          | Set `type` to the authenticating entity (e.g. `_Application`, `Person`).                                            |
+| `condition`        | Match the subject and bind the existing relationship to a variable; pin both endpoints with `external_id` filters.  |
+| `allowed_upserts`  | Use `relationships.existing_relationships` to whitelist the cypher relationship variables whose properties the KQ may set. |
+
+When adapting to a new domain, only the *contents* of `condition` and `allowed_upserts.relationships.existing_relationships` change; the four-key structure stays the same.
+
 ## Skeleton
 
 ```json

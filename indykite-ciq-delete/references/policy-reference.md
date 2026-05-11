@@ -4,6 +4,19 @@ This reference covers the fields a *delete-only* CIQ policy uses, plus the parts
 
 For other CIQ operations see the matching skills' policy references.
 
+## Top-level structure
+
+The policy has four top-level keys, all siblings:
+
+| Key               | Use                                                                                                          |
+|-------------------|--------------------------------------------------------------------------------------------------------------|
+| `meta`            | Set `policy_version: "1.0-ciq"`.                                                                              |
+| `subject`         | Set `type` to the authenticating entity (e.g. `Person`, `_Application`).                                       |
+| `condition`       | Match the subject and the element(s) to delete; pin them with a filter.                                       |
+| `allowed_deletes` | Use `nodes` and/or `relationships` to whitelist what may be deleted (variables, properties, or wildcards).    |
+
+When adapting to a new domain, only the *contents* of `condition` and `allowed_deletes` change; the four-key structure stays the same.
+
 ## Skeleton
 
 ```json

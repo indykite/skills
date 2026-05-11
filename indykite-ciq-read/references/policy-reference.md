@@ -2,6 +2,19 @@
 
 This reference covers the fields a read-only CIQ policy uses, plus the parts of the schema you need to recognize even if you do not write them (so you can tell whether an existing policy is read-only or not).
 
+## Top-level structure
+
+The policy has four top-level keys, all siblings:
+
+| Key             | Use                                                                                       |
+|-----------------|-------------------------------------------------------------------------------------------|
+| `meta`          | Set `policy_version: "1.0-ciq"`.                                                           |
+| `subject`       | Set `type` to the authenticating entity (e.g. `Person`, `_Application`).                   |
+| `condition`     | Match the graph elements the read covers; pin them with a filter.                          |
+| `allowed_reads` | Whitelist which node / relationship / aggregate variables the Knowledge Query may project. |
+
+When adapting to a new domain, only the *contents* of `condition` and `allowed_reads` change; the four-key structure stays the same.
+
 ## Skeleton
 
 ```json
