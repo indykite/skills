@@ -4,7 +4,7 @@ Thank you for taking the time to help keep this project — and the agents that 
 
 ## Why skills need a disclosure process
 
-Skills are loaded directly into the context of coding agents — Claude Code, Claude Agent SDK, Cursor, GitHub Copilot, Aider, Continue, Cody, Windsurf, OpenAI Codex CLI, Goose, Gemini CLI, and similar tools. A malicious or buggy skill can do more than crash a program: it can steer an agent into running unsafe shell commands, exfiltrating files, or producing insecure code. Treat security issues here with the same seriousness as a vulnerability in a runtime library.
+Skills are loaded directly into the context of coding agents and run with whatever tool access the host gives them. A malicious or buggy skill can do more than crash a program: it can steer an agent into running unsafe shell commands, exfiltrating files, or producing insecure code. Treat security issues here with the same seriousness as a vulnerability in a runtime library.
 
 ## In scope
 
@@ -16,7 +16,7 @@ Skills are loaded directly into the context of coding agents — Claude Code, Cl
 
 ## Out of scope
 
-- Vulnerabilities in the host agent itself — report those upstream to the agent's vendor (e.g. Anthropic for Claude Code / Claude Agent SDK, Anysphere for Cursor, GitHub for Copilot, Sourcegraph for Cody, Codeium for Windsurf, OpenAI for Codex CLI, Google for Gemini CLI, the maintainers for Aider / Continue / Goose).
+- Vulnerabilities in the host agent itself — report those upstream to the agent's vendor (Anthropic for Claude Code / Claude Agent SDK, Google for Gemini CLI, and so on for whichever agent is loading the skill).
 - Issues that require an already-compromised machine or a malicious operator.
 - Theoretical concerns without a demonstrable trigger.
 

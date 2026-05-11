@@ -1,0 +1,61 @@
+{
+  "name": "indykite-skills",
+  "version": "1.0.0",
+  "description": "IndyKite skills for coding agents — Agent Gateway deployment, MCP server calls, and ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).",
+  "author": {
+    "name": "IndyKite",
+    "email": "support@indykite.com"
+  },
+  "homepage": "https://indykite.ai",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/indykite/skills",
+  "skills": [
+    "./indykite-agent-gateway",
+    "./indykite-mcp-server",
+    "./indykite-ciq-read",
+    "./indykite-ciq-create-node",
+    "./indykite-ciq-create-relationship",
+    "./indykite-ciq-create-node-with-link",
+    "./indykite-ciq-add-property",
+    "./indykite-ciq-add-relationship-property",
+    "./indykite-ciq-delete"
+  ],
+  "userConfig": {
+    "API_URL": {
+      "title": "API URL",
+      "description": "IndyKite REST API base URL for the project's region (e.g. https://us.api.indykite.com or https://eu.api.indykite.com).",
+      "type": "string",
+      "sensitive": false
+    },
+    "API_KEY": {
+      "title": "AppAgent token (X-IK-ClientKey)",
+      "description": "AppAgent credentials token. Goes into the X-IK-ClientKey header on every CIQ / MCP call. Mint via POST /configs/v1/application-agent-credentials.",
+      "type": "string",
+      "sensitive": true
+    },
+    "BEARER_TOKEN": {
+      "title": "User OAuth token (Authorization Bearer)",
+      "description": "User OAuth access token. Required for Person-subject CIQ flows and for MCP session initialisation; omit for _Application-subject flows.",
+      "type": "string",
+      "sensitive": true
+    },
+    "SERVICE_ACCOUNT_TOKEN": {
+      "title": "Service Account token",
+      "description": "Token with Config API write access. Used to create CIQ policies and Knowledge Queries (POST /configs/v1/authorization-policies and POST /configs/v1/knowledge-queries). Not required to execute existing Knowledge Queries.",
+      "type": "string",
+      "sensitive": true
+    },
+    "MCP_URL": {
+      "title": "MCP server URL",
+      "description": "IndyKite MCP server base URL for the project's region (e.g. https://us.mcp.indykite.com or https://eu.mcp.indykite.com). Required only when using the indykite-mcp-server skill.",
+      "type": "string",
+      "sensitive": false
+    },
+    "PROJECT_GID": {
+      "title": "Project GID",
+      "description": "IndyKite project identifier. Visible in the Hub UI on the project settings page; required by indykite-mcp-server for the URL path.",
+      "type": "string",
+      "sensitive": false
+    }
+  }
+}

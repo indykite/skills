@@ -36,9 +36,29 @@ Sample prompts each skill is *designed* to handle. Derived from each skill's `de
 
 ## Supported agents
 
-The skills here are installed by the [`skills`](https://skills.sh) CLI, which supports **50+ agents** — Claude Code, Cursor, GitHub Copilot, Continue, Windsurf, Cline, Roo, OpenCode, Goose, Aider-Desk, Codex CLI, Gemini CLI, and many others. Run `npx skills add <repo> --agent <name>` for a specific agent, or omit `--agent` to install into every supported agent detected in the current environment. Passing an unknown name (e.g. `--agent foobar`) makes the CLI print the full valid list.
+These skills are installed via the [`skills`](https://skills.sh) CLI (skills.sh / [`vercel-labs/skills`](https://github.com/vercel-labs/skills)) — a **cross-agent installer**. One command, many agents: the CLI knows the per-agent install location for every agent it supports, and you target one (or all of them) via the `--agent` flag.
 
-**Native `SKILL.md` support** — meaning the agent reads the YAML frontmatter and activates skills *automatically* by matching the user's prompt against `description` — is a property of the agent, not the CLI. **Claude Code** is the canonical example. Other agents may already have native skill support, or they activate the installed skill via slash commands, explicit selection, or pasted instructions; check the agent's own documentation if automatic activation matters for your workflow.
+```bash
+# Install into every agent the CLI detects on your machine
+npx skills add <repo>
+
+# Install for a specific agent
+npx skills add <repo> --agent claude-code
+
+# See which agent names the CLI accepts in your installed version
+# (a typo prints the full valid set, so you discover it on demand)
+npx skills add <repo> --agent foobar
+```
+
+The CLI accepts **many** agent names — far more than this repo has been tested against. Treat the CLI's own `--agent` list as the source of truth; it stays current as new agents are added.
+
+What we've verified end-to-end in this repo:
+
+- **Claude Code** — `npx skills add <repo> --agent claude-code` installs each skill into `~/.claude/skills/<name>/` (global) or `.claude/skills/<name>/` (project). Claude Code reads `SKILL.md` directly and activates skills automatically by matching the user's prompt against `description`. There is also a bundle-install path via the Claude Code plugin marketplace using [`.claude-plugin/`](.claude-plugin/) — see [Bundle install](#bundle-install-claude-code-plugin--gemini-extension).
+
+For **Gemini CLI**, install via the [`gemini-extension.json`](gemini-extension.json) at the repo root instead — Gemini's extension system has its own loader, independent of the `skills` CLI.
+
+For every other agent the `skills` CLI lists, `npx skills add <repo> --agent <name>` should drop the files in the right place — but **native `SKILL.md` triggering is a property of the agent, not the CLI**. The CLI guarantees files arrive at the right path; whether the agent then activates a skill automatically (by matching the prompt against `description`), via a slash command, or by explicit selection depends on that agent. Check the agent's own documentation when automatic activation matters.
 
 ## Quickstart
 
@@ -97,6 +117,36 @@ If you don't want the CLI, copy or symlink the skill directory into the agent's 
 For **Claude Code**, that location is `~/.claude/skills/<skill-name>/` (user scope) or `.claude/skills/<skill-name>/` (project scope) — Claude Code reads `SKILL.md` directly from there.
 
 For any other agent, consult that agent's own documentation for where it expects rules, instructions, or skills files. Most agents that don't read `SKILL.md` natively expect the *body* of the file (everything after the YAML frontmatter) pasted into their own rule format.
+
+## Bundle install (Claude Code plugin / Gemini extension)
+
+For agents that support a single labelled plugin install, this repo ships per-agent manifest files. They register all 9 skills at once and prompt the user for credentials (`API_URL`, `API_KEY`, `BEARER_TOKEN`, `SERVICE_ACCOUNT_TOKEN`, `MCP_URL`, `PROJECT_GID`) at install time.
+
+### Claude Code
+
+The repo ships [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json). Install via Claude Code's plugin marketplace in two steps:
+
+```text
+# 1. Register this repo as a marketplace
+/plugin marketplace add indykite/skills
+
+# 2. Install the plugin from it
+/plugin install indykite-skills
+```
+
+### Gemini CLI
+
+The repo ships [`gemini-extension.json`](gemini-extension.json) at the root. Install via Gemini CLI's extension command:
+
+```bash
+gemini extensions install https://github.com/indykite/skills
+```
+
+Gemini reads the extension manifest, uses `contextFileName` (the repo's `README.md`) as loaded context, and exposes each entry in `settings` as an environment variable. The six configuration values (`API_URL`, `API_KEY`, `BEARER_TOKEN`, `SERVICE_ACCOUNT_TOKEN`, `MCP_URL`, `PROJECT_GID`) are the same as the Claude Code `userConfig` schema, sharing one source of truth in `manifest.yaml`.
+
+### Per-skill install via the `skills` CLI
+
+If you only want one or two of the skills, or your agent doesn't have a plugin marketplace, use `npx skills add indykite/skills --agent <name>` — see [Supported agents](#supported-agents) above. The bundle install registers all 9 skills with credential prompts; the per-skill install lets you cherry-pick and leaves credentials to env vars.
 
 ## How skills activate
 

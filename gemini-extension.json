@@ -1,0 +1,38 @@
+{
+  "name": "indykite-skills",
+  "version": "1.0.0",
+  "description": "IndyKite skills for coding agents — Agent Gateway deployment, MCP server calls, and ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).",
+  "contextFileName": "README.md",
+  "settings": [
+    {
+      "name": "API URL",
+      "description": "IndyKite REST API base URL for the project's region (e.g. https://us.api.indykite.com or https://eu.api.indykite.com).",
+      "envVar": "API_URL"
+    },
+    {
+      "name": "AppAgent token (X-IK-ClientKey)",
+      "description": "AppAgent credentials token. Goes into the X-IK-ClientKey header on every CIQ / MCP call. Mint via POST /configs/v1/application-agent-credentials.",
+      "envVar": "API_KEY"
+    },
+    {
+      "name": "User OAuth token (Authorization Bearer)",
+      "description": "User OAuth access token. Required for Person-subject CIQ flows and for MCP session initialisation; omit for _Application-subject flows.",
+      "envVar": "BEARER_TOKEN"
+    },
+    {
+      "name": "Service Account token",
+      "description": "Token with Config API write access. Used to create CIQ policies and Knowledge Queries (POST /configs/v1/authorization-policies and POST /configs/v1/knowledge-queries). Not required to execute existing Knowledge Queries.",
+      "envVar": "SERVICE_ACCOUNT_TOKEN"
+    },
+    {
+      "name": "MCP server URL",
+      "description": "IndyKite MCP server base URL for the project's region (e.g. https://us.mcp.indykite.com or https://eu.mcp.indykite.com). Required only when using the indykite-mcp-server skill.",
+      "envVar": "MCP_URL"
+    },
+    {
+      "name": "Project GID",
+      "description": "IndyKite project identifier. Visible in the Hub UI on the project settings page; required by indykite-mcp-server for the URL path.",
+      "envVar": "PROJECT_GID"
+    }
+  ]
+}

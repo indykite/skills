@@ -37,7 +37,7 @@ A skill is only useful if an agent invokes it at the right moment. Aim for:
 
 Before opening a PR:
 
-1. Install it locally in at least one supported agent. The README's install table lists locations for Claude Code, Claude Agent SDK, Cursor, GitHub Copilot, Windsurf, Continue, and Cody.
+1. Install it locally in at least one supported agent. The README's *Supported agents* section names the agent we've verified end-to-end (Claude Code); for any other target, query the `skills` CLI's `--agent` list and pick one.
 2. Restart the agent (or reload its config) so it picks up the new skill.
 3. Try at least three prompts: one that *should* trigger the skill, one that's adjacent but shouldn't, and one edge case. Confirm the agent's behavior matches what the description promises.
 4. If the skill ships scripts, run them directly and check that error paths are handled.
@@ -96,7 +96,7 @@ npx skills add . --list                                # loader
 
 ## Agent Skills specification compliance
 
-Skills in this repo conform to the [Agent Skills specification](https://agentskills.io/specification) hosted at agentskills.io. The canonical validator is `skills-ref` (Python; `pipx install <agentskills-repo>/skills-ref`); the [`skills`](https://skills.sh) CLI / [`vercel-labs/skills`](https://github.com/vercel-labs/skills) is one of 50+ consumer agents that loads skills following the same spec. A skill that doesn't satisfy the spec will fail `skills-ref validate`, fail the loader's discovery scan, or be rejected at PR review.
+Skills in this repo conform to the [Agent Skills specification](https://agentskills.io/specification) hosted at agentskills.io. The canonical validator is `skills-ref` (Python; `pipx install <agentskills-repo>/skills-ref`); the [`skills`](https://skills.sh) CLI / [`vercel-labs/skills`](https://github.com/vercel-labs/skills) is one cross-agent installer that distributes spec-conforming skills into the per-agent locations it knows. A skill that doesn't satisfy the spec will fail `skills-ref validate`, fail the loader's discovery scan, or be rejected at PR review.
 
 ### 1. File structure
 

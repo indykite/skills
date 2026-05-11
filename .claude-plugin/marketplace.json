@@ -1,0 +1,16 @@
+{
+  "name": "indykite-skills-marketplace",
+  "owner": {
+    "name": "IndyKite",
+    "email": "support@indykite.com"
+  },
+  "metadata": {
+    "description": "IndyKite skills for coding agents — Agent Gateway deployment, MCP server calls, and ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete)."
+  },
+  "plugins": [
+    {
+      "name": "indykite-skills",
+      "source": "./"
+    }
+  ]
+}
