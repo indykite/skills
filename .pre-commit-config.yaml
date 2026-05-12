@@ -9,7 +9,6 @@
 #
 # Prerequisites:
 #   brew install pre-commit yamlfmt yamllint actionlint shellcheck shfmt
-#   npm install
 #
 # Excluded vs the full config (deliberate trims):
 #   - markdownlint / yamllint     noisy against default rules; this repo's docs

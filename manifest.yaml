@@ -19,7 +19,7 @@ common:
     (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).
   author:
     name: IndyKite
-    email: devrel@indykite.com
+    email: support@indykite.com
   license: Apache-2.0
   homepage: https://indykite.ai
   repository: https://github.com/indykite/skills

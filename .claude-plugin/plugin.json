@@ -4,7 +4,7 @@
   "description": "IndyKite skills for coding agents \u2014 Agent Gateway deployment, MCP server calls, and ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).",
   "author": {
     "name": "IndyKite",
-    "email": "devrel@indykite.com"
+    "email": "support@indykite.com"
   },
   "homepage": "https://indykite.ai",
   "license": "Apache-2.0",
