@@ -8,8 +8,14 @@
       {
         "name": "subject",
         "properties": [
-          { "type": "music_mood",  "value": "$new_music_mood" },
-          { "type": "dance_skill", "value": "$new_dance_skill" }
+          {
+            "type": "music_mood",
+            "value": "$new_music_mood"
+          },
+          {
+            "type": "dance_skill",
+            "value": "$new_dance_skill"
+          }
         ]
       }
     ],

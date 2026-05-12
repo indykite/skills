@@ -1,6 +1,6 @@
 # Responsible Disclosure
 
-Thank you for taking the time to help keep this project — and the agents that consume its skills — safe.
+Thank you for taking the time to help keep this project - and the agents that consume its skills - safe.
 
 ## Why skills need a disclosure process
 
@@ -16,14 +16,13 @@ Skills are loaded directly into the context of coding agents and run with whatev
 
 ## Out of scope
 
-- Vulnerabilities in the host agent itself — report those upstream to the agent's vendor (Anthropic for Claude Code / Claude Agent SDK, Google for Gemini CLI, and so on for whichever agent is loading the skill).
+- Vulnerabilities in the host agent itself - report those upstream to the agent's vendor (Anthropic for Claude Code / Claude Agent SDK, Google for Gemini CLI, and so on for whichever agent is loading the skill).
 - Issues that require an already-compromised machine or a malicious operator.
 - Theoretical concerns without a demonstrable trigger.
 
 ## How to report
 
-<!-- TODO: replace this block with your preferred contact channel before publishing. -->
-**Contact:** _Not yet configured._ Please open a private channel with the maintainer before publishing details.
+**Contact:** responsible-disclosure@indykite.com
 
 When reporting, include:
 

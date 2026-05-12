@@ -20,7 +20,9 @@
       ]
     },
     "allowed_deletes": {
-      "nodes": ["subject.property.music_mood"]
+      "nodes": [
+        "subject.property.music_mood"
+      ]
     }
   },
   "status": "ACTIVE"

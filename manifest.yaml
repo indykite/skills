@@ -1,4 +1,3 @@
----
 # Source-of-truth bundle manifest for this repo.
 #
 # Each plugin-format file in this repo (.claude-plugin/plugin.json,
@@ -11,15 +10,11 @@
 #
 # The generated files are committed so installers (Claude Code, Gemini CLI)
 # can fetch them straight from the repo without running the build script.
-
 common:
   name: indykite-skills
   version: 1.0.0
   description: >-
-    IndyKite skills for coding agents — Agent Gateway deployment, MCP server
-    calls, and ContX IQ policies / Knowledge Queries / executes (read, create
-    node, create relationship, combined create-with-link, add property, add
-    relationship property, delete).
+    IndyKite skills for coding agents — Agent Gateway deployment, MCP server calls, and ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).
   author:
     name: IndyKite
     email: devrel@indykite.com
@@ -35,7 +30,6 @@ common:
     - kbac
     - contxiq
     - ikg
-
 skills:
   - indykite-agent-gateway
   - indykite-mcp-server
@@ -46,7 +40,6 @@ skills:
   - indykite-ciq-add-property
   - indykite-ciq-add-relationship-property
   - indykite-ciq-delete
-
 # User-supplied configuration values. Each agent renders these in its own
 # dialect (Claude Code asks at install time with the `sensitive` flag honoured;
 # Gemini exposes them as env vars to mint at runtime).
@@ -54,43 +47,33 @@ config:
   API_URL:
     title: API URL
     description: >-
-      IndyKite REST API base URL for the project's region (e.g.
-      https://us.api.indykite.com or https://eu.api.indykite.com).
+      IndyKite REST API base URL for the project's region (e.g. https://us.api.indykite.com or https://eu.api.indykite.com).
     sensitive: false
   API_KEY:
     title: AppAgent token (X-IK-ClientKey)
     description: >-
-      AppAgent credentials token. Goes into the X-IK-ClientKey header on every
-      CIQ / MCP call. Mint via POST /configs/v1/application-agent-credentials.
+      AppAgent credentials token. Goes into the X-IK-ClientKey header on every CIQ / MCP call. Mint via POST /configs/v1/application-agent-credentials.
     sensitive: true
   BEARER_TOKEN:
     title: User OAuth token (Authorization Bearer)
     description: >-
-      User OAuth access token. Required for Person-subject CIQ flows and for
-      MCP session initialisation; omit for _Application-subject flows.
+      User OAuth access token. Required for Person-subject CIQ flows and for MCP session initialisation; omit for _Application-subject flows.
     sensitive: true
   SERVICE_ACCOUNT_TOKEN:
     title: Service Account token
     description: >-
-      Token with Config API write access. Used to create CIQ policies and
-      Knowledge Queries (POST /configs/v1/authorization-policies and
-      POST /configs/v1/knowledge-queries). Not required to execute existing
-      Knowledge Queries.
+      Token with Config API write access. Used to create CIQ policies and Knowledge Queries (POST /configs/v1/authorization-policies and POST /configs/v1/knowledge-queries). Not required to execute existing Knowledge Queries.
     sensitive: true
   MCP_URL:
     title: MCP server URL
     description: >-
-      IndyKite MCP server base URL for the project's region (e.g.
-      https://us.mcp.indykite.com or https://eu.mcp.indykite.com). Required
-      only when using the indykite-mcp-server skill.
+      IndyKite MCP server base URL for the project's region (e.g. https://us.mcp.indykite.com or https://eu.mcp.indykite.com). Required only when using the indykite-mcp-server skill.
     sensitive: false
   PROJECT_GID:
     title: Project GID
     description: >-
-      IndyKite project identifier. Visible in the Hub UI on the project
-      settings page; required by indykite-mcp-server for the URL path.
+      IndyKite project identifier. Visible in the Hub UI on the project settings page; required by indykite-mcp-server for the URL path.
     sensitive: false
-
 # Gemini CLI uses a single context file alongside the skills. Point it at the
 # repo README so a Gemini user sees the overview when the extension loads.
 gemini_context_file: README.md

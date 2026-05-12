@@ -1,0 +1,7 @@
+# lychee ignore patterns (regex)
+#
+# Skip the repo's own GitHub URL while the repo is still private — anonymous
+# GitHub requests return 404 for private repos and lychee would flag every
+# self-reference as broken. Remove or comment out this line once the repo
+# is public.
+^https://github\.com/indykite/skills.*$

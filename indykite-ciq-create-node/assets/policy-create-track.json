@@ -21,7 +21,9 @@
     },
     "allowed_upserts": {
       "nodes": {
-        "node_types": ["Track"]
+        "node_types": [
+          "Track"
+        ]
       }
     }
   },

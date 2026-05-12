@@ -10,8 +10,14 @@
         "type": "Contract",
         "external_id": "$contract_external_id",
         "properties": [
-          { "type": "number", "value": "$contractNumber" },
-          { "type": "status", "value": "Active" }
+          {
+            "type": "number",
+            "value": "$contractNumber"
+          },
+          {
+            "type": "status",
+            "value": "Active"
+          }
         ]
       }
     ],
@@ -29,8 +35,14 @@
         "type": "ACCEPTED"
       }
     ],
-    "nodes": ["contract.external_id", "contract.property.number"],
-    "relationships": ["r3", "r4"]
+    "nodes": [
+      "contract.external_id",
+      "contract.property.number"
+    ],
+    "relationships": [
+      "r3",
+      "r4"
+    ]
   },
   "status": "ACTIVE"
 }

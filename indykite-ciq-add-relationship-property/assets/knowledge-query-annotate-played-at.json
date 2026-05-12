@@ -8,12 +8,20 @@
       {
         "name": "r",
         "properties": [
-          { "type": "verified",        "value": true },
-          { "type": "first_played_at", "value": "$first_played_at" }
+          {
+            "type": "verified",
+            "value": true
+          },
+          {
+            "type": "first_played_at",
+            "value": "$first_played_at"
+          }
         ]
       }
     ],
-    "relationships": ["r"]
+    "relationships": [
+      "r"
+    ]
   },
   "status": "ACTIVE"
 }

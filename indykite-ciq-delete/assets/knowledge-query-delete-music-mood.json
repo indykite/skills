@@ -4,7 +4,9 @@
   "description": "Delete the music_mood property on the authenticated user's Person node.",
   "policy_id": "<paste-policy-gid-here>",
   "query": {
-    "delete_nodes": ["subject.property.music_mood"]
+    "delete_nodes": [
+      "subject.property.music_mood"
+    ]
   },
   "status": "ACTIVE"
 }

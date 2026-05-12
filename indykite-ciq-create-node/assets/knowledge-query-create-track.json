@@ -10,12 +10,20 @@
         "type": "Track",
         "external_id": "$track_external_id",
         "properties": [
-          { "type": "title",    "value": "$track_title" },
-          { "type": "loudness", "value": "$track_loudness" }
+          {
+            "type": "title",
+            "value": "$track_title"
+          },
+          {
+            "type": "loudness",
+            "value": "$track_loudness"
+          }
         ]
       }
     ],
-    "nodes": ["newTrack"]
+    "nodes": [
+      "newTrack"
+    ]
   },
   "status": "ACTIVE"
 }
