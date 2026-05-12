@@ -1,0 +1,5 @@
+# Each line is a file pattern followed by one or more owners.
+# Later match takes precedence over earlier rule.
+
+# Global rule set for everything
+*   @indykite/be-team @indykite/devx

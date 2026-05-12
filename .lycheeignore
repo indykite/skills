@@ -5,3 +5,11 @@
 # self-reference as broken. Remove or comment out this line once the repo
 # is public.
 ^https://github\.com/indykite/skills.*$
+
+# IndyKite API and MCP server base URLs. The bare root `/` of each is
+# documented in manifests/descriptions as the per-region base URL, but the
+# actual API only serves sub-paths (e.g. /configs/v1/..., /contx-iq/v1/...).
+# Lychee gets a 404 on the bare host and flags it — it's not a broken link,
+# it's just an unhealth-checkable base hostname.
+^https://(eu|us)\.api\.indykite\.com/?$
+^https://(eu|us)\.mcp\.indykite\.com/?$

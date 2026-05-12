@@ -1,0 +1,29 @@
+---
+name: pre-commit cache
+
+on: # yamllint disable-line rule:truthy
+  push:
+    branches: ["dev", "develop", "main", "master"]
+  schedule:
+    # GitHub Actions does not support the non-standard syntax @monthly, @weekly, @daily, etc.
+    # - cron: "15 0 * * *" # daily at 00:15 UTC
+    - cron: "15 0 1 * *" # low activity repos can do just the first day of the month at 00:15 UTC
+  # to have an ability to run thee workflow manually
+  workflow_dispatch: # yamllint disable-line rule:empty-values
+
+permissions:
+  contents: write # required for trivy to upload artifacts
+
+jobs:
+  pre-commit:
+    name: pre-commit-cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: pre-commit
+        uses: indykite/.github/.github/actions/pre-commit@master # master
+        with:
+          github_token: ${{ secrets.INDYKITEONE_PAT }}
+          pre_commit_skip: >-
+            commitlint,trivy,trivy-conf,trivy-filesystem
+            ${{ vars.PRE_COMMIT_SKIP != null && ',' || '' }}${{ vars.PRE_COMMIT_SKIP }}
+            ${{ format('{0}', github.event_name != 'pull_request' && ',pre-commit-autoupdate,no-commit-to-branch' || '' ) }}

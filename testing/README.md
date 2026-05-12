@@ -2,7 +2,7 @@
 
 This guide covers two distinct activities: **structural validation** (does the skill conform to the [Agent Skills specification](https://agentskills.io/specification)?) and **live verification** (does the skill actually do what it claims against a real IndyKite project?). They have different prerequisites and different value.
 
-For *authoring*-time guidance — the rules every skill must satisfy — see [`contributing.md`](../contributing.md). This document is for *exercising* skills end-to-end.
+For *authoring*-time guidance — the rules every skill must satisfy — see [`CONTRIBUTING.md`](../CONTRIBUTING.md). This document is for *exercising* skills end-to-end.
 
 ## Structural validation
 
@@ -12,7 +12,7 @@ No env vars, no network calls. Run from the repo root:
 ./testing/e2e-ciq.sh
 ```
 
-Discovers every skill in the repo and runs the checks documented in [`contributing.md` § Validating your skill](../contributing.md#validating-your-skill) against each: **`skills-ref validate`** (the canonical [Agent Skills specification](https://agentskills.io/specification) checker — install once with `pipx install <agentskills-repo>/skills-ref`), loader dry-run via the `skills` CLI, `bash -n` on scripts, `jq empty` on JSON assets, and file hygiene (UTF-8 / LF / no BOM). Prints a per-skill summary and an overall pass/fail count. Exits non-zero if any skill fails any check.
+Discovers every skill in the repo and runs the checks documented in [`CONTRIBUTING.md` § Validating your skill](../CONTRIBUTING.md#validating-your-skill) against each: **`skills-ref validate`** (the canonical [Agent Skills specification](https://agentskills.io/specification) checker — install once with `pipx install <agentskills-repo>/skills-ref`), loader dry-run via the `skills` CLI, `bash -n` on scripts, `jq empty` on JSON assets, and file hygiene (UTF-8 / LF / no BOM). Prints a per-skill summary and an overall pass/fail count. Exits non-zero if any skill fails any check.
 
 If `skills-ref` is not installed, the harness still runs the loader + script + asset + hygiene checks; the spec check is reported as `SKIP`.
 

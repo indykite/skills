@@ -25,13 +25,13 @@ than deleting the section.
 
 <!-- Be specific. "Tested in Claude Code with Opus 4.7" beats "tested it."
      If you tested in more than one agent, list them — agent-portability is
-     a quality-bar item per contributing.md. If you couldn't test against
+     a quality-bar item per CONTRIBUTING.md. If you couldn't test against
      a real agent, say so and explain what was validated instead (e.g.
      `npx skills add ./<path> --list`, `bash -n` on scripts, manual dry-run). -->
 
 - [ ] Tested in `agent` (`model`):
 - [ ] Tested in `agent` (`model`):
-- [ ] All checks in [`contributing.md` § Validating your skill](../contributing.md#validating-your-skill) ran clean (loader dry-run, `bash -n` on scripts, `jq empty` on JSON assets, file-hygiene)
+- [ ] All checks in [`CONTRIBUTING.md` § Validating your skill](../CONTRIBUTING.md#validating-your-skill) ran clean (loader dry-run, `bash -n` on scripts, `jq empty` on JSON assets, file-hygiene)
 
 ## Known gaps or follow-ups
 
@@ -43,6 +43,6 @@ than deleting the section.
 
 - [ ] One skill (or one fix) per PR — no unrelated changes bundled in.
 - [ ] PR title names the affected skill (e.g. `add my-skill`, `fix description in my-skill`).
-- [ ] Skill conforms to the [Agent Skills specification](https://agentskills.io/specification) — see [`contributing.md` § Agent Skills specification compliance](../contributing.md#agent-skills-specification-compliance) for the per-field rules, optional fields used in this repo, and the relationship to the skills.sh / `skills` CLI loader.
+- [ ] Skill conforms to the [Agent Skills specification](https://agentskills.io/specification) — see [`CONTRIBUTING.md` § Agent Skills specification compliance](../CONTRIBUTING.md#agent-skills-specification-compliance) for the per-field rules, optional fields used in this repo, and the relationship to the skills.sh / `skills` CLI loader.
 - [ ] No secrets, internal URLs, or personal data committed.
 - [ ] I have the right to contribute this content under the repo's [LICENSE](../LICENSE).
