@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "github>indykite/.github//.github/renovate.json",
+    "github>indykite/.github//.github/renovate.json5",
   ]
 }
