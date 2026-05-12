@@ -1,0 +1,106 @@
+# Slim pre-commit config — suitable for public release of this skills repo.
+#
+# Purpose: the same safety net as the full IndyKite standard config
+# (file hygiene, structural safety, script hygiene, JSON, secrets) without the
+# tooling weight that an outside contributor would have to install. An external
+# contributor who runs `pre-commit run --all-files` against this file only
+# needs `pre-commit` itself; everything else is pulled from public hook repos.
+#
+# Excluded vs the full config (deliberate trims):
+#   - markdownlint / yamllint     noisy against default rules; this repo's docs
+#                                 use wide tables and long descriptions that
+#                                 need suppression configs to lint cleanly.
+#   - yamlfmt / shfmt /           auto-fix formatters with semantic side effects
+#     pretty-format-json          (shfmt mangled bash array keys during testing;
+#                                 yamlfmt and yamllint defaults disagree).
+#   - checkov / trivy             SAST/IaC scanners; not relevant to a markdown
+#                                 + JSON + bash skills repo.
+#   - JS / GitHub-workflow hooks  no JS code, no workflows in this repo.
+#   - commitlint /                workflow policy, not strictly necessary.
+#     no-commit-to-branch
+#   - pre-commit-validate-*       meta hooks; useful but optional.
+#
+# Use:
+#   pre-commit install                                            # local install
+#   pre-commit run --all-files                                    # all hooks
+#   pre-commit run --all-files --config .pre-commit-config-slim.yaml  # explicit
+#
+# To switch this in as the default (e.g. on public release), rename it to
+# `.pre-commit-config.yaml` and rename the current full config out of the way.
+default_stages: [pre-commit]
+fail_fast: false
+repos:
+  # ----------------------------------------------------------------------
+  # File hygiene + structural safety + JSON + secrets.
+  # ----------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # File hygiene — matches the agentskills.io spec (UTF-8, LF, no BOM).
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: fix-byte-order-marker
+      # Structural safety.
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-case-conflict
+      # Script hygiene — every helper in scripts/*.sh has a shebang and is
+      # executable; this pair keeps the two in sync.
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      # JSON validity — covers the generated manifests
+      # (.claude-plugin/*.json, gemini-extension.json) and skill assets
+      # (indykite-*/assets/*.json).
+      - id: check-json
+      # Secret detection (narrow — catches SSH-style private keys only;
+      # gitleaks below catches API tokens / OAuth secrets / etc.).
+      - id: detect-private-key
+  # ----------------------------------------------------------------------
+  # Gitleaks — broader secret scan than detect-private-key alone.
+  # Especially relevant here because skill assets / docs may include
+  # placeholder tokens that look real.
+  # ----------------------------------------------------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+  # ----------------------------------------------------------------------
+  # Shellcheck — the 8 helper scripts (CIQ execute.sh + MCP init-session.sh +
+  # the testing harness) are shellcheck-clean and we want to keep them that
+  # way. Uses the Python wrapper so no system shellcheck dependency.
+  # ----------------------------------------------------------------------
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+  # ----------------------------------------------------------------------
+  # Lychee — broken-link checker for Markdown.
+  # Catches rotted cross-skill links (e.g. `../indykite-mcp-server/SKILL.md`
+  # after a rename), broken README anchors, and dead external URLs.
+  #
+  # Prerequisite: the `lychee` binary must be on PATH (the upstream hook is
+  # `language: system`). Install it once with one of:
+  #     brew install lychee
+  #     cargo install lychee
+  #     # or download a release binary from github.com/lycheeverse/lychee
+  #
+  # Notes:
+  # - lychee hits the network for HTTP URLs, so it is slower than the other
+  #   hooks (~10-30s on this repo). For tight feedback loops consider
+  #   running it in CI on a schedule rather than on every commit.
+  # - URLs that should be skipped (e.g. the repo's own GitHub URL while
+  #   the repo is still private) live in `.lycheeignore` at the repo root.
+  # - Run `pre-commit autoupdate` to pin the latest stable rev.
+  # ----------------------------------------------------------------------
+  - repo: https://github.com/lycheeverse/lychee
+    rev: lychee-v0.18.1
+    hooks:
+      - id: lychee
+        types: [markdown]
+        args:
+          - --no-progress
+          - --accept=200,403,429
+          - --max-concurrency=5

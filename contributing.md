@@ -1,6 +1,7 @@
 # Contributing
 
-Thanks for wanting to add or improve a skill. This guide covers what we expect from contributions and how to get them merged.
+When contributing to this repository, please first discuss the change you wish to make via issue, email, or any other method with the owners of this repository before making a change.
+
 
 ## Before you start
 
@@ -37,7 +38,7 @@ A skill is only useful if an agent invokes it at the right moment. Aim for:
 
 Before opening a PR:
 
-1. Install it locally in at least one supported agent. The README's *Supported agents* section names the agent we've verified end-to-end (Claude Code); for any other target, query the `skills` CLI's `--agent` list and pick one.
+1. Install it locally in at least one supported agent. The README's *Supported agents* section names the agents we've verified end-to-end (Claude Code, Gemini); for any other target, query the `skills` CLI's `--agent` list and pick one.
 2. Restart the agent (or reload its config) so it picks up the new skill.
 3. Try at least three prompts: one that *should* trigger the skill, one that's adjacent but shouldn't, and one edge case. Confirm the agent's behavior matches what the description promises.
 4. If the skill ships scripts, run them directly and check that error paths are handled.

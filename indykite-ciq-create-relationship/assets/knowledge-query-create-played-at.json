@@ -12,8 +12,13 @@
         "type": "PLAYED_AT"
       }
     ],
-    "nodes": ["track.external_id", "venue.external_id"],
-    "relationships": ["newPlayedAt"]
+    "nodes": [
+      "track.external_id",
+      "venue.external_id"
+    ],
+    "relationships": [
+      "newPlayedAt"
+    ]
   },
   "status": "ACTIVE"
 }

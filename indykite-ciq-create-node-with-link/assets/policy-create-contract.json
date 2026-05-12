@@ -15,16 +15,30 @@
         {
           "operator": "AND",
           "operands": [
-            { "operator": "=", "attribute": "subject.external_id", "value": "$_appId" },
-            { "operator": "=", "attribute": "vehicle.external_id", "value": "$vehicleID" },
-            { "operator": "=", "attribute": "person.external_id",  "value": "$personID" }
+            {
+              "operator": "=",
+              "attribute": "subject.external_id",
+              "value": "$_appId"
+            },
+            {
+              "operator": "=",
+              "attribute": "vehicle.external_id",
+              "value": "$vehicleID"
+            },
+            {
+              "operator": "=",
+              "attribute": "person.external_id",
+              "value": "$personID"
+            }
           ]
         }
       ]
     },
     "allowed_upserts": {
       "nodes": {
-        "node_types": ["Contract"]
+        "node_types": [
+          "Contract"
+        ]
       },
       "relationships": {
         "relationship_types": [

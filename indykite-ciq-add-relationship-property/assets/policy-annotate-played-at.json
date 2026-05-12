@@ -36,7 +36,9 @@
     },
     "allowed_upserts": {
       "relationships": {
-        "existing_relationships": ["r"]
+        "existing_relationships": [
+          "r"
+        ]
       }
     }
   },
