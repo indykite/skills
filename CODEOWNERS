@@ -11,3 +11,4 @@
 .shellcheckrc           @indykite/be-team @indykite/ops
 .yamlfmt.yml            @indykite/be-team @indykite/ops
 .yamllint.yml           @indykite/be-team @indykite/ops
+.lycheeignore           @indykite/be-team @indykite/ops
