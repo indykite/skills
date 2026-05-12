@@ -3,3 +3,11 @@
 
 # Global rule set for everything
 *   @indykite/be-team @indykite/devx
+
+#
+# CI/CD, SAST & linting configs
+/.github/               @indykite/be-team @indykite/ops
+.pre-commit-config.yaml @indykite/be-team @indykite/ops
+.shellcheckrc           @indykite/be-team @indykite/ops
+.yamlfmt.yml            @indykite/be-team @indykite/ops
+.yamllint.yml           @indykite/be-team @indykite/ops

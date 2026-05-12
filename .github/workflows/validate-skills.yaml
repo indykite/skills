@@ -1,25 +1,12 @@
 ---
-# Runs the harness `./testing/e2e-ciq.sh` against every skill on every PR and
-# push to main/master. Fails the PR if any structural check (spec, loader,
-# scripts, assets, hygiene) or --print smoke test fails.
+# Runs the harness `./testing/e2e-ciq.sh` against every skill on every push to
+# main/master. Fails the build if any structural check (spec, loader, scripts,
+# assets, hygiene) or --print smoke test fails.
 
 name: validate-skills
 
 # Quoted so yamllint's `truthy` rule doesn't treat `on` as YAML 1.1 boolean.
 "on":
-  pull_request:
-    branches: [main, master]
-    paths-ignore:
-      - 'README.md'
-      - 'CONTRIBUTING.md'
-      - 'responsible_disclosure.md'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.lycheeignore'
-      - '.pre-commit-config*.yaml'
-      - '.yamllint.yml'
-      - '.trivy.yaml'
-      - '.deepsource.toml'
   push:
     branches: [main, master]
     paths-ignore:
