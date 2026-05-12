@@ -1,3 +1,4 @@
+---
 # Slim pre-commit config — suitable for public release of this skills repo.
 #
 # Purpose: the same safety net as the full IndyKite standard config
@@ -5,6 +6,10 @@
 # tooling weight that an outside contributor would have to install. An external
 # contributor who runs `pre-commit run --all-files` against this file only
 # needs `pre-commit` itself; everything else is pulled from public hook repos.
+#
+# Prerequisites:
+#   brew install pre-commit yamlfmt yamllint actionlint shellcheck shfmt
+#   npm install
 #
 # Excluded vs the full config (deliberate trims):
 #   - markdownlint / yamllint     noisy against default rules; this repo's docs
@@ -33,31 +38,79 @@ repos:
   # ----------------------------------------------------------------------
   # File hygiene + structural safety + JSON + secrets.
   # ----------------------------------------------------------------------
+  - repo: meta
+    hooks:
+      # - id: check-hooks-apply
+      - id: check-useless-excludes
+        name: pre-commit/check-useless-excludes
+  - repo: ssh://git@github.com/indykite/ops-common
+    rev: "279a267e3e7d6319ce8cf8f88bbe6784e46bda07" # using a branch name (or HEAD) is not supported
+    hooks:
+      # NON-DEFAULT stage, install explicitly with: pre-commit install -t post-checkout
+      - id: git-pull
+      - id: git-branch-delete-stale
+
+      # pre-commit validations
+      # - id: pre-commit-autoupdate # done via 'renovate'; left for reference and possible options
+      #   args: [--freeze] # store hashes in 'rev' instead of tag names
+      - id: pre-commit-validate-config
+      - id: pre-commit-validate-manifest
+
+      # Shellcheck
+      - id: shfmt
+      - id: shellcheck
+
+  #
+  # Renovate
+  - repo: https://github.com/renovatebot/pre-commit-hooks # ci:ignore:OK to validate locally only, otherwise it adds 850MB+ to unpacked cache
+    rev: "43.150.0"
+    hooks:
+      - id: renovate-config-validator
+        args: [--strict]
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
+    # inspired by https://github.com/antonbabenko/pre-commit-terraform/blob/master/.pre-commit-config.yaml
     rev: v6.0.0
     hooks:
-      # File hygiene — matches the agentskills.io spec (UTF-8, LF, no BOM).
+      # Git style
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-vcs-permalinks
+      - id: forbid-new-submodules
+      # - id: forbid-submodules # XXX: either of two is enough
+      - id: no-commit-to-branch
+        name: no-commit-to-master
+        args: [--branch, dev, --branch, master, --branch, main]
+
+      # Common errors
       - id: end-of-file-fixer
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
-      - id: mixed-line-ending
-        args: [--fix=lf]
-      - id: fix-byte-order-marker
-      # Structural safety.
-      - id: check-merge-conflict
-      - id: check-added-large-files
-      - id: check-case-conflict
-      # Script hygiene — every helper in scripts/*.sh has a shebang and is
-      # executable; this pair keeps the two in sync.
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
-      # JSON validity — covers the generated manifests
-      # (.claude-plugin/*.json, gemini-extension.json) and skill assets
-      # (indykite-*/assets/*.json).
+      - id: check-symlinks
+      - id: destroyed-symlinks
+
+      # Cross platform
+      # - id: check-illegal-windows-names
+      - id: check-case-conflict
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+      # Format linters
+      # 'check-yaml' and 'sort-simple-yaml' disabled intentionally, use hooks below
+      - id: check-xml
+      - id: check-toml
       - id: check-json
-      # Secret detection (narrow — catches SSH-style private keys only;
-      # gitleaks below catches API tokens / OAuth secrets / etc.).
+      - id: pretty-format-json
+        args: [--autofix, --no-sort-keys]
+
+      # Security
       - id: detect-private-key
+      - id: detect-aws-credentials
+        args: [--allow-missing-credentials]
+
   # ----------------------------------------------------------------------
   # Gitleaks — broader secret scan than detect-private-key alone.
   # Especially relevant here because skill assets / docs may include
@@ -67,16 +120,39 @@ repos:
     rev: v8.30.1
     hooks:
       - id: gitleaks
+
   # ----------------------------------------------------------------------
-  # Shellcheck — the 8 helper scripts (CIQ execute.sh + MCP init-session.sh +
-  # the testing harness) are shellcheck-clean and we want to keep them that
-  # way. Uses the Python wrapper so no system shellcheck dependency.
-  # ----------------------------------------------------------------------
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.10.0.1
+  # YAML
+  - repo: local
     hooks:
-      - id: shellcheck
-  # ----------------------------------------------------------------------
+      # place any overrides in '.actionlint.yaml' https://github.com/rhysd/actionlint/blob/main/docs/config.md
+      #  args: ["-config-file=.actionlint.yaml"]
+      - id: actionlint-system
+        name: github-actionlint
+        language: system
+        entry: actionlint
+        types: ["yaml"]
+        files: ^\.github/workflows/
+  # - repo: https://github.com/google/yamlfmt <- "language: golang" slower & takes larger CI cache comparing to "system"
+  #   rev: v0.17.2
+  - repo: local
+    hooks:
+      - id: yamlfmt
+        name: yamlfmt
+        language: system
+        entry: yamlfmt
+        types: [yaml]
+  # - repo: https://github.com/adrienverge/yamllint <- "language: python" slower & takes larger CI cache comparing to "system"
+  #   rev: v1.37.1
+  - repo: local
+    hooks:
+      - id: yamllint
+        name: yamllint
+        language: system
+        entry: yamllint
+        args: ["--strict"]
+        types: [file, yaml]
+
   # Lychee — broken-link checker for Markdown.
   # Catches rotted cross-skill links (e.g. `../indykite-mcp-server/SKILL.md`
   # after a rename), broken README anchors, and dead external URLs.
