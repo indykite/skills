@@ -104,7 +104,11 @@ def build_gemini_extension(cfg: dict) -> dict:
 
 def write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    # ensure_ascii=True so output matches pre-commit's `pretty-format-json`,
+    # which uses Python's json defaults. Otherwise the two hooks fight: this
+    # script writes literal "—", pretty-format-json rewrites it to "—",
+    # next build round rewrites it back, ad infinitum.
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=True) + "\n")
     print(f"wrote {path.relative_to(REPO_ROOT)}")
 
 

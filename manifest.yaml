@@ -10,11 +10,13 @@
 #
 # The generated files are committed so installers (Claude Code, Gemini CLI)
 # can fetch them straight from the repo without running the build script.
+---
 common:
   name: indykite-skills
   version: 1.0.0
   description: >-
-    IndyKite skills for coding agents — Agent Gateway deployment, MCP server calls, and ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).
+    IndyKite skills for coding agents — Agent Gateway deployment, MCP server calls, and ContX IQ policies / Knowledge Queries / executes
+    (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).
   author:
     name: IndyKite
     email: devrel@indykite.com
@@ -62,12 +64,14 @@ config:
   SERVICE_ACCOUNT_TOKEN:
     title: Service Account token
     description: >-
-      Token with Config API write access. Used to create CIQ policies and Knowledge Queries (POST /configs/v1/authorization-policies and POST /configs/v1/knowledge-queries). Not required to execute existing Knowledge Queries.
+      Token with Config API write access. Used to create CIQ policies and Knowledge Queries (POST /configs/v1/authorization-policies and
+      POST /configs/v1/knowledge-queries). Not required to execute existing Knowledge Queries.
     sensitive: true
   MCP_URL:
     title: MCP server URL
     description: >-
-      IndyKite MCP server base URL for the project's region (e.g. https://us.mcp.indykite.com or https://eu.mcp.indykite.com). Required only when using the indykite-mcp-server skill.
+      IndyKite MCP server base URL for the project's region (e.g. https://us.mcp.indykite.com or https://eu.mcp.indykite.com).
+      Required only when using the indykite-mcp-server skill.
     sensitive: false
   PROJECT_GID:
     title: Project GID

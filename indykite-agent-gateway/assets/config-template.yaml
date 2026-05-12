@@ -9,6 +9,7 @@
 # Everything else can stay shared across instances.
 #
 # Field-by-field documentation: see ../references/configuration.md
+---
 service:
   name: <SERVICE_NAME> # e.g. orchestrator-iag
   port: <SERVICE_PORT> # e.g. 8881
