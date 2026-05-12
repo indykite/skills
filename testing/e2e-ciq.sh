@@ -5,7 +5,7 @@
 #
 #   ./testing/e2e-ciq.sh
 #       Structural only. Runs the four checks documented in
-#       contributing.md § Validating your skill against every
+#       CONTRIBUTING.md § Validating your skill against every
 #       skill: loader dry-run + bash -n + jq empty + file hygiene.
 #       No env vars required, no network calls.
 #

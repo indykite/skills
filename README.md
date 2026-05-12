@@ -162,7 +162,7 @@ To **disable** a misbehaving skill: remove the directory (`npx skills remove <na
 
 ## Authoring a skill
 
-Reference for anyone writing or forking a skill in this repo. The full submission flow lives in [`contributing.md`](contributing.md) — this section is the at-a-glance summary.
+Reference for anyone writing or forking a skill in this repo. The full submission flow lives in [`CONTRIBUTING.md`](CONTRIBUTING.md) — this section is the at-a-glance summary.
 
 ### Structure
 
@@ -204,7 +204,7 @@ description: What it does. Use when [trigger conditions].
 
 ## Contributing & security
 
-- Want to add a new skill, fix one, or change the conventions? See [`contributing.md`](contributing.md) — it covers the quality bar, style, testing checklist, [Agent Skills specification](https://agentskills.io/specification) compliance, the submission process, and the code of conduct.
+- Want to add a new skill, fix one, or change the conventions? See [`CONTRIBUTING.md`](CONTRIBUTING.md) — it covers the quality bar, style, testing checklist, [Agent Skills specification](https://agentskills.io/specification) compliance, the submission process, and the code of conduct.
 - Want to *exercise* the skills (structural validation, dry-run smoke tests, or live API roundtrips)? See [`testing/README.md`](testing/README.md). The runnable harness is `./testing/e2e-ciq.sh`.
 - Found a security issue (a skill that produces unsafe instructions, leaks secrets, or could be used to attack consumers)? See [`responsible_disclosure.md`](responsible_disclosure.md) before opening a public issue.
 - The `LICENSE` at the repo root applies to every file in the tree.
