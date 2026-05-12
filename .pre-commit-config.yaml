@@ -174,7 +174,6 @@ repos:
     rev: lychee-v0.18.1
     hooks:
       - id: lychee
-        types_or: [markdown, json]
         args:
           - --no-progress
           - --accept=200,403,429
