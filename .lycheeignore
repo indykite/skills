@@ -13,3 +13,9 @@
 # it's just an unhealth-checkable base hostname.
 ^https://(eu|us)\.api\.indykite\.com/?$
 ^https://(eu|us)\.mcp\.indykite\.com/?$
+
+# Docker-internal hostname placeholder used as an example in
+# indykite-agent-gateway/assets/config-template.yaml. It's documentation,
+# not a real link — lychee can't resolve service names from outside the
+# IAG deployment's network.
+^http://orchestrator(:[0-9]+)?(/.*)?$
