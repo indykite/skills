@@ -1,6 +1,6 @@
 # Skills
 
-[![Install with skills CLI](https://img.shields.io/badge/install-npx%20skills%20add%20indykite%2Fskills-000000?style=for-the-badge&logo=npm&logoColor=white)](https://skills.sh)
+[![Install with skills CLI](https://img.shields.io/badge/install-npx%20skills%20add%20indykite%2Fskills-000000?style=for-the-badge&logo=npm&logoColor=white)](https://www.skills.sh/indykite/skills)
 
 A collection of skills for coding agents that work with [IndyKite](https://indykite.ai) — graph-based identity, authorization, and AI-agent integration.
 
