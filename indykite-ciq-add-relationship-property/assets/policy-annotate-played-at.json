@@ -2,6 +2,7 @@
   "name": "ciq-app-annotate-played-at",
   "display_name": "App: Annotate Track-PLAYED_AT->Venue relationship",
   "description": "Allow an _Application subject to set verified and first_played_at properties on an existing PLAYED_AT relationship.",
+  "project_id": "<project-gid>",
   "policy": {
     "meta": {
       "policy_version": "1.0-ciq"

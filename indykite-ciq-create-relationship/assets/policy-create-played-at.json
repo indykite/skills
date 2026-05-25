@@ -2,6 +2,7 @@
   "name": "ciq-app-create-played-at",
   "display_name": "App: Create Track-PLAYED_AT->Venue relationship",
   "description": "Allow an _Application subject to add a PLAYED_AT relationship from an existing Track to an existing Venue.",
+  "project_id": "<project-gid>",
   "policy": {
     "meta": {
       "policy_version": "1.0-ciq"

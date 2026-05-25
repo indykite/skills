@@ -160,7 +160,7 @@ Useful for permissions inspectors and "show me everything I'm allowed to do here
 | Argument        | Description                                                                       |
 |-----------------|-----------------------------------------------------------------------------------|
 | `id`            | The GID **or** name of the Knowledge Query to execute.                            |
-| `input_params`  | Key/value pairs for the partial filter variables defined inside the query.        |
+| `input_params`  | The partial parameters from the Knowledge Query **and its policy**. The exact set for each query is documented in that query's description — discover it via `resources/read indykite://knowledge-queries/`. |
 
 **Always discover the query before calling it**. The MCP server exposes:
 

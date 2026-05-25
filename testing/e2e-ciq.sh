@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# e2e-ciq.sh — end-to-end smoke test for every skill in the repo.
+# e2e-ciq.sh - end-to-end smoke test for every skill in the repo.
 #
 # Three modes, each strictly more thorough than the last:
 #
@@ -13,13 +13,13 @@
 #       Above, plus exercises the --print flag on each helper
 #       script with a fixture input. Confirms the constructed
 #       curl looks well-formed without hitting the live API.
-#       Requires the dummy env vars set inside this script — no
+#       Requires the dummy env vars set inside this script - no
 #       real credentials needed.
 #
 #   ./testing/e2e-ciq.sh --live
 #       Above, plus a guided live walk-through. Requires real
 #       env vars (API_URL, API_KEY, SERVICE_ACCOUNT_TOKEN, …).
-#       This mode is interactive — it prints each command and
+#       This mode is interactive - it prints each command and
 #       asks for confirmation before sending it.
 #
 # Run from the repo root.
@@ -55,7 +55,7 @@ mapfile -t skills < <(for d in */; do
 done | sort)
 
 if [[ "${#skills[@]}" -eq 0 ]]; then
-    printf 'no skills found at repo root — are you in the right directory?\n' >&2
+    printf 'no skills found at repo root - are you in the right directory?\n' >&2
     exit 1
 fi
 
@@ -161,7 +161,7 @@ if [[ "${mode}" == "structural" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Mode 2: dry-run — exercise --print on every helper script.
+# Mode 2: dry-run - exercise --print on every helper script.
 # ---------------------------------------------------------------------------
 
 if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
@@ -219,6 +219,18 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
         fi
     fi
 
+    # KBAC evaluate.sh - AuthZEN /access/v1/evaluation endpoint.
+    if [[ -x "indykite-authzen-kbac/scripts/evaluate.sh" ]]; then
+        printed="$(bash indykite-authzen-kbac/scripts/evaluate.sh --print indykite-authzen-kbac/assets/evaluation-can-buy-car.json 2>/dev/null || true)"
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"access/v1/evaluation"* ]]; then
+            printf '  [indykite-authzen-kbac/evaluate.sh] --print: ok\n'
+            dry_pass=$((dry_pass + 1))
+        else
+            printf '  [indykite-authzen-kbac/evaluate.sh] --print: FAIL\n    output: %s\n' "${printed}"
+            dry_fail=$((dry_fail + 1))
+        fi
+    fi
+
     printf '\ndry-run summary: %d passed, %d failed\n\n' "${dry_pass}" "${dry_fail}"
 
     [[ "${mode}" == "dry-run" ]] && {
@@ -228,7 +240,7 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Mode 3: live — guided walk-through (interactive, prints first).
+# Mode 3: live - guided walk-through (interactive, prints first).
 # ---------------------------------------------------------------------------
 
 if [[ "${mode}" == "live" ]]; then

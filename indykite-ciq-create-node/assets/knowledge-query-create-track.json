@@ -1,8 +1,9 @@
 {
   "name": "kq-app-create-track",
   "display_name": "App Query: Create new Track",
-  "description": "Create a new Track node with parameterized external_id, title, and loudness.",
-  "policy_id": "<paste-policy-gid-here>",
+  "description": "Call tool 'ciq_execute' with arguments: id: \"<this query's id>\", input_params: {track_external_id: (required) external_id for the new Track, track_title: (required) Track title, track_loudness: (required) loudness value}. Auth: X-IK-ClientKey only (_Application subject), no Bearer token, $_appId is auto-filled. Returns: the created Track node.",
+  "project_id": "<project-gid>",
+  "policy_id": "<policy-gid>",
   "query": {
     "upsert_nodes": [
       {

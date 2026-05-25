@@ -15,7 +15,8 @@ common:
   name: indykite-skills
   version: 1.0.0
   description: >-
-    IndyKite skills for coding agents — Agent Gateway deployment, MCP server calls, and ContX IQ policies / Knowledge Queries / executes
+    IndyKite skills for coding agents — Agent Gateway deployment, MCP server calls, KBAC authorization policies,
+    and ContX IQ policies / Knowledge Queries / executes
     (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).
   author:
     name: IndyKite
@@ -35,6 +36,7 @@ common:
 skills:
   - indykite-agent-gateway
   - indykite-mcp-server
+  - indykite-authzen-kbac
   - indykite-ciq-read
   - indykite-ciq-create-node
   - indykite-ciq-create-relationship

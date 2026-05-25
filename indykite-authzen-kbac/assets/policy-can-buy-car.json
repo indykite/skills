@@ -1,0 +1,24 @@
+{
+  "name": "kbac-person-can-buy-car",
+  "display_name": "Person: CAN_BUY a Car within budget",
+  "description": "Allow a Person to CAN_BUY a Car when its price is within a budget supplied at evaluation time.",
+  "project_id": "<project-gid>",
+  "policy": {
+    "meta": {
+      "policy_version": "2.0-kbac"
+    },
+    "subject": {
+      "type": "Person"
+    },
+    "actions": [
+      "CAN_BUY"
+    ],
+    "resource": {
+      "type": "Car"
+    },
+    "condition": {
+      "cypher": "MATCH (subject:Person), (resource:Car) WHERE resource.property.price <= $max_price"
+    }
+  },
+  "status": "ACTIVE"
+}
