@@ -1,8 +1,9 @@
 {
   "name": "kq-person-delete-music-mood",
   "display_name": "Person Query: Delete Own music_mood",
-  "description": "Delete the music_mood property on the authenticated user's Person node.",
-  "policy_id": "<paste-policy-gid-here>",
+  "description": "Call tool 'ciq_execute' with arguments: id: \"<this query's id>\", input_params: {} (none required). Auth: Bearer token required (Person subject), the token 'sub' identifies the Person whose property is deleted. Returns: no data rows; deletes the music_mood property from the Person.",
+  "project_id": "<project-gid>",
+  "policy_id": "<policy-gid>",
   "query": {
     "delete_nodes": [
       "subject.property.music_mood"

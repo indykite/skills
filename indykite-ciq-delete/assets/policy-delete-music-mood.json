@@ -2,6 +2,7 @@
   "name": "ciq-person-delete-music-mood",
   "display_name": "Person: Delete Own music_mood",
   "description": "Allow a Person subject to delete the music_mood property on their own Person node.",
+  "project_id": "<project-gid>",
   "policy": {
     "meta": {
       "policy_version": "1.0-ciq"

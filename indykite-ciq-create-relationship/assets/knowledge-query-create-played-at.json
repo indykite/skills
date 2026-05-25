@@ -1,8 +1,9 @@
 {
   "name": "kq-app-create-played-at",
   "display_name": "App Query: Create Track-PLAYED_AT->Venue",
-  "description": "Create a new PLAYED_AT relationship from an existing Track to an existing Venue, given both external_ids.",
-  "policy_id": "<paste-policy-gid-here>",
+  "description": "Call tool 'ciq_execute' with arguments: id: \"<this query's id>\", input_params: {track_external_id: (required) external_id of the existing Track, venue_external_id: (required) external_id of the existing Venue}. Auth: X-IK-ClientKey only (_Application subject), no Bearer token, $_appId is auto-filled. Returns: the new PLAYED_AT relationship plus the Track and Venue external_ids.",
+  "project_id": "<project-gid>",
+  "policy_id": "<policy-gid>",
   "query": {
     "upsert_relationships": [
       {

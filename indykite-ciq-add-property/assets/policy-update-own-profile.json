@@ -2,6 +2,7 @@
   "name": "ciq-person-update-own-profile",
   "display_name": "Person: Update Own Profile",
   "description": "Allow a Person subject to set properties on their own Person node. Identity comes from the Bearer token's sub claim.",
+  "project_id": "<project-gid>",
   "policy": {
     "meta": {
       "policy_version": "1.0-ciq"

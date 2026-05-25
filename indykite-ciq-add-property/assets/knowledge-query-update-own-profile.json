@@ -1,8 +1,9 @@
 {
   "name": "kq-person-update-own-profile",
   "display_name": "Person Query: Update Own Profile",
-  "description": "Set music_mood and dance_skill properties on the authenticated user's Person node.",
-  "policy_id": "<paste-policy-gid-here>",
+  "description": "Call tool 'ciq_execute' with arguments: id: \"<this query's id>\", input_params: {new_music_mood: (required) new music_mood value, new_dance_skill: (required) new dance_skill value}. Auth: Bearer token required (Person subject), the token 'sub' identifies the Person whose properties are updated. Returns: the updated music_mood and dance_skill on the Person.",
+  "project_id": "<project-gid>",
+  "policy_id": "<policy-gid>",
   "query": {
     "upsert_nodes": [
       {

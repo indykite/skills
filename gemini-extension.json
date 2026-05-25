@@ -1,7 +1,7 @@
 {
   "name": "indykite-skills",
   "version": "1.0.0",
-  "description": "IndyKite skills for coding agents \u2014 Agent Gateway deployment, MCP server calls, and ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).",
+  "description": "IndyKite skills for coding agents \u2014 Agent Gateway deployment, MCP server calls, KBAC authorization policies, and ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).",
   "contextFileName": "README.md",
   "settings": [
     {

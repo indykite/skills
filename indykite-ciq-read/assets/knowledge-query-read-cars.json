@@ -1,9 +1,17 @@
 {
-  "nodes": [
-    "subject",
-    "car"
-  ],
-  "relationships": [
-    "r"
-  ]
+  "name": "kq-person-read-cars",
+  "display_name": "Person Query: Read owned cars",
+  "description": "Call tool 'ciq_execute' with arguments: id: \"<this query's id>\", input_params: {person_external_id: (required) external_id of the Person whose cars to read, must match Bearer token 'sub'}. Auth: Bearer token required (Person subject), token subject = person_external_id. Returns: the Person node, the Car nodes they OWN, and the OWNS relationship.",
+  "project_id": "<project-gid>",
+  "policy_id": "<policy-gid>",
+  "query": {
+    "nodes": [
+      "subject",
+      "car"
+    ],
+    "relationships": [
+      "r"
+    ]
+  },
+  "status": "ACTIVE"
 }

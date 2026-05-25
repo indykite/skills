@@ -42,14 +42,14 @@ A symptom-first map. Walk it top-down — earlier rows are cheaper to verify.
 | Likely cause                                          | How to verify                                                                  | Fix                                                                  |
 |-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
 | Wrong Knowledge Query `id`                            | Read `indykite://knowledge-queries/`; compare ids.                              | Use the GID or name from that resource.                              |
-| `input_params` keys do not match the query's filter variables | Read the query's parameter description in `indykite://knowledge-queries/`. | Rename the keys; coerce types where needed.                          |
+| `input_params` keys do not match the parameters in the query's description | Read the query's parameter description in `indykite://knowledge-queries/`. | Rename the keys; coerce types where needed.                          |
 | Query expects values that no longer exist in the IKG  | Run a smaller probe query against the same data.                                | Capture the missing data, or relax the filter values.                 |
 
 ## Symptom: every call after `initialize` is rejected
 
 | Likely cause                                          | How to verify                                                                  | Fix                                                                  |
 |-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
-| `Mcp-Session-Id` not captured from `initialize` response | Look at the *response headers*, not just the body.                            | Use `curl -i` or read `response.headers["Mcp-Session-Id"]`. The helper script in `assets/init-session.sh` does this for you. |
+| `Mcp-Session-Id` not captured from `initialize` response | Look at the *response headers*, not just the body.                            | Use `curl -i` or read `response.headers["Mcp-Session-Id"]`. The helper script in `scripts/init-session.sh` does this for you. |
 | Session id reused across processes after restart      | Each process must initialize.                                                   | Re-initialize on startup.                                             |
 
 ## Symptom: MCP server simply refuses to accept requests for a project

@@ -1,0 +1,18 @@
+{
+  "subject": {
+    "type": "Person",
+    "id": "alice"
+  },
+  "resource": {
+    "type": "Car",
+    "id": "kitt"
+  },
+  "action": {
+    "name": "CAN_BUY"
+  },
+  "context": {
+    "input_params": {
+      "max_price": 150000
+    }
+  }
+}

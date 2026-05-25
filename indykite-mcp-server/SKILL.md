@@ -22,14 +22,14 @@ Activate this skill when the user:
 
 - needs to **call** the IndyKite MCP server (initialize a session, list tools/resources, or call AuthZEN/CIQ tools);
 - is **configuring** an MCP server for a project (`POST /configs/v1/mcp-servers`) and needs the field set;
-- is debugging a **`401`** that returned `.well-known/oauth-protected-resource` metadata — almost always a missing or invalid `Authorization: Bearer` token;
+- is debugging a **`401`** that returned `.well-known/oauth-protected-resource` metadata - almost always a missing or invalid `Authorization: Bearer` token;
 - is wiring an LLM client (Claude Code, Cursor, Goose, the [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk), etc.) into the IndyKite MCP and needs the request shape;
 - is choosing between `authzen_evaluate`, `authzen_evaluations`, `authzen_search_resource`, `authzen_search_action`, and `ciq_execute`.
 
 Do **not** activate this skill when the user:
 
-- is asking about the IndyKite Agent Gateway (use the [`indykite-agent-gateway`](../indykite-agent-gateway/SKILL.md) skill — IAG protects A2A agents, not MCP);
-- is calling AuthZEN or ContX IQ over their **direct REST APIs** (no MCP session involved) — different endpoints, different auth shape;
+- is asking about the IndyKite Agent Gateway (use the [`indykite-agent-gateway`](../indykite-agent-gateway/SKILL.md) skill - IAG protects A2A agents, not MCP);
+- is calling AuthZEN or ContX IQ over their **direct REST APIs** (no MCP session involved) - different endpoints, different auth shape;
 - is asking about the MCP **specification itself** rather than the IndyKite implementation.
 
 ## Prerequisites
@@ -37,12 +37,12 @@ Do **not** activate this skill when the user:
 The MCP server will reject requests for a project until all of the following exist:
 
 - An IndyKite **project** with an **Application**, **AppAgent**, and AppAgent **credentials** (the AppAgent token is what goes into `X-IK-ClientKey`).
-- A **Token Introspect** configuration on the project — used to validate inbound user Bearer tokens.
+- A **Token Introspect** configuration on the project - used to validate inbound user Bearer tokens.
 - An **MCP server configuration** (`POST /configs/v1/mcp-servers`) that binds the runtime endpoint to the AppAgent and Token Introspect, and declares `scopes_supported`. Without this configuration, requests for the project are rejected. See [`references/configuration.md`](references/configuration.md).
 - The project's **GID** (used in the URL path).
 - Captured **data and policies**: KBAC and/or CIQ policies and Knowledge Queries, depending on which tools the agent will call.
 
-If any of these are missing, stop and tell the user — fixing them first is much cheaper than debugging an opaque MCP rejection.
+If any of these are missing, stop and tell the user - fixing them first is much cheaper than debugging an opaque MCP rejection.
 
 ## Steps
 
@@ -108,9 +108,9 @@ curl -s -X POST "$MCP_URL/mcp/v1/$PROJECT_GID" \
 
 Before calling tools, ask the server what's available. Three useful methods:
 
-- `resources/list` — what resources the MCP server exposes.
-- `tools/list` — what tools the agent may call (the canonical set is in [`references/tools.md`](references/tools.md), but list it to verify what *this* deployment exposes).
-- `resources/read` with `uri: "indykite://knowledge-queries/"` — agent-friendly descriptions of every CIQ Knowledge Query, including the parameters each one expects.
+- `resources/list` - what resources the MCP server exposes.
+- `tools/list` - what tools the agent may call (the canonical set is in [`references/tools.md`](references/tools.md), but list it to verify what *this* deployment exposes).
+- `resources/read` with `uri: "indykite://knowledge-queries/"` - agent-friendly descriptions of every CIQ Knowledge Query, including the parameters each one expects.
 
 The third one is especially important before any `ciq_execute` call: it tells the agent *which* `id` to pass and *what* `input_params` shape the query expects.
 
@@ -131,14 +131,14 @@ Each tool is invoked through the MCP `tools/call` method with `name` and `argume
 
 `ciq_execute` runs a Knowledge Query against the IndyKite Graph (read or write). Two arguments:
 
-- `id` — GID **or** name of the Knowledge Query to run.
-- `input_params` — key/value map matching the query's partial filter variables.
+- `id` - GID **or** name of the Knowledge Query to run.
+- `input_params` - the partial parameters from the Knowledge Query **and its policy**; the exact set is documented in the query's description.
 
 Always discover queries first via `resources/read` on `indykite://knowledge-queries/` so the agent passes the right parameters.
 
 ### 7. Read, interpret, and audit responses
 
-JSON-RPC responses come back with `id` matching the request, `result` on success, or `error` on failure. For AuthZEN, the meaningful payload is the decision plus any reason; for CIQ, it is the rows the query returned. Service-side errors (configuration broken, scopes missing) usually surface as JSON-RPC `error` objects, while transport problems (auth, connectivity) come back as HTTP `4xx`/`5xx` *before* JSON-RPC even runs — see [`references/troubleshooting.md`](references/troubleshooting.md).
+JSON-RPC responses come back with `id` matching the request, `result` on success, or `error` on failure. For AuthZEN, the meaningful payload is the decision plus any reason; for CIQ, it is the rows the query returned. Service-side errors (configuration broken, scopes missing) usually surface as JSON-RPC `error` objects, while transport problems (auth, connectivity) come back as HTTP `4xx`/`5xx` *before* JSON-RPC even runs - see [`references/troubleshooting.md`](references/troubleshooting.md).
 
 ## Outcome
 
@@ -152,11 +152,11 @@ When this skill has been applied successfully:
 
 ## Files in this skill
 
-- [`references/architecture.md`](references/architecture.md) — protocol and session model, two-layer auth, RFC 9728 `401` behavior.
-- [`references/configuration.md`](references/configuration.md) — `POST /configs/v1/mcp-servers` field reference and example payload.
-- [`references/tools.md`](references/tools.md) — schemas and examples for every AuthZEN and CIQ tool.
-- [`references/troubleshooting.md`](references/troubleshooting.md) — symptom-to-cause map.
-- [`scripts/init-session.sh`](scripts/init-session.sh) — Bash helper that initializes a session and prints the resulting `Mcp-Session-Id`. Requires `MCP_URL`, `PROJECT_GID`, `API_KEY`, `BEARER_TOKEN` in the environment, and `curl` + `awk` on `PATH`.
+- [`references/architecture.md`](references/architecture.md) - protocol and session model, two-layer auth, RFC 9728 `401` behavior.
+- [`references/configuration.md`](references/configuration.md) - `POST /configs/v1/mcp-servers` field reference and example payload.
+- [`references/tools.md`](references/tools.md) - schemas and examples for every AuthZEN and CIQ tool.
+- [`references/troubleshooting.md`](references/troubleshooting.md) - symptom-to-cause map.
+- [`scripts/init-session.sh`](scripts/init-session.sh) - Bash helper that initializes a session and prints the resulting `Mcp-Session-Id`. Requires `MCP_URL`, `PROJECT_GID`, `API_KEY`, `BEARER_TOKEN` in the environment, and `curl` + `awk` on `PATH`.
 
 ## Agent-specific notes
 
@@ -170,4 +170,4 @@ This skill uses generic markdown instructions and works across all agents listed
 - [`POST /mcp-servers` API reference](https://openapi.indykite.com/api-documentation-config/#tag/mcp-servers/POST/mcp-servers)
 - [`POST /token-introspects` API reference](https://openapi.indykite.com/api-documentation-config#POST/token-introspects)
 - [`POST /application-agent-credentials` API reference](https://openapi.indykite.com/api-documentation-config#POST/application-agent-credentials)
-- [RFC 9728 — Protected Resource Metadata](https://datatracker.ietf.org/doc/html/rfc9728)
+- [RFC 9728 - Protected Resource Metadata](https://datatracker.ietf.org/doc/html/rfc9728)
