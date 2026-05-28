@@ -41,6 +41,15 @@ Do **not** activate this skill when the user:
 
 If any of these are missing, stop and tell the user - fixing them first is far cheaper than debugging an opaque `false` decision.
 
+## Credential and execution safety
+
+This skill calls authenticated IndyKite endpoints, so treat secrets and writes deliberately:
+
+- **Secrets stay in the environment.** `SERVICE_ACCOUNT_TOKEN` (policy creation), the AppAgent credentials token in `X-IK-ClientKey`, and any user `BEARER_TOKEN` are read from environment variables only. Never hardcode, echo, log, or paste them into chat, and never write them to a file. Use the env-var placeholders shown in this skill as-is - do not invent, guess, or ask the user to paste a raw secret value.
+- **Confirm before writing.** Creating a policy (`POST /configs/v1/authorization-policies`) mutates project configuration with the Service Account token - confirm with the user before running it. Decision calls (`/access/v1/evaluation`, `/evaluations`, `/search/*`) are read-only and safe to run once the request shape is clear.
+- **Show the request first.** State the target endpoint and request body before executing any `curl`, so the user can confirm the host and payload.
+- **Fixed hosts only.** Every call targets the regional IndyKite API (`eu`/`us.api.indykite.com`); [`scripts/evaluate.sh`](scripts/evaluate.sh) enforces this and refuses any other host.
+
 ## Steps
 
 ### 1. Frame the question as (subject, action, resource, condition)
