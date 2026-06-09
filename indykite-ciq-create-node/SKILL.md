@@ -213,5 +213,6 @@ This skill uses generic markdown instructions and works across all agents listed
 - [ContX IQ guide (developer hub)](https://developer.indykite.com/guides/guide-contx-iq)
 - [Music dataset tutorial - Chapter 8 "ContX IQ policies" and Chapter 9 "Knowledge Queries"](https://developer.indykite.com/tutorials/tutorial-music-dataset) - concrete read/write/delete variants against a real graph.
 - [Config API documentation](https://openapi.indykite.com/api-documentation-config)
+- [Cypher query language manual (Neo4j; openCypher)](https://neo4j.com/docs/cypher-manual/current/) - the graph query language used in CIQ policy and Knowledge Query conditions over the IndyKite Knowledge Graph.
 - [IndyKite Terraform provider - `indykite_authorization_policy` and `indykite_knowledge_query`](https://registry.terraform.io/providers/indykite/indykite/latest/docs)
 - [Credentials guide](https://developer.indykite.com/guides/guide-credentials)

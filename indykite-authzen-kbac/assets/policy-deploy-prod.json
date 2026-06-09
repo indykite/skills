@@ -1,0 +1,24 @@
+{
+  "name": "kbac-person-deploy-prod",
+  "display_name": "Person: DEPLOY to prod with deployer role",
+  "description": "Allow a Person to DEPLOY to the prod Environment when they hold the 'deployer' role via a HAS_ROLE edge.",
+  "project_id": "<project-gid>",
+  "policy": {
+    "meta": {
+      "policy_version": "2.0-kbac"
+    },
+    "subject": {
+      "type": "Person"
+    },
+    "actions": [
+      "DEPLOY"
+    ],
+    "resource": {
+      "type": "Environment"
+    },
+    "condition": {
+      "cypher": "MATCH (subject:Person)-[:HAS_ROLE]->(role:Role), (resource:Environment) WHERE role.property.name = 'deployer' AND resource.property.name = 'prod'"
+    }
+  },
+  "status": "ACTIVE"
+}

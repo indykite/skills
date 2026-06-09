@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# evaluate.sh - ask for a KBAC decision via POST /access/v1/evaluation (AuthZEN).
+# search-action.sh - list the actions a subject may perform on a resource via
+# POST /access/v1/search/action (AuthZEN).
 #
 # Required env vars:
 #   API_URL       IndyKite regional API base (no trailing slash). Must be one of
@@ -10,16 +11,18 @@
 #   BEARER_TOKEN  User OAuth access token. Optional - applies only in some cases.
 #
 # Arguments:
-#   $1            Path to a JSON file with the evaluation request body
-#                 (subject / resource / action / context), e.g.
-#                 assets/evaluation-can-buy-car.json. Use "-" for stdin.
+#   $1            Path to a JSON file with the search request body
+#                 (subject / resource / optional context), e.g.
+#                 assets/search-action-request.json. Use "-" for stdin.
 #
 # Usage:
-#   ./evaluate.sh assets/evaluation-can-buy-car.json
-#   cat req.json | ./evaluate.sh -
-#   ./evaluate.sh --print assets/evaluation-can-buy-car.json   # print the curl (tokens redacted), don't run it
+#   ./search-action.sh assets/search-action-request.json
+#   cat req.json | ./search-action.sh -
+#   ./search-action.sh --print assets/search-action-request.json   # print the curl (tokens redacted), don't run it
 
 set -euo pipefail
+
+endpoint="/access/v1/search/action"
 
 print_only=0
 if [[ "${1:-}" == "--print" ]]; then
@@ -37,13 +40,13 @@ API_URL="${API_URL%/}"
 case "${API_URL}" in
 https://eu.api.indykite.com | https://us.api.indykite.com) ;;
 *)
-    printf 'evaluate.sh: refusing to send credentials to non-IndyKite host: %s\n' "${API_URL}" >&2
+    printf '%s: refusing to send credentials to non-IndyKite host: %s\n' "${0##*/}" "${API_URL}" >&2
     exit 2
     ;;
 esac
 
 if [[ "${#}" -ne 1 ]]; then
-    printf 'usage: %s [--print] <evaluation-request.json | ->\n' "${0}" >&2
+    printf 'usage: %s [--print] <search-request.json | ->\n' "${0}" >&2
     exit 2
 fi
 
@@ -52,18 +55,18 @@ if [[ "${1}" == "-" ]]; then
 elif [[ -f "${1}" ]]; then
     body="$(cat "${1}")"
 else
-    printf 'evaluate.sh: request file not found: %s\n' "${1}" >&2
+    printf '%s: request file not found: %s\n' "${0##*/}" "${1}" >&2
     exit 2
 fi
 
 # Forward only well-formed JSON; never pipe arbitrary unvalidated input to the API.
 if ! printf '%s' "${body}" | jq -e . >/dev/null 2>&1; then
-    printf 'evaluate.sh: request body is not valid JSON\n' >&2
+    printf '%s: request body is not valid JSON\n' "${0##*/}" >&2
     exit 2
 fi
 
 args=(
-    -sS -X POST "${API_URL}/access/v1/evaluation"
+    -sS -X POST "${API_URL}${endpoint}"
     -H "Content-Type: application/json"
     -H "X-IK-ClientKey: ${API_KEY}"
     --data "${body}"

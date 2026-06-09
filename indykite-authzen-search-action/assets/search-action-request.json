@@ -1,0 +1,15 @@
+{
+  "subject": {
+    "type": "Person",
+    "id": "linus"
+  },
+  "resource": {
+    "type": "Server",
+    "id": "gpu-node-7"
+  },
+  "context": {
+    "input_params": {
+      "max_price": 120000
+    }
+  }
+}

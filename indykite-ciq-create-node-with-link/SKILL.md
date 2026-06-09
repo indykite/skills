@@ -222,4 +222,5 @@ This skill uses generic markdown instructions and works across all agents listed
 - [Developer-hub resources - `policyAllowWriteContract` and `knowledgeQueryAllowWriteContract`](https://developer.indykite.com/resources) - the canonical insurance-Contract example this skill is built around.
 - [Music dataset tutorial - Chapter 9 "Knowledge Queries"](https://developer.indykite.com/tutorials/tutorial-music-dataset) - `kqb` write variants for context-aware ingestion patterns.
 - [Config API documentation](https://openapi.indykite.com/api-documentation-config)
+- [Cypher query language manual (Neo4j; openCypher)](https://neo4j.com/docs/cypher-manual/current/) - the graph query language used in CIQ policy and Knowledge Query conditions over the IndyKite Knowledge Graph.
 - [IndyKite Terraform provider](https://registry.terraform.io/providers/indykite/indykite/latest/docs)

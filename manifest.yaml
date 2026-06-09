@@ -15,7 +15,8 @@ common:
   name: indykite-skills
   version: 1.0.0
   description: >-
-    IndyKite skills for coding agents — Agent Gateway deployment, MCP server calls, KBAC authorization policies,
+    IndyKite skills for coding agents — Agent Gateway deployment, MCP server calls, KBAC authorization policy
+    authoring and lifecycle, AuthZEN decisions and search (single evaluation, batch evaluations, action / resource / subject search),
     and ContX IQ policies / Knowledge Queries / executes
     (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete).
   author:
@@ -37,6 +38,11 @@ skills:
   - indykite-agent-gateway
   - indykite-mcp-server
   - indykite-authzen-kbac
+  - indykite-authzen-evaluation
+  - indykite-authzen-evaluations
+  - indykite-authzen-search-action
+  - indykite-authzen-search-resource
+  - indykite-authzen-search-subject
   - indykite-ciq-read
   - indykite-ciq-create-node
   - indykite-ciq-create-relationship

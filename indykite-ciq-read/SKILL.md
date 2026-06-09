@@ -7,7 +7,7 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 # IndyKite ContX IQ - read-only policy + Knowledge Query
 
-ContX IQ (CIQ) is IndyKite's context-aware data layer over the IKG. A CIQ **policy** declares *what graph elements may be touched* and *under what conditions*; a CIQ **Knowledge Query** declares *what to do with them*; an **execution** call runs the Knowledge Query at runtime with concrete parameter values.
+ContX IQ (CIQ) is IndyKite's context-aware data layer over the IKG — IndyKite's knowledge graph, a property-graph database queried with Cypher (the Neo4j / openCypher graph query language). A CIQ **policy** declares *what graph elements may be touched* and *under what conditions*; a CIQ **Knowledge Query** declares *what to do with them*; an **execution** call runs the Knowledge Query at runtime with concrete parameter values.
 
 This skill covers the **read-only** path:
 
@@ -197,6 +197,7 @@ This skill uses generic markdown instructions and works across all agents listed
 
 - [ContX IQ guide (developer hub)](https://developer.indykite.com/guides/guide-contx-iq)
 - [Config API documentation](https://openapi.indykite.com/api-documentation-config)
+- [Cypher query language manual (Neo4j; openCypher)](https://neo4j.com/docs/cypher-manual/current/) - the graph query language used in CIQ policy and Knowledge Query conditions over the IndyKite Knowledge Graph.
 - [IndyKite Terraform provider - `indykite_authorization_policy` and `indykite_knowledge_query`](https://registry.terraform.io/providers/indykite/indykite/latest/docs)
 - [Credentials guide](https://developer.indykite.com/guides/guide-credentials)
 - [External Data Resolver guide (out of scope here, but useful for follow-on work)](https://developer.indykite.com/guides/guide-external-data-resolver)

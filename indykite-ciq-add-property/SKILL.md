@@ -217,5 +217,6 @@ This skill uses generic markdown instructions and works across all agents listed
 - [Music dataset tutorial - Chapter 9 "Knowledge Queries"](https://developer.indykite.com/tutorials/tutorial-music-dataset) - read/write/delete variant naming convention (`kq` / `kqb` / `kqc`).
 - [Developer-hub resources - CIQ examples](https://developer.indykite.com/resources) - `policyMetaData` + `knowledgeQueryMetaData` show a richer property-write pattern with `$token.iss` substitution and per-property metadata.
 - [Config API documentation](https://openapi.indykite.com/api-documentation-config)
+- [Cypher query language manual (Neo4j; openCypher)](https://neo4j.com/docs/cypher-manual/current/) - the graph query language used in CIQ policy and Knowledge Query conditions over the IndyKite Knowledge Graph.
 - [IndyKite Terraform provider](https://registry.terraform.io/providers/indykite/indykite/latest/docs)
 - [Credentials guide](https://developer.indykite.com/guides/guide-credentials)
