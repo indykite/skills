@@ -1,18 +1,18 @@
 {
   "subject": {
     "type": "Person",
-    "id": "alice"
+    "id": "ada"
   },
   "resource": {
-    "type": "Car",
-    "id": "kitt"
+    "type": "Server",
+    "id": "gpu-node-7"
   },
   "action": {
-    "name": "CAN_BUY"
+    "name": "PROVISION"
   },
   "context": {
     "input_params": {
-      "max_price": 150000
+      "max_price": 120000
     }
   }
 }

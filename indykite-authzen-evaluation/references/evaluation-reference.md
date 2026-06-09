@@ -18,7 +18,7 @@ A **user OAuth access token** (`Authorization: Bearer <token>`) is **optional** 
 
 The subject being evaluated is identified by the request's `subject.id` (matched to the node `external_id`), not by the caller's credentials.
 
-(Policy *creation* is a separate operation with its own auth - a Service Account token; see [`policy-reference.md`](policy-reference.md).)
+(Policy *creation* is a separate operation with its own auth - a Service Account token; see [`indykite-authzen-kbac`](../../indykite-authzen-kbac/SKILL.md) and its [`policy-reference.md`](../../indykite-authzen-kbac/references/policy-reference.md).)
 
 ## Single evaluation
 
@@ -30,10 +30,10 @@ Request:
 
 ```json
 {
-  "subject":  { "type": "Person", "id": "alice" },
-  "resource": { "type": "Car",    "id": "kitt"  },
-  "action":   { "name": "CAN_BUY" },
-  "context":  { "input_params": { "max_price": 150000 } }
+  "subject":  { "type": "Person", "id": "ada" },
+  "resource": { "type": "Server",    "id": "gpu-node-7"  },
+  "action":   { "name": "PROVISION" },
+  "context":  { "input_params": { "max_price": 120000 } }
 }
 ```
 
@@ -52,73 +52,26 @@ Response:
 
 `true` = at least one ACTIVE policy granted the triple and its condition held. `false` = nothing granted it.
 
-## Batch evaluations
+## Beyond a single decision
 
-```text
-POST <API_URL>/access/v1/evaluations
-```
+This reference covers the single `/evaluation` endpoint. The same policy is evaluated by sibling endpoints, each with its own skill:
 
-Top-level `subject` / `action` / `resource` / `context` act as **defaults**; each entry in `evaluations[]` overrides the parts it specifies. This is efficient when one subject is checked against many resources, or one action across many subjects.
+| Need                                                | Endpoint                       | Skill                                                                  |
+|-----------------------------------------------------|--------------------------------|-----------------------------------------------------------------------|
+| Many decisions in one call                          | `/access/v1/evaluations`       | [`indykite-authzen-evaluations`](../../indykite-authzen-evaluations/SKILL.md) |
+| Actions a subject may perform on a resource         | `/access/v1/search/action`     | [`indykite-authzen-search-action`](../../indykite-authzen-search-action/SKILL.md)   |
+| Resources a subject may act on, given an action     | `/access/v1/search/resource`   | [`indykite-authzen-search-resource`](../../indykite-authzen-search-resource/SKILL.md) |
+| Subjects allowed an action on a resource            | `/access/v1/search/subject`    | [`indykite-authzen-search-subject`](../../indykite-authzen-search-subject/SKILL.md)  |
 
-Request:
-
-```json
-{
-  "subject": { "type": "Person", "id": "knightrider" },
-  "action":  { "name": "CAN_DRIVE" },
-  "evaluations": [
-    { "resource": { "type": "Car", "id": "kitt" } },
-    { "resource": { "type": "Car", "id": "caddilacv16" } },
-    { "resource": { "type": "Bus", "id": "harmonika" }, "action": { "name": "CAN_RIDE" } }
-  ]
-}
-```
-
-Response - one decision per request entry, in order:
-
-```json
-{
-  "evaluations": [
-    { "decision": true },
-    { "decision": false },
-    { "decision": true }
-  ]
-}
-```
-
-`context.policy_tags` (top level or per entry) restricts evaluation to policies carrying the given tags.
-
-## Action search
-
-```text
-POST <API_URL>/access/v1/search/action
-```
-
-Returns the actions a subject is allowed to perform on a resource - useful for building a UI that shows only permitted operations.
-
-Request:
-
-```json
-{
-  "subject":  { "type": "Person", "id": "alice" },
-  "resource": { "type": "Car",    "id": "kitt"  }
-}
-```
-
-Response:
-
-```json
-{ "results": [ { "name": "CAN_BUY" } ] }
-```
-
-Each `results[]` entry is an action the subject may perform on that resource under current policies and graph state. Two sibling endpoints exist with analogous request bodies: `/access/v1/search/resource` (resources a subject may act on, given an action) and `/access/v1/search/subject` (subjects allowed an action on a resource).
+All of them authenticate the same way (`X-IK-ClientKey`, optional user `Bearer`) and read the same `2.0-kbac` policies authored via [`indykite-authzen-kbac`](../../indykite-authzen-kbac/SKILL.md).
 
 ## Error semantics
 
 | HTTP code          | When                                                                                  | Likely fix                                                                          |
 |--------------------|---------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
 | `200` + `decision:false` | Request well-formed but no policy granted the triple, or the condition did not hold. | Walk the [troubleshooting checklist](troubleshooting.md). This is **not** an error. |
-| `400 Bad Request`  | Malformed JSON, or `input_params` missing a parameter the condition requires.          | Fix the body; supply every `$name` the policy references.                            |
+| `422 Unprocessable Entity` | `input_params` missing a parameter the condition requires - body carries `errors: ["missing or wrong input params, '<name>'"]`. | Supply every `$name` the policy references. (In a *batch* call this instead surfaces per-entry as `decision:false` + `context.reason`.) |
+| `400 Bad Request`  | Malformed JSON or a missing required field.                                            | Fix the request body.                                                                |
 | `401 Unauthorized` | Invalid `X-IK-ClientKey`, or an invalid user OAuth token when one is supplied. | Refresh the AppAgent credentials token; if a user token is required, ensure it is valid. |
 | `404 Not Found`    | Wrong base path or project context.                                                    | Confirm `<API_URL>/access/v1/...` and the credentials' project.                     |
 | `5xx`              | Server-side issue.                                                                     | Retry with backoff; if persistent, file with the IndyKite team.                     |

@@ -1,0 +1,44 @@
+{
+  "action": {
+    "name": "PROVISION"
+  },
+  "resource": {
+    "type": "Server",
+    "id": "gpu-node-7"
+  },
+  "evaluations": [
+    {
+      "subject": {
+        "type": "Person",
+        "id": "linus"
+      }
+    },
+    {
+      "subject": {
+        "type": "Person",
+        "id": "grace"
+      }
+    },
+    {
+      "subject": {
+        "type": "Person",
+        "id": "grace"
+      },
+      "resource": {
+        "type": "Server",
+        "id": "edge-box-2"
+      }
+    },
+    {
+      "subject": {
+        "type": "Person",
+        "id": "dennis"
+      }
+    }
+  ],
+  "context": {
+    "input_params": {
+      "max_price": 80000
+    }
+  }
+}

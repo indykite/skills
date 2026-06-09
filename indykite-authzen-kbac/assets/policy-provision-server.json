@@ -1,0 +1,24 @@
+{
+  "name": "kbac-person-provision-server",
+  "display_name": "Person: PROVISION a Server within budget",
+  "description": "Allow a Person to PROVISION a Server when its price is within a budget supplied at evaluation time.",
+  "project_id": "<project-gid>",
+  "policy": {
+    "meta": {
+      "policy_version": "2.0-kbac"
+    },
+    "subject": {
+      "type": "Person"
+    },
+    "actions": [
+      "PROVISION"
+    ],
+    "resource": {
+      "type": "Server"
+    },
+    "condition": {
+      "cypher": "MATCH (subject:Person), (resource:Server) WHERE resource.property.price <= $max_price"
+    }
+  },
+  "status": "ACTIVE"
+}
