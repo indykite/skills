@@ -7,7 +7,7 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 # IndyKite ContX IQ - delete a node, relationship, or property
 
-CIQ deletion uses two policy fields (`allowed_deletes.nodes`, `allowed_deletes.relationships`) and two Knowledge Query arrays (`delete_nodes`, `delete_relationships`). Each accepts a variable name from the policy's `cypher` to delete the whole element, or `<var>.<property>` (or `<var>.property.<name>` for nodes) to delete only one property. Three modes share the same operation surface.
+Delete a node, a relationship, or individual properties from the IndyKite Graph (IKG), driven by a ContX IQ policy + Knowledge Query and run via `POST /contx-iq/v1/execute`. Two policy fields (`allowed_deletes.nodes`, `allowed_deletes.relationships`) and two Knowledge Query arrays (`delete_nodes`, `delete_relationships`) drive it: pass a variable name from the policy's `cypher` to delete the whole element, or `<var>.<property>` (or `<var>.property.<name>` for nodes) to delete only one property. Three modes share the same operation surface.
 
 | Mode                          | Policy field                              | KQ array                | KQ entry shape                                     |
 |-------------------------------|-------------------------------------------|-------------------------|----------------------------------------------------|

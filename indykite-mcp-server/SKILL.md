@@ -1,13 +1,13 @@
 ---
 name: indykite-mcp-server
-description: Call the IndyKite MCP server to make AuthZEN authorization decisions and execute ContX IQ Knowledge Queries. Use when initializing an MCP session, calling its tools, configuring an MCP server, or debugging its two-layer auth.
+description: Make live IndyKite authorization decisions (AuthZEN/KBAC) and run ContX IQ graph queries from an AI agent over the Model Context Protocol - one Bearer-token JSON-RPC session, no bespoke REST wiring. Use when initializing an MCP session, calling its tools (authzen_evaluate, authzen_evaluations, authzen_search_*, ciq_execute), configuring an MCP server, or debugging its single Bearer-token auth.
 license: Apache-2.0
 compatibility: Requires curl and bash 4+. Network access to eu.mcp.indykite.com or us.mcp.indykite.com, plus the OAuth IdP that issues Bearer tokens, is required at runtime.
 ---
 
 # IndyKite MCP Server
 
-The **IndyKite MCP server** exposes IndyKite's authorization (AuthZEN/KBAC) and graph-data (ContX IQ) capabilities to AI agents through the [Model Context Protocol](https://modelcontextprotocol.io/). It speaks **JSON-RPC over HTTP POST** and uses the standard MCP session model (`initialize` → `Mcp-Session-Id` → subsequent calls).
+The **IndyKite MCP server** lets an AI agent make authorization decisions - "can this subject do X on Y?" (AuthZEN/KBAC) - and read or write the IndyKite Graph (ContX IQ), directly through the [Model Context Protocol](https://modelcontextprotocol.io/) instead of bespoke REST calls. It speaks **JSON-RPC over HTTP POST** and follows the standard MCP session model (`initialize` → `Mcp-Session-Id` → subsequent calls).
 
 Two regional endpoints exist:
 
@@ -22,7 +22,7 @@ Activate this skill when the user:
 
 - needs to **call** the IndyKite MCP server (initialize a session, list tools/resources, or call AuthZEN/CIQ tools);
 - is **configuring** an MCP server for a project (`POST /configs/v1/mcp-servers`) and needs the field set;
-- is debugging a **`401`** that returned `.well-known/oauth-protected-resource` metadata - almost always a missing or invalid `Authorization: Bearer` token;
+- is debugging a **`401`** that returned `.well-known/oauth-protected-resource` metadata - almost always a missing, expired, or wrongly-bound `Authorization: Bearer` token;
 - is wiring an LLM client (Claude Code, Cursor, Goose, the [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk), etc.) into the IndyKite MCP and needs the request shape;
 - is choosing between `authzen_evaluate`, `authzen_evaluations`, `authzen_search_resource`, `authzen_search_action`, and `ciq_execute`.
 
@@ -36,9 +36,9 @@ Do **not** activate this skill when the user:
 
 The MCP server will reject requests for a project until all of the following exist:
 
-- An IndyKite **project** with an **Application**, **AppAgent**, and AppAgent **credentials** (the AppAgent token is what goes into `X-IK-ClientKey`).
+- An IndyKite **project** with an **Application** and an **AppAgent** (with Authorization API + ContX IQ API permissions). The server uses this AppAgent to call IndyKite APIs at runtime, resolved server-side from the MCP server configuration's `app_agent_id` - the client no longer sends an AppAgent token.
 - A **Token Introspect** configuration on the project - used to validate inbound user Bearer tokens.
-- An **MCP server configuration** (`POST /configs/v1/mcp-servers`) that binds the runtime endpoint to the AppAgent and Token Introspect, and declares `scopes_supported`. Without this configuration, requests for the project are rejected. See [`references/configuration.md`](references/configuration.md).
+- An **MCP server configuration** (`POST /configs/v1/mcp-servers`) that binds the runtime endpoint to the AppAgent (`app_agent_id`) and Token Introspect, and declares `scopes_supported`. Without this configuration, requests for the project are rejected. See [`references/configuration.md`](references/configuration.md).
 - The project's **GID** (used in the URL path).
 - Captured **data and policies**: KBAC and/or CIQ policies and Knowledge Queries, depending on which tools the agent will call.
 
@@ -48,26 +48,24 @@ If any of these are missing, stop and tell the user - fixing them first is much 
 
 ### 1. Resolve the URL and credentials
 
-Build the full MCP URL: `<MCP_URL>/mcp/v1/<project_gid>` where `<MCP_URL>` is `https://eu.mcp.indykite.com` or `https://us.mcp.indykite.com`. Get two values into shell variables:
+Build the full MCP URL: `<MCP_URL>/mcp/v1/<project_gid>` where `<MCP_URL>` is `https://eu.mcp.indykite.com` or `https://us.mcp.indykite.com`. Get the values into shell variables:
 
 ```bash
-export API_KEY="<AppAgent-credentials-token>"     # → X-IK-ClientKey
 export BEARER_TOKEN="<user-OAuth-access-token>"   # → Authorization: Bearer
 export MCP_URL="https://us.mcp.indykite.com"
 export PROJECT_GID="<your-project-gid>"
 ```
 
-Both layers are required on every call after `initialize`. See [`references/architecture.md`](references/architecture.md) for the rationale (one identifies the application, the other identifies the user as the AuthZEN subject).
+A single `Authorization: Bearer` header is the only auth header on every call. The AppAgent the server uses to call IndyKite APIs at runtime is resolved **server-side** from the MCP server configuration's `app_agent_id` - clients no longer send an `X-IK-ClientKey` AppAgent token. See [`references/architecture.md`](references/architecture.md) for the rationale (the Bearer token identifies the user as the AuthZEN subject).
 
 ### 2. Initialize the session
 
-Send an `initialize` request and capture the `Mcp-Session-Id` response header. This is the only call that does not need a session id, but it does need both auth headers.
+Send an `initialize` request and capture the `Mcp-Session-Id` response header. This is the only call that does not need a session id, but it does need the `Authorization: Bearer` header.
 
 ```bash
 curl -s -i -X POST "$MCP_URL/mcp/v1/$PROJECT_GID" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $BEARER_TOKEN" \
-  -H "X-IK-ClientKey: $API_KEY" \
   -d '{
         "jsonrpc": "2.0",
         "id": 1,
@@ -90,7 +88,6 @@ Send the `notifications/initialized` JSON-RPC notification with the session id. 
 curl -s -X POST "$MCP_URL/mcp/v1/$PROJECT_GID" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $BEARER_TOKEN" \
-  -H "X-IK-ClientKey: $API_KEY" \
   -H "Mcp-Session-Id: $SESSION_ID" \
   -d '{
         "jsonrpc": "2.0",
@@ -144,19 +141,19 @@ JSON-RPC responses come back with `id` matching the request, `result` on success
 
 When this skill has been applied successfully:
 
-- An MCP server configuration exists for the project and `enabled` is `true`.
-- The agent has `API_KEY` (AppAgent token) and `BEARER_TOKEN` (user OAuth access token) in scope, and knows which goes in which header.
+- An MCP server configuration exists for the project (with `app_agent_id` set) and `enabled` is `true`.
+- The agent has `BEARER_TOKEN` (user OAuth access token) in scope and sends it as the sole `Authorization: Bearer` auth header.
 - An `initialize` call returns a usable `Mcp-Session-Id`.
 - `tools/list` and `resources/read` on `indykite://knowledge-queries/` enumerate what the agent can call.
 - AuthZEN decisions and CIQ query results come back over JSON-RPC and the agent uses them in its workflow.
 
 ## Files in this skill
 
-- [`references/architecture.md`](references/architecture.md) - protocol and session model, two-layer auth, RFC 9728 `401` behavior.
+- [`references/architecture.md`](references/architecture.md) - protocol and session model, single Bearer-token auth with server-side AppAgent resolution, RFC 9728 `401` behavior.
 - [`references/configuration.md`](references/configuration.md) - `POST /configs/v1/mcp-servers` field reference and example payload.
 - [`references/tools.md`](references/tools.md) - schemas and examples for every AuthZEN and CIQ tool.
 - [`references/troubleshooting.md`](references/troubleshooting.md) - symptom-to-cause map.
-- [`scripts/init-session.sh`](scripts/init-session.sh) - Bash helper that initializes a session and prints the resulting `Mcp-Session-Id`. Requires `MCP_URL`, `PROJECT_GID`, `API_KEY`, `BEARER_TOKEN` in the environment, and `curl` + `awk` on `PATH`.
+- [`scripts/init-session.sh`](scripts/init-session.sh) - Bash helper that initializes a session and prints the resulting `Mcp-Session-Id`. Requires `MCP_URL`, `PROJECT_GID`, `BEARER_TOKEN` in the environment, and `curl` + `awk` on `PATH`.
 
 ## Agent-specific notes
 

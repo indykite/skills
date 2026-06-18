@@ -13,11 +13,13 @@ A symptom-first map. Walk it top-down — earlier rows are cheaper to verify.
 
 ## Symptom: every request returns `401` even though a Bearer token is sent
 
+The MCP server checks the token's `iss`/`aud` against the project's bound Token Introspect *before* authoritative introspection, then validates it using the configured AppAgent. A mismatch on either side fails closed.
+
 | Likely cause                                          | How to verify                                                                  | Fix                                                                  |
 |-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
-| Wrong AppAgent token in `X-IK-ClientKey`              | Token decoded does not match the AppAgent.                                      | Generate a fresh AppAgent credentials token (`POST /application-agent-credentials`). |
-| AppAgent lacks Authorization API + ContX IQ permissions | Hub UI on the AppAgent.                                                       | Grant both permissions.                                              |
-| Bearer token's `aud` does not match the project's expectation | Decode `aud`; compare with project config.                              | Re-mint the user token with the right audience.                      |
+| Bearer token's `iss`/`aud` does not match the project's bound Token Introspect | Decode `iss`/`aud`; compare with the project's Token Introspect config. | Re-mint the user token with the right issuer/audience, or point the config at the right Token Introspect. |
+| AppAgent named by `app_agent_id` lacks Authorization API + ContX IQ permissions | Hub UI on the AppAgent referenced by the MCP server config.            | Grant both permissions.                                              |
+| `app_agent_id` on the MCP server config is wrong or the AppAgent was deleted | `GET /configs/v1/mcp-servers` for the project; check `app_agent_id`.      | Point the config at a valid AppAgent.                                |
 
 ## Symptom: server returns `403` or "no policy match" reason
 
@@ -66,13 +68,13 @@ A symptom-first map. Walk it top-down — earlier rows are cheaper to verify.
 printf '%s' "$BEARER_TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq
 
 # Fetch the .well-known protected-resource doc for a project
-curl -s -i "$MCP_URL/mcp/v1/$PROJECT_GID" -H "X-IK-ClientKey: $API_KEY" -H "Content-Type: application/json" \
+curl -s -i "$MCP_URL/mcp/v1/$PROJECT_GID" -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"curl","version":"1.0"}}}'
 # (no Bearer header forces 401 + metadata)
 
 # List tools (after initialize)
 curl -s "$MCP_URL/mcp/v1/$PROJECT_GID" \
-  -H "Authorization: Bearer $BEARER_TOKEN" -H "X-IK-ClientKey: $API_KEY" \
+  -H "Authorization: Bearer $BEARER_TOKEN" \
   -H "Mcp-Session-Id: $SESSION_ID" -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | jq
 ```

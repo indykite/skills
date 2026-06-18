@@ -7,7 +7,7 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 # IndyKite ContX IQ - add a property to an existing relationship
 
-A CIQ relationship-property-write policy declares an `allowed_upserts.relationships.existing_relationships` whitelist of relationship variables from the policy's `cypher` whose properties may be modified. The Knowledge Query's `upsert_relationships` references those variables (no `source`/`target`/`type`, since the relationship already exists) and lists the properties to set, optionally with metadata. Adding a brand-new property and overwriting an existing one are the **same operation** - the platform doesn't distinguish.
+Set or overwrite one or more properties on a relationship that already exists in the IndyKite Graph (IKG), driven by a ContX IQ policy + Knowledge Query and run via `POST /contx-iq/v1/execute`. The policy whitelists which `cypher`-matched relationships may be modified (`allowed_upserts.relationships.existing_relationships`); the Knowledge Query's `upsert_relationships` references those variables (no `source`/`target`/`type`, since the relationship already exists) and lists the properties to set, optionally with metadata. Adding a brand-new property and overwriting an existing one are the **same operation** - the platform doesn't distinguish.
 
 This skill is the relationship counterpart to [`indykite-ciq-add-property`](../indykite-ciq-add-property/SKILL.md), which sets properties on existing **nodes**. The structure is symmetric; the field names are different.
 

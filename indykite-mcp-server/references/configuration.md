@@ -1,6 +1,6 @@
 # IndyKite MCP — Server Configuration
 
-Before the MCP runtime endpoint will accept requests for a project, an **MCP server configuration** must exist for that project. This config binds the runtime endpoint to an AppAgent and a Token Introspect, declares the OAuth `scopes_supported`, and gates whether the server is `enabled`.
+Before the MCP runtime endpoint will accept requests for a project, an **MCP server configuration** must exist for that project. This config binds the runtime endpoint to an AppAgent and a Token Introspect, declares the OAuth `scopes_supported`, and gates whether the server is `enabled`. The `app_agent_id` it names is the identity the server uses to call IndyKite APIs at runtime — resolved server-side, so clients no longer send an `X-IK-ClientKey` AppAgent token.
 
 ## Endpoint
 
@@ -18,7 +18,7 @@ API reference: <https://openapi.indykite.com/api-documentation-config/#tag/mcp-s
 |----------------------|----------------|----------------------------------------------------------------------------------------------------|
 | `name`               | string         | URL-friendly identifier, unique within the project. **Immutable** after creation.                  |
 | `project_id`         | string (GID)   | Project that owns this MCP server configuration.                                                   |
-| `app_agent_id`       | string (GID)   | AppAgent the MCP server uses to call IndyKite APIs at runtime (becomes `X-IK-ClientKey`).          |
+| `app_agent_id`       | string (GID)   | AppAgent the MCP server uses to call IndyKite APIs at runtime. Needs Authorization API and ContX IQ API permissions. Resolved server-side — not sent by the client. |
 | `token_introspect_id`| string (GID)   | Token Introspect configuration used to validate inbound user Bearer tokens.                        |
 | `enabled`            | boolean        | Whether the MCP server accepts requests for this configuration.                                    |
 | `scopes_supported`   | string[]       | OAuth scopes advertised in `.well-known/oauth-protected-resource`. Must contain at least one entry. |
@@ -57,6 +57,6 @@ curl -X POST "$API_URL/configs/v1/mcp-servers" \
 
 ## Related setup
 
-- **AppAgent credentials**: `POST /application-agent-credentials` — required to obtain the token that goes into `X-IK-ClientKey`. Use a short validity period.
+- **AppAgent**: the AppAgent referenced by `app_agent_id` must exist and hold Authorization API + ContX IQ API permissions. The server resolves and uses it server-side; clients do not send AppAgent credentials at runtime.
 - **Token introspection**: `POST /token-introspects` — required so the MCP server can validate inbound Bearer tokens against the project's IdP.
 - **Environment setup walkthrough**: <https://developer.indykite.com/resources/environment-1>
