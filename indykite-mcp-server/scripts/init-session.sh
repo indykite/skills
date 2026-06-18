@@ -4,8 +4,10 @@
 # Required env vars:
 #   MCP_URL       e.g. https://us.mcp.indykite.com  (no trailing slash)
 #   PROJECT_GID   IndyKite project GID
-#   API_KEY       AppAgent credentials token (X-IK-ClientKey)
 #   BEARER_TOKEN  User OAuth access token   (Authorization: Bearer)
+#
+# The AppAgent the server uses at runtime is resolved server-side from the
+# project's MCP server configuration (app_agent_id); no X-IK-ClientKey is sent.
 #
 # Usage:
 #   SESSION_ID=$(./init-session.sh)
@@ -23,7 +25,6 @@ fi
 
 : "${MCP_URL:?set MCP_URL}"
 : "${PROJECT_GID:?set PROJECT_GID}"
-: "${API_KEY:?set API_KEY}"
 : "${BEARER_TOKEN:?set BEARER_TOKEN}"
 
 body='{
@@ -41,7 +42,6 @@ args=(
     -sS -i -X POST "${MCP_URL}/mcp/v1/${PROJECT_GID}"
     -H "Content-Type: application/json"
     -H "Authorization: Bearer ${BEARER_TOKEN}"
-    -H "X-IK-ClientKey: ${API_KEY}"
     -d "${body}"
 )
 

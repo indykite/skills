@@ -7,7 +7,7 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 # IndyKite ContX IQ - create a new node + link it to existing nodes
 
-This skill combines the patterns from [`indykite-ciq-create-node`](../indykite-ciq-create-node/SKILL.md) and [`indykite-ciq-create-relationship`](../indykite-ciq-create-relationship/SKILL.md): the policy whitelists both a node label and one or more relationship triples, and the Knowledge Query carries both `upsert_nodes` (for the new node) and `upsert_relationships` (for the new edge(s)). The new node's variable `name` from `upsert_nodes` is referenced as the `source` or `target` in `upsert_relationships`.
+Create a brand-new node in the IndyKite Graph (IKG) and wire it to one or more existing nodes in a single atomic `POST /contx-iq/v1/execute` call. The policy whitelists both a node label and one or more relationship triples, and the Knowledge Query carries both `upsert_nodes` (for the new node) and `upsert_relationships` (for the new edge(s)); the new node's variable `name` from `upsert_nodes` is referenced as the `source` or `target` in `upsert_relationships`. It combines the patterns from [`indykite-ciq-create-node`](../indykite-ciq-create-node/SKILL.md) and [`indykite-ciq-create-relationship`](../indykite-ciq-create-relationship/SKILL.md).
 
 This is the **canonical "ingest a new entity into the graph" pattern** - used in the IndyKite developer-hub resources for the insurance Contract example (`policyAllowWriteContract` + `knowledgeQueryAllowWriteContract`), where one execute creates a new `Contract` node and wires it via two relationships (`COVERS` to a Vehicle, `ACCEPTED` from a Person).
 

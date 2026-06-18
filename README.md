@@ -27,7 +27,7 @@ Acronyms used throughout the skills, defined once here.
 - **CIQ** — ContX IQ; an IndyKite context authorization policy plus its Knowledge Query, executed via `POST /contx-iq/v1/execute`.
 - **Knowledge Query** — the parameterised read/write definition CIQ runs against the IKG.
 - **AuthZEN** — IndyKite's policy-decision endpoint (`authzen_evaluate`).
-- **IAG** — IndyKite Agent Gateway; enforces caller, workflow, and delegation-chain checks in front of A2A agents.
+- **IAG** — IndyKite Agent Gateway; enforces caller, workflow, and delegation-chain checks in front of A2A agents or MCP servers.
 - **A2A** — agent-to-agent; one autonomous agent calling another.
 - **MCP** — Model Context Protocol; the IndyKite MCP server exposes AuthZEN and CIQ tools to MCP-aware agents.
 
@@ -37,8 +37,8 @@ Each row is one skill — what it does and a representative prompt it's *designe
 
 | Skill | What it does | Example prompt |
 |:------|:-------------|:---------------|
-| [`indykite-agent-gateway`](indykite-agent-gateway/SKILL.md) | Deploy and configure IAG in front of A2A agents to enforce caller, workflow, and delegation-chain checks. | "Deploy IAG in front of my three A2A agents and wire up the workflow in the IKG." |
-| [`indykite-mcp-server`](indykite-mcp-server/SKILL.md) | Call the IndyKite MCP server (initialize session, list tools, call AuthZEN and CIQ tools) and configure the MCP endpoint for a project. | "How do I initialise an MCP session against `eu.mcp.indykite.com` and call `authzen_evaluate`?" |
+| [`indykite-agent-gateway`](indykite-agent-gateway/SKILL.md) | Deploy and configure IAG in front of an A2A agent or MCP server to enforce caller, workflow, and delegation-chain checks. | "Put IAG in front of my MCP server so every call is authorized before it reaches it, and wire up the workflow in the IKG." |
+| [`indykite-mcp-server`](indykite-mcp-server/SKILL.md) | Make AuthZEN/KBAC authorization decisions and run ContX IQ Knowledge Queries from an AI agent over the Model Context Protocol — initialize a session, list tools, call the AuthZEN and CIQ tools — and configure the MCP endpoint for a project. | "How do I initialise an MCP session against `eu.mcp.indykite.com` and call `authzen_evaluate`?" |
 | [`indykite-authzen-kbac`](indykite-authzen-kbac/SKILL.md) | Author and manage a KBAC authorization policy (subject, actions, resource, Cypher condition) through the Config API — create, read, list `?type=kbac`, update, delete. The home of KBAC policy authoring. | "Write a policy letting a `Person` `PROVISION` a `Server` when its cost is within a budget, and publish it." |
 | [`indykite-authzen-evaluation`](indykite-authzen-evaluation/SKILL.md) | Make a single KBAC decision via the AuthZEN REST API (`POST /access/v1/evaluation`) — one yes/no answer for a `(subject, action, resource)` triple. | "Can `ada` `PROVISION` the server `gpu-node-7` with a budget of 120000?" |
 | [`indykite-authzen-evaluations`](indykite-authzen-evaluations/SKILL.md) | Run many KBAC decisions in one call (`POST /access/v1/evaluations`) with top-level defaults overridden per entry. | "Of these servers, which can `grace` provision with a budget of 80000?" |

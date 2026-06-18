@@ -1,6 +1,6 @@
 # IAG Troubleshooting
 
-A symptom-first map from observable failure to most likely cause. Walk it top-to-bottom — earlier rows are cheaper to verify than later ones.
+A symptom-first map from observable failure to most likely cause. Walk it top-to-bottom - earlier rows are cheaper to verify than later ones.
 
 ## Symptom: every request returns `401`
 
@@ -27,6 +27,21 @@ A symptom-first map from observable failure to most likely cause. Walk it top-to
 | `Agent.external_id` does not match the IdP client / `act` chain entry | Compare the three values side-by-side.                            | Make all three identical.                                           |
 | `INVOKES` relationship missing                        | Query the IKG for the relationship.                                                | Capture the missing relationship.                                   |
 | Chain skips a required intermediate agent             | Audit `reason` shows the requested chain.                                          | Route through the orchestrator (or whichever agent the workflow demands). |
+
+## Symptom: `401` / `403` on MCP calls (`protocol: mcp` instance)
+
+| Likely cause                                          | How to verify                                                                     | Fix                                                                 |
+|-------------------------------------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| App Agent token (`IK_APP_AGENT_KEY`) not introspectable | Decode it; confirm the Token Introspect config points at the right issuer.       | Use an introspectable App Agent token.                              |
+| App Agent not modeled as an allowed subject           | Audit `reason` shows subject type / no policy match - MCP agents call as the App Agent, not the chatbot user. | Override `JARVIS_AUTHZEN_ACTION` / `JARVIS_AUTHZEN_SUBJECT_TYPES` on the MCP instance to match how the App Agent is modeled. |
+| Image too old for MCP proxying                        | Gateway behaves as A2A proxy / ignores `JARVIS_PROTECTED_AGENT_PROTOCOL`.          | Pin `indykite/agent-gateway` ≥ `2.0.1`.                            |
+| To isolate the gateway                                | Point the agent's `MCP_SERVER_URL` back at the direct MCP server URL.             | If it works direct, the failure is auth/config on the MCP instance. |
+
+## Symptom: gateway fails to start with *invalid protected_agent protocol*
+
+| Likely cause                                          | How to verify                                                                     | Fix                                                                 |
+|-------------------------------------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| `protocol` set to something other than `a2a` / `mcp`  | Check `protected_agent.protocol` / `JARVIS_PROTECTED_AGENT_PROTOCOL`.              | Set it to `a2a` or `mcp` (or omit it - defaults to `a2a`).          |
 
 ## Symptom: `502 Bad Gateway`
 

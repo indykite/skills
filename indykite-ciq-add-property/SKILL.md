@@ -7,7 +7,7 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 # IndyKite ContX IQ - add a property to an existing node
 
-A CIQ property-write policy declares an `allowed_upserts.nodes.existing_nodes` whitelist of variables from the policy's `cypher` whose properties may be modified. The Knowledge Query's `upsert_nodes` references those variables (no `external_id`, since the node already exists) and lists the properties to set, optionally with metadata. The IKG treats this as an upsert - adding a brand-new property and overwriting an existing one are the **same operation**; the platform doesn't distinguish.
+Set or overwrite one or more properties on a node that already exists in the IndyKite Graph (IKG), driven by a ContX IQ policy + Knowledge Query and run via `POST /contx-iq/v1/execute`. The policy whitelists which `cypher`-matched nodes may be modified (`allowed_upserts.nodes.existing_nodes`); the Knowledge Query's `upsert_nodes` references those variables (no `external_id`, since the node already exists) and lists the properties to set, optionally with metadata. The IKG treats this as an upsert - adding a brand-new property and overwriting an existing one are the **same operation**; the platform doesn't distinguish.
 
 This skill covers exactly that - property writes on an existing node. Other paths are deliberately out of scope:
 

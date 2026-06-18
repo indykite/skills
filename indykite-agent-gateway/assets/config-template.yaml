@@ -22,6 +22,10 @@ identity_provider:
   exchange_endpoint: oauth-token
 protected_agent:
   base_url: <PROTECTED_AGENT_BASE_URL> # e.g. http://orchestrator:6001
+  # a2a (default) protects an A2A agent; mcp puts IAG in front of an MCP
+  # server (Streamable HTTP). For mcp, base_url is the MCP server ORIGIN only
+  # (e.g. https://us.mcp.indykite.com) — the incoming request path is appended.
+  protocol: a2a # a2a (default) or mcp
   authentication:
     type: credentials
     client_id: <PROTECTED_AGENT_CLIENT_ID>

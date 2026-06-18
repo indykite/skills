@@ -7,7 +7,7 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 # IndyKite ContX IQ - create a new node
 
-ContX IQ (CIQ) lets you write into the IKG through a policy + Knowledge Query pair, the same shape used for reads. To **create a brand-new node**, the policy declares an `allowed_upserts.nodes.node_types` whitelist of node labels that may be created, and the Knowledge Query's `upsert_nodes` array names the node, sets its `external_id`, and lists the properties to write.
+Create a brand-new node in the IndyKite Graph (IKG) through a ContX IQ policy + Knowledge Query, run via `POST /contx-iq/v1/execute`. The policy declares an `allowed_upserts.nodes.node_types` whitelist of node labels that may be created, and the Knowledge Query's `upsert_nodes` array names the node, sets its `external_id`, and lists the properties to write. (CIQ writes use the same policy + Knowledge Query shape as reads.)
 
 This skill covers exactly that - node creation only. Other write paths are deliberately out of scope:
 

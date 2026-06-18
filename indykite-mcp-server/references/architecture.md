@@ -15,18 +15,19 @@ This file is loaded by agents that need to reason about *how* the MCP server pro
 
 `<project_gid>` is the IndyKite project identifier. The same MCP server instance can serve many projects; the path segment selects which one.
 
-## Two-layer authorization
+## Authentication: a single Bearer token
 
-Every request after `initialize` carries **two** auth headers, answering two different questions:
+Every request — including `initialize` — carries **one** auth header:
 
 | Header                          | Question                                             | Source                                              |
 |---------------------------------|------------------------------------------------------|-----------------------------------------------------|
-| `X-IK-ClientKey`                | "Can this **application** call the IndyKite APIs?"    | AppAgent credentials token (Authorization API + ContX IQ API permissions). |
 | `Authorization: Bearer <token>` | "Who is the **user** making the request?"            | OAuth 2.0 access token from the project's IdP, validated through the configured Token Introspect. |
 
 The Bearer token's `sub` claim becomes the **subject** in AuthZEN evaluations. That is why most AuthZEN tool invocations expect `subject_id` to be set to the Bearer token's `sub` rather than a separately-tracked identifier.
 
-Recommendation: keep the AppAgent token's validity short and refresh it programmatically — both for blast-radius reasons and because rotation is the only reliable way to evict cached credentials.
+**The application identity is resolved server-side, not sent by the client.** The MCP server uses an **AppAgent** to call the IndyKite Authorization and ContX IQ APIs at runtime; which AppAgent is determined by the `app_agent_id` field of the project's MCP server configuration (`POST /configs/v1/mcp-servers`). The client no longer mints or sends an AppAgent credentials token — the previously-required `X-IK-ClientKey` header has been removed. When the server receives a request for `/mcp/v1/<project_gid>`, it resolves the project's MCP configuration (AppAgent identity + the bound Token Introspect issuer/audience) and uses that AppAgent to introspect and act on the inbound Bearer token.
+
+Because the Bearer token is bound to the project's configured Token Introspect, the server checks that the token's `iss`/`aud` match the project's expectation before delegating to authoritative introspection; a token minted for a different issuer/audience is rejected even if otherwise valid.
 
 ## What happens without a Bearer token
 
@@ -47,7 +48,7 @@ The MCP server is built on the official [MCP Go SDK](https://github.com/modelcon
 
 ```text
 client ──┐
-         │  POST  initialize         (no Mcp-Session-Id; both auth headers required)
+         │  POST  initialize         (no Mcp-Session-Id; Authorization: Bearer required)
          ▼
    MCP server  ─── returns Mcp-Session-Id header
          ▲
@@ -62,7 +63,7 @@ client ──┘
 
 Three rules:
 
-1. **`initialize`** is the only method that can run without a session id. It still requires both auth headers.
+1. **`initialize`** is the only method that can run without a session id. It still requires the `Authorization: Bearer` header.
 2. The server returns `Mcp-Session-Id` as a **response header** on the `initialize` reply; capture it before reading the JSON body.
 3. **All subsequent calls** must include `Mcp-Session-Id: <captured value>`. A request that omits it after `initialize` will be rejected.
 
@@ -83,6 +84,6 @@ Two MCP resources are worth knowing about specifically:
 
 ## Why this matters for the agent
 
-- **Auth confusion is the #1 setup failure.** If you only send a Bearer token, you authenticate the user but not the application; if you only send `X-IK-ClientKey`, you authenticate the application but the AuthZEN subject resolution has nothing to work with. Both are required.
+- **Auth is now a single Bearer token.** Send only `Authorization: Bearer <user-token>`; do **not** send `X-IK-ClientKey` (removed). If a `401` returns the `.well-known` metadata, the token is missing, expired, or bound to the wrong issuer/audience for the project — not a missing application key. The application identity (AppAgent) is resolved server-side from the MCP server configuration's `app_agent_id`.
 - **`subject_id` is rarely an opaque identifier the user typed.** It is the Bearer token's `sub` claim. Reading and forwarding it correctly is what makes AuthZEN decisions match the real caller.
 - **CIQ parameter shapes are not guessable.** The `indykite://knowledge-queries/` resource exists because Knowledge Queries are project-defined; without reading it first, `ciq_execute` calls usually fail on the first attempt.

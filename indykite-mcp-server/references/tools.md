@@ -14,12 +14,11 @@ Five tools are exposed by the MCP server. All are invoked through the JSON-RPC `
 }
 ```
 
-Every example below assumes the four headers are set on the HTTP request:
+Every example below assumes these three headers are set on the HTTP request:
 
 ```text
 Content-Type: application/json
 Authorization: Bearer $BEARER_TOKEN
-X-IK-ClientKey: $API_KEY
 Mcp-Session-Id: $SESSION_ID
 ```
 

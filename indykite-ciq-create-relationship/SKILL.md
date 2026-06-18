@@ -7,7 +7,7 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 # IndyKite ContX IQ - create a new relationship
 
-A CIQ relationship-create policy declares an `allowed_upserts.relationships.relationship_types` whitelist of `{type, source_node_label, target_node_label}` triples; the Knowledge Query's `upsert_relationships` array names the new relationship and references **variables from the policy's `cypher`** as `source` and `target`. The two endpoint nodes are matched in the policy's cypher - they must already exist in the IKG. The new relationship is what's created.
+Create a brand-new relationship between two nodes that already exist in the IndyKite Graph (IKG), driven by a ContX IQ policy + Knowledge Query and run via `POST /contx-iq/v1/execute`. The policy declares an `allowed_upserts.relationships.relationship_types` whitelist of `{type, source_node_label, target_node_label}` triples and matches the two endpoint nodes in its `cypher`; the Knowledge Query's `upsert_relationships` array names the new relationship and references those **`cypher` variables** as `source` and `target`. The endpoint nodes must already exist - only the relationship is created.
 
 This skill covers exactly that - relationship creation between two pre-existing nodes. Other paths are deliberately out of scope:
 
