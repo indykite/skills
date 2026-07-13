@@ -12,8 +12,7 @@ POST <API_URL>/access/v1/search/subject
 
 ## Authentication
 
-- **Always**: `X-IK-ClientKey: <AppAgent-credentials-token>` — authenticates the calling application.
-- **Optional**: `Authorization: Bearer <user-access-token>` — applies only in some cases. For subject search the user token typically has **no effect** on the result set (you are enumerating subjects, not acting as one), but it is accepted.
+The call authenticates the **calling application** via its AppAgent credentials - always required. A **user access token** is accepted but applies only in some cases; for subject search it typically has **no effect** on the result set (you are enumerating subjects, not acting as one). The mapping of each credential to its request header is documented in the [Credentials guide](https://developer.indykite.com/guides/guide-credentials); the skill's helper script sets the headers from environment variables.
 
 ## Request
 
@@ -51,7 +50,7 @@ Each `results[]` entry is a subject (`type` + `id`, the `external_id`) allowed t
 | `200` + `results:[]`| Well-formed, but no subject of that type is granted the action on the resource.    | Confirm a matching ACTIVE policy and subject nodes exist. Not an error.     |
 | `422 Unprocessable`| The policy needs a partial parameter that `input_params` did not supply.           | Add the missing key, e.g. `"errors": ["missing or wrong input params, 'max_price'"]`. |
 | `400 Bad Request`  | Malformed JSON or missing required field (e.g. no `action` or no `resource.id`).   | Fix the request body.                                                       |
-| `401 Unauthorized` | Invalid `X-IK-ClientKey`.                                                           | Refresh the AppAgent credentials token.                                     |
+| `401 Unauthorized` | Invalid AppAgent credentials.                                                       | Refresh the AppAgent credentials.                                           |
 | `404 Not Found`    | Wrong base path or project context.                                                | Confirm `<API_URL>/access/v1/search/subject` and the credentials' project.  |
 | `5xx`              | Server-side issue.                                                                  | Retry with backoff; escalate if persistent.                                |
 
@@ -68,4 +67,4 @@ Each `results[]` entry is a subject (`type` + `id`, the `external_id`) allowed t
 - `/access/v1/search/action` — actions a subject may perform on a resource ([`indykite-authzen-search-action`](../../indykite-authzen-search-action/SKILL.md)).
 - `/access/v1/search/resource` — resources a subject may act on, given an action ([`indykite-authzen-search-resource`](../../indykite-authzen-search-resource/SKILL.md)).
 
-Policy authoring (the `2.0-kbac` policy these results are evaluated against) lives in [`indykite-authzen-kbac`](../../indykite-authzen-kbac/SKILL.md).
+Policy authoring (the `2.0-kbac` policy these results are evaluated against) lives in [`indykite-authzen-kbac-policies`](../../indykite-authzen-kbac-policies/SKILL.md).

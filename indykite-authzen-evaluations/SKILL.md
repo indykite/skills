@@ -1,6 +1,6 @@
 ---
 name: indykite-authzen-evaluations
-description: Run many KBAC authorization decisions in one call via the IndyKite AuthZEN REST API (`POST /access/v1/evaluations`), with top-level subject/action/resource/context as defaults overridden per entry; returns one `decision` per entry, in order. Use when checking a known, fixed set of checks at once - one subject against many resources, one action across many subjects, or any mix of triples - e.g. "of these servers, which can grace provision?", "for each of these users, can they deploy gpu-node-7?". For a single check use indykite-authzen-evaluation; to enumerate ALL allowed actions/resources/subjects (open-ended, not a fixed list) use indykite-authzen-search-action / -search-resource / -search-subject; to author the policy use indykite-authzen-kbac.
+description: Run many KBAC authorization decisions in one call via the IndyKite AuthZEN REST API (`POST /access/v1/evaluations`), with top-level subject/action/resource/context as defaults overridden per entry; returns one `decision` per entry, in order. Use when checking a known, fixed set of checks at once - one subject against many resources, one action across many subjects, or any mix of triples - e.g. "of these servers, which can grace provision?", "for each of these users, can they deploy gpu-node-7?". For a single check use indykite-authzen-evaluation; to enumerate ALL allowed actions/resources/subjects (open-ended, not a fixed list) use indykite-authzen-search-action / -search-resource / -search-subject; to author the policy use indykite-authzen-kbac-policies.
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
@@ -9,7 +9,7 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 Batch evaluation makes **many KBAC decisions in one request**. You supply top-level `subject` / `action` / `resource` / `context` as **defaults** and an `evaluations[]` array where each entry overrides only the parts it specifies; the response carries one boolean `decision` per entry, in order.
 
-This skill covers building and sending the batch request and reading the results. It does **not** author policies - the `2.0-kbac` policies every entry is evaluated against are authored with [`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md).
+This skill covers building and sending the batch request and reading the results. It does **not** author policies - the `2.0-kbac` policies every entry is evaluated against are authored with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
 
 ## When to use
 
@@ -23,7 +23,7 @@ Do **not** activate this skill to make a **single** yes/no decision ([`indykite-
 
 ## Prerequisites
 
-- One or more **ACTIVE KBAC policies** covering the triples in the batch. If none exist, author them first with [`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md).
+- One or more **ACTIVE KBAC policies** covering the triples in the batch. If none exist, author them first with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
 - An **AppAgent** and its **credentials token** (the `X-IK-ClientKey` value).
 - The **IKG populated** with the subject and resource nodes (and any relationships the conditions match).
 - Every **partial parameter** the matched policies reference, ready to pass under `context.input_params`.

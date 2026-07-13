@@ -219,14 +219,14 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
         fi
     fi
 
-    # KBAC evaluate.sh - AuthZEN /access/v1/evaluation endpoint.
-    if [[ -x "indykite-authzen-kbac/scripts/evaluate.sh" ]]; then
-        printed="$(bash indykite-authzen-kbac/scripts/evaluate.sh --print indykite-authzen-kbac/assets/evaluation-can-buy-car.json 2>/dev/null || true)"
+    # AuthZEN evaluate.sh - /access/v1/evaluation endpoint.
+    if [[ -x "indykite-authzen-evaluation/scripts/evaluate.sh" ]]; then
+        printed="$(bash indykite-authzen-evaluation/scripts/evaluate.sh --print indykite-authzen-evaluation/assets/evaluation-provision-server.json 2>/dev/null || true)"
         if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"access/v1/evaluation"* ]]; then
-            printf '  [indykite-authzen-kbac/evaluate.sh] --print: ok\n'
+            printf '  [indykite-authzen-evaluation/evaluate.sh] --print: ok\n'
             dry_pass=$((dry_pass + 1))
         else
-            printf '  [indykite-authzen-kbac/evaluate.sh] --print: FAIL\n    output: %s\n' "${printed}"
+            printf '  [indykite-authzen-evaluation/evaluate.sh] --print: FAIL\n    output: %s\n' "${printed}"
             dry_fail=$((dry_fail + 1))
         fi
     fi

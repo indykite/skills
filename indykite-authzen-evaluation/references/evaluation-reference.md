@@ -12,13 +12,11 @@ KBAC decisions are made through IndyKite's AuthZEN-compliant REST endpoints. A d
 
 ## Authentication
 
-Evaluation requires the **AppAgent credentials token**, sent as the `X-IK-ClientKey` header on every call. This authenticates the application making the decision request, and is always required.
-
-A **user OAuth access token** (`Authorization: Bearer <token>`) is **optional** and applies only in some cases. Otherwise `X-IK-ClientKey` alone is enough.
+Every call authenticates the **application making the decision request** via its AppAgent credentials - always required. A **user access token** is **optional** and applies only in some cases; otherwise the application credentials alone are enough. The mapping of each credential to its request header is documented in the [Credentials guide](https://developer.indykite.com/guides/guide-credentials); the skill's helper script sets the headers from environment variables.
 
 The subject being evaluated is identified by the request's `subject.id` (matched to the node `external_id`), not by the caller's credentials.
 
-(Policy *creation* is a separate operation with its own auth - a Service Account token; see [`indykite-authzen-kbac`](../../indykite-authzen-kbac/SKILL.md) and its [`policy-reference.md`](../../indykite-authzen-kbac/references/policy-reference.md).)
+(Policy *creation* is a separate operation with its own auth - a Service Account token; see [`indykite-authzen-kbac-policies`](../../indykite-authzen-kbac-policies/SKILL.md) and its [`policy-reference.md`](../../indykite-authzen-kbac-policies/references/policy-reference.md).)
 
 ## Single evaluation
 
@@ -63,7 +61,7 @@ This reference covers the single `/evaluation` endpoint. The same policy is eval
 | Resources a subject may act on, given an action     | `/access/v1/search/resource`   | [`indykite-authzen-search-resource`](../../indykite-authzen-search-resource/SKILL.md) |
 | Subjects allowed an action on a resource            | `/access/v1/search/subject`    | [`indykite-authzen-search-subject`](../../indykite-authzen-search-subject/SKILL.md)  |
 
-All of them authenticate the same way (`X-IK-ClientKey`, optional user `Bearer`) and read the same `2.0-kbac` policies authored via [`indykite-authzen-kbac`](../../indykite-authzen-kbac/SKILL.md).
+All of them authenticate the same way (AppAgent credentials, optional user token) and read the same `2.0-kbac` policies authored via [`indykite-authzen-kbac-policies`](../../indykite-authzen-kbac-policies/SKILL.md).
 
 ## Error semantics
 
@@ -72,7 +70,7 @@ All of them authenticate the same way (`X-IK-ClientKey`, optional user `Bearer`)
 | `200` + `decision:false` | Request well-formed but no policy granted the triple, or the condition did not hold. | Walk the [troubleshooting checklist](troubleshooting.md). This is **not** an error. |
 | `422 Unprocessable Entity` | `input_params` missing a parameter the condition requires - body carries `errors: ["missing or wrong input params, '<name>'"]`. | Supply every `$name` the policy references. (In a *batch* call this instead surfaces per-entry as `decision:false` + `context.reason`.) |
 | `400 Bad Request`  | Malformed JSON or a missing required field.                                            | Fix the request body.                                                                |
-| `401 Unauthorized` | Invalid `X-IK-ClientKey`, or an invalid user OAuth token when one is supplied. | Refresh the AppAgent credentials token; if a user token is required, ensure it is valid. |
+| `401 Unauthorized` | Invalid AppAgent credentials, or an invalid user token when one is supplied. | Refresh the AppAgent credentials; if a user token is required, ensure it is valid. |
 | `404 Not Found`    | Wrong base path or project context.                                                    | Confirm `<API_URL>/access/v1/...` and the credentials' project.                     |
 | `5xx`              | Server-side issue.                                                                     | Retry with backoff; if persistent, file with the IndyKite team.                     |
 

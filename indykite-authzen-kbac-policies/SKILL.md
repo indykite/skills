@@ -1,5 +1,5 @@
 ---
-name: indykite-authzen-kbac
+name: indykite-authzen-kbac-policies
 description: Author and manage an IndyKite KBAC (Knowledge-Based Access Control) authorization policy - a single subject type, an actions list, a single resource type, and a Cypher condition over the IKG - through the Config API (`/configs/v1/authorization-policies` - create / read / list `?type=kbac` / update / delete, ETag-guarded). Use when the user wants to write, publish, inspect, change the status of, update, or delete a `2.0-kbac` policy - e.g. "write a policy letting a Person PROVISION a Server within budget and publish it", "list the active KBAC policies", "deactivate this policy". This authors the rule; it does NOT make decisions - for "can X do Y on Z?" use indykite-authzen-evaluation (single) or indykite-authzen-evaluations (batch), and to enumerate allowed actions/resources/subjects use indykite-authzen-search-action / -search-resource / -search-subject. This is KBAC, not ContX IQ - for CIQ read/write data policies use the indykite-ciq-* skills.
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
