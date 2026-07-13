@@ -89,4 +89,4 @@ Entries that did not need the parameter (e.g. an entry whose resource type match
 - A single decision is [`indykite-authzen-evaluation`](../../indykite-authzen-evaluation/SKILL.md)'s `/access/v1/evaluation`. Batch is the same decision semantics, fanned out.
 - To enumerate every instance for one probe (the actions, resources, or subjects), use the search skills ([`indykite-authzen-search-action`](../../indykite-authzen-search-action/SKILL.md), [`indykite-authzen-search-resource`](../../indykite-authzen-search-resource/SKILL.md), [`indykite-authzen-search-subject`](../../indykite-authzen-search-subject/SKILL.md)).
 
-Policy authoring (the `2.0-kbac` policies every entry is evaluated against) lives in [`indykite-authzen-kbac`](../../indykite-authzen-kbac/SKILL.md).
+Policy authoring (the `2.0-kbac` policies every entry is evaluated against) lives in [`indykite-authzen-kbac-policies`](../../indykite-authzen-kbac-policies/SKILL.md).

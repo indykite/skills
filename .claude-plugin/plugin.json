@@ -12,7 +12,7 @@
   "skills": [
     "./indykite-agent-gateway",
     "./indykite-mcp-server",
-    "./indykite-authzen-kbac",
+    "./indykite-authzen-kbac-policies",
     "./indykite-authzen-evaluation",
     "./indykite-authzen-evaluations",
     "./indykite-authzen-search-action",

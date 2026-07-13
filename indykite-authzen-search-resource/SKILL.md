@@ -1,6 +1,6 @@
 ---
 name: indykite-authzen-search-resource
-description: List the resources a subject is allowed to perform a given action on via the IndyKite AuthZEN REST API (`POST /access/v1/search/resource`) - given a subject and an action, returns the matching resource instances of a type. Use to enumerate permitted resources - "which servers can linus provision?", "list the documents this user can read" (access-filtered feeds). Returns `{type,id}` references, not a yes/no decision and not the resource data itself (for graph data use indykite-ciq-read). For a single-resource yes/no use indykite-authzen-evaluation; to enumerate the other axes use indykite-authzen-search-action (which actions) or indykite-authzen-search-subject (which subjects); to author the policy use indykite-authzen-kbac.
+description: List the resources a subject is allowed to perform a given action on via the IndyKite AuthZEN REST API (`POST /access/v1/search/resource`) - given a subject and an action, returns the matching resource instances of a type. Use to enumerate permitted resources - "which servers can linus provision?", "list the documents this user can read" (access-filtered feeds). Returns `{type,id}` references, not a yes/no decision and not the resource data itself (for graph data use indykite-ciq-read). For a single-resource yes/no use indykite-authzen-evaluation; to enumerate the other axes use indykite-authzen-search-action (which actions) or indykite-authzen-search-subject (which subjects); to author the policy use indykite-authzen-kbac-policies.
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
@@ -17,7 +17,7 @@ It is one of three AuthZEN search endpoints, each pinning two of the three `(sub
 | `/search/resource`        | subject + action   | **resources** | this skill                                                         |
 | `/search/subject`         | resource + action  | subjects   | [`indykite-authzen-search-subject`](../indykite-authzen-search-subject/SKILL.md) |
 
-This skill covers building and sending the request and reading the results. It does **not** author policies - the `2.0-kbac` policies these results are evaluated against are authored with [`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md).
+This skill covers building and sending the request and reading the results. It does **not** author policies - the `2.0-kbac` policies these results are evaluated against are authored with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
 
 ## When to use
 
@@ -31,8 +31,8 @@ Do **not** activate this skill for a single yes/no **decision** ([`indykite-auth
 
 ## Prerequisites
 
-- One or more **ACTIVE KBAC policies** whose `subject.type` / `resource.type` and `actions` cover the question. If none exist, author them first with [`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md); search over an empty policy set returns `{"results": []}`.
-- An **AppAgent** and its **credentials token** (the `X-IK-ClientKey` value).
+- One or more **ACTIVE KBAC policies** whose `subject.type` / `resource.type` and `actions` cover the question. If none exist, author them first with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md); search over an empty policy set returns `{"results": []}`.
+- An **AppAgent** with credentials configured for the calling application ([Credentials guide](https://developer.indykite.com/guides/guide-credentials)).
 - The **IKG populated** with the subject and candidate resource nodes (and any relationships the policy conditions match).
 - Any **partial parameters** a candidate policy references, ready to pass under `context.input_params`.
 
@@ -71,12 +71,9 @@ Include `context.input_params` only if a candidate policy references a `$name` p
 POST <API_URL>/access/v1/search/resource
 ```
 
-Authentication:
+The endpoint authenticates the **calling application** (its AppAgent credentials - always required) and **optionally the user** (an access token - applies only in some cases; when supplied it can narrow the results). Which credential goes in which request header is covered by the [Credentials guide](https://developer.indykite.com/guides/guide-credentials).
 
-- **Always**: `X-IK-ClientKey: <AppAgent-credentials-token>`.
-- **Optional**: `Authorization: Bearer <user-access-token>` - applies only in some cases; when supplied it can narrow the results.
-
-A runnable shell helper: [`scripts/search-resource.sh`](scripts/search-resource.sh) — run with `--print` to preview the `curl` (host-pinned; tokens redacted).
+A runnable shell helper builds the authenticated request: [`scripts/search-resource.sh`](scripts/search-resource.sh) — run with `--print` to preview the `curl` (host-pinned; tokens redacted).
 
 ### 4. Read the results
 

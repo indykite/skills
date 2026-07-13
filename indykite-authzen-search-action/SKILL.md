@@ -1,6 +1,6 @@
 ---
 name: indykite-authzen-search-action
-description: List the actions a subject is allowed to perform on a resource via the IndyKite AuthZEN REST API (`POST /access/v1/search/action`) - returns the granted action names for one pinned (subject, resource) pair. Use to enumerate permitted operations - "what can linus do with gpu-node-7?", "which actions does this user have on this item?" (e.g. to render only allowed UI controls). Not for a specific-action yes/no ("can linus DEPLOY gpu-node-7?" -> indykite-authzen-evaluation); to enumerate the other axes use indykite-authzen-search-resource (which resources) or indykite-authzen-search-subject (which subjects); to author the policy use indykite-authzen-kbac.
+description: List the actions a subject is allowed to perform on a resource via the IndyKite AuthZEN REST API (`POST /access/v1/search/action`) - returns the granted action names for one pinned (subject, resource) pair. Use to enumerate permitted operations - "what can linus do with gpu-node-7?", "which actions does this user have on this item?" (e.g. to render only allowed UI controls). Not for a specific-action yes/no ("can linus DEPLOY gpu-node-7?" -> indykite-authzen-evaluation); to enumerate the other axes use indykite-authzen-search-resource (which resources) or indykite-authzen-search-subject (which subjects); to author the policy use indykite-authzen-kbac-policies.
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
@@ -17,7 +17,7 @@ It is one of three AuthZEN search endpoints, each pinning two of the three `(sub
 | `/search/resource`        | subject + action   | resources  | [`indykite-authzen-search-resource`](../indykite-authzen-search-resource/SKILL.md) |
 | `/search/subject`         | resource + action  | subjects   | [`indykite-authzen-search-subject`](../indykite-authzen-search-subject/SKILL.md)   |
 
-This skill covers building and sending the request and reading the results. It does **not** author policies - the `2.0-kbac` policies whose `actions` these results come from are authored with [`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md).
+This skill covers building and sending the request and reading the results. It does **not** author policies - the `2.0-kbac` policies whose `actions` these results come from are authored with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
 
 ## When to use
 
@@ -31,8 +31,8 @@ Do **not** activate this skill for a single yes/no **decision** ([`indykite-auth
 
 ## Prerequisites
 
-- One or more **ACTIVE KBAC policies** whose `subject.type` / `resource.type` match the pair you are asking about. If none exist, author them first with [`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md); search over an empty policy set returns `{"results": []}`.
-- An **AppAgent** and its **credentials token** (the `X-IK-ClientKey` value).
+- One or more **ACTIVE KBAC policies** whose `subject.type` / `resource.type` match the pair you are asking about. If none exist, author them first with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md); search over an empty policy set returns `{"results": []}`.
+- An **AppAgent** with credentials configured for the calling application ([Credentials guide](https://developer.indykite.com/guides/guide-credentials)).
 - The **IKG populated** with the subject and resource nodes (and any relationships the policy conditions match). Search evaluates the graph; it does not seed it.
 - Any **partial parameters** a candidate policy references, ready to pass under `context.input_params`.
 
@@ -69,12 +69,9 @@ Include `context.input_params` only if a candidate policy's condition references
 POST <API_URL>/access/v1/search/action
 ```
 
-Authentication:
+The endpoint authenticates the **calling application** (its AppAgent credentials - always required) and **optionally the user** (an access token - applies only in some cases; when supplied it can narrow the results). Which credential goes in which request header is covered by the [Credentials guide](https://developer.indykite.com/guides/guide-credentials).
 
-- **Always**: `X-IK-ClientKey: <AppAgent-credentials-token>`.
-- **Optional**: `Authorization: Bearer <user-access-token>` - applies only in some cases; when supplied it can narrow the results.
-
-A runnable shell helper: [`scripts/search-action.sh`](scripts/search-action.sh) — run with `--print` to preview the `curl` (host-pinned; tokens redacted).
+A runnable shell helper builds the authenticated request: [`scripts/search-action.sh`](scripts/search-action.sh) — run with `--print` to preview the `curl` (host-pinned; tokens redacted).
 
 ### 4. Read the results
 
@@ -86,14 +83,14 @@ Each `results[]` entry is an action the subject may currently perform on that re
 
 ### 5. Verify
 
-Empty or surprising results usually trace to: the policy isn't **ACTIVE**/matching, `subject.id`/`resource.id` aren't the nodes' `external_id`s, a required `$param` is missing or mistyped, the graph data is absent, or a `Bearer` token narrowed claim-gated actions. Full checklist: [`references/search-action-reference.md`](references/search-action-reference.md).
+Empty or surprising results usually trace to: the policy isn't **ACTIVE**/matching, `subject.id`/`resource.id` aren't the nodes' `external_id`s, a required `$param` is missing or mistyped, the graph data is absent, or a supplied user token narrowed claim-gated actions. Full checklist: [`references/search-action-reference.md`](references/search-action-reference.md).
 
 ## Outcome
 
 When this skill has been applied successfully:
 
 - `POST /access/v1/search/action` returns a `results` array of the actions a subject may perform on a specific resource under current ACTIVE policies and graph state (an empty array means nothing permitted — a normal `200`).
-- The actions returned line up with the `actions` of the KBAC policies authored via [`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md).
+- The actions returned line up with the `actions` of the KBAC policies authored via [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
 
 ## Files in this skill
 

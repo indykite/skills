@@ -30,7 +30,7 @@ Most KBAC surprises are a `200` response carrying an unexpected `decision`. Work
 
 ## `401 Unauthorized`
 
-- Invalid `X-IK-ClientKey`, or an invalid user OAuth token when one is supplied. Refresh the AppAgent credentials token; if a user token is required, confirm it is valid.
+- Invalid AppAgent credentials, or an invalid user token when one is supplied. Refresh the AppAgent credentials; if a user token is required, confirm it is valid.
 
 ## Isolating which policy decided
 

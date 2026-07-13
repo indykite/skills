@@ -1,6 +1,6 @@
 ---
 name: indykite-authzen-evaluation
-description: Make a single KBAC authorization decision via the IndyKite AuthZEN REST API (`POST /access/v1/evaluation`) - returns a boolean `decision` for one (subject, action, resource) triple, optionally with per-request `context.input_params`. Use for a single yes/no question - "can ada PROVISION gpu-node-7?", "is this user allowed to delete this document?", "gate this operation on a live check", or debugging why one decision is false. Not for many checks at once (use indykite-authzen-evaluations), not for enumerating which actions/resources/subjects are allowed (use indykite-authzen-search-action / -search-resource / -search-subject), and not for authoring the policy behind the decision (use indykite-authzen-kbac). For the same decision over MCP/JSON-RPC see indykite-mcp-server (`authzen_evaluate`).
+description: Make a single KBAC authorization decision via the IndyKite AuthZEN REST API (`POST /access/v1/evaluation`) - returns a boolean `decision` for one (subject, action, resource) triple, optionally with per-request `context.input_params`. Use for a single yes/no question - "can ada PROVISION gpu-node-7?", "is this user allowed to delete this document?", "gate this operation on a live check", or debugging why one decision is false. Not for many checks at once (use indykite-authzen-evaluations), not for enumerating which actions/resources/subjects are allowed (use indykite-authzen-search-action / -search-resource / -search-subject), and not for authoring the policy behind the decision (use indykite-authzen-kbac-policies). For the same decision over MCP/JSON-RPC see indykite-mcp-server (`authzen_evaluate`).
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
@@ -9,7 +9,7 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 A KBAC decision asks the AuthZEN endpoint one question - *may this subject perform this action on this resource?* - and gets back a boolean `decision`. The decision is rendered by evaluating the project's currently ACTIVE `2.0-kbac` policies against the IKG.
 
-This skill covers making that **single** decision: framing the `(subject, action, resource, context)` request, sending it, and reading the boolean. It does **not** author policies - the policy whose `subject` / `actions` / `resource` / `condition.cypher` the decision is evaluated against is authored with [`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md).
+This skill covers making that **single** decision: framing the `(subject, action, resource, context)` request, sending it, and reading the boolean. It does **not** author policies - the policy whose `subject` / `actions` / `resource` / `condition.cypher` the decision is evaluated against is authored with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
 
 It is the single-call member of the AuthZEN family:
 
@@ -20,7 +20,7 @@ It is the single-call member of the AuthZEN family:
 | Actions a subject may perform on a resource     | `/access/v1/search/action`   | [`indykite-authzen-search-action`](../indykite-authzen-search-action/SKILL.md) |
 | Resources a subject may act on, given an action | `/access/v1/search/resource` | [`indykite-authzen-search-resource`](../indykite-authzen-search-resource/SKILL.md) |
 | Subjects allowed an action on a resource        | `/access/v1/search/subject`  | [`indykite-authzen-search-subject`](../indykite-authzen-search-subject/SKILL.md) |
-| Author / manage the KBAC policy                 | Config API                   | [`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md)          |
+| Author / manage the KBAC policy                 | Config API                   | [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md)          |
 
 ## When to use
 
@@ -30,12 +30,12 @@ Activate this skill when the user wants to:
 - gate an operation in an application on a live authorization check;
 - debug why a single decision comes back `true` or `false`.
 
-Do **not** activate this skill to **author or modify** the policy behind the decision ([`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md)), to make **many** decisions in one call ([`indykite-authzen-evaluations`](../indykite-authzen-evaluations/SKILL.md)), to **enumerate** the allowed actions/resources/subjects rather than test one triple (the search skills [`-search-action`](../indykite-authzen-search-action/SKILL.md) / [`-search-resource`](../indykite-authzen-search-resource/SKILL.md) / [`-search-subject`](../indykite-authzen-search-subject/SKILL.md)), or to **return or modify graph data** (a decision is yes/no, not a data read or write).
+Do **not** activate this skill to **author or modify** the policy behind the decision ([`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md)), to make **many** decisions in one call ([`indykite-authzen-evaluations`](../indykite-authzen-evaluations/SKILL.md)), to **enumerate** the allowed actions/resources/subjects rather than test one triple (the search skills [`-search-action`](../indykite-authzen-search-action/SKILL.md) / [`-search-resource`](../indykite-authzen-search-resource/SKILL.md) / [`-search-subject`](../indykite-authzen-search-subject/SKILL.md)), or to **return or modify graph data** (a decision is yes/no, not a data read or write).
 
 ## Prerequisites
 
-- One or more **ACTIVE KBAC policies** whose `subject.type` / `actions` / `resource.type` cover the triple. If none exist, author them first with [`indykite-authzen-kbac`](../indykite-authzen-kbac/SKILL.md); a decision with no matching policy is simply `false`.
-- An **AppAgent** and its **credentials token** (the `X-IK-ClientKey` value).
+- One or more **ACTIVE KBAC policies** whose `subject.type` / `actions` / `resource.type` cover the triple. If none exist, author them first with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md); a decision with no matching policy is simply `false`.
+- An **AppAgent** with credentials configured for the calling application ([Credentials guide](https://developer.indykite.com/guides/guide-credentials)).
 - The **IKG populated** with the subject and resource nodes (and any relationships the condition matches). Evaluation reads the graph; it does not seed it.
 - Every **partial parameter** the matched policy references, ready to pass under `context.input_params`.
 
@@ -75,12 +75,9 @@ Supply `context.input_params` only when the matched policy's condition reference
 POST <API_URL>/access/v1/evaluation
 ```
 
-Authentication:
+The endpoint authenticates the **calling application** (its AppAgent credentials - always required) and **optionally the user** (an access token - applies only in some cases, e.g. a condition references a token claim/scope). Which credential goes in which request header is covered by the [Credentials guide](https://developer.indykite.com/guides/guide-credentials).
 
-- **Always**: `X-IK-ClientKey: <AppAgent-credentials-token>` - authenticates the calling application.
-- **Optional**: `Authorization: Bearer <user-access-token>` - applies only in some cases (e.g. a condition references a token claim/scope); not required otherwise.
-
-A runnable shell helper: [`scripts/evaluate.sh`](scripts/evaluate.sh) — run with `--print` to preview the `curl` (host-pinned; tokens redacted).
+A runnable shell helper builds the authenticated request: [`scripts/evaluate.sh`](scripts/evaluate.sh) — run with `--print` to preview the `curl` (host-pinned; tokens redacted).
 
 ### 4. Read the decision
 
