@@ -1,0 +1,54 @@
+{
+  "nodes": [
+    {
+      "external_id": "millicent",
+      "type": "Person",
+      "is_identity": true,
+      "properties": [
+        {
+          "type": "email",
+          "value": "millicent@email.com"
+        },
+        {
+          "type": "name",
+          "value": "Millicent Contextsworth",
+          "metadata": {
+            "assurance_level": 1,
+            "source": "Some Source",
+            "verified_time": "2026-04-10T06:28:16Z"
+          }
+        }
+      ]
+    },
+    {
+      "external_id": "ryan",
+      "type": "Person",
+      "is_identity": true,
+      "properties": [
+        {
+          "type": "email",
+          "value": "ryan@yahoo.co.uk"
+        },
+        {
+          "type": "given_name",
+          "value": "ryan"
+        }
+      ]
+    },
+    {
+      "external_id": "kitt",
+      "type": "Car",
+      "is_identity": false,
+      "properties": [
+        {
+          "type": "manufacturer",
+          "value": "pontiac"
+        },
+        {
+          "type": "model",
+          "value": "Firebird"
+        }
+      ]
+    }
+  ]
+}

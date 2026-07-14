@@ -1,6 +1,6 @@
 # KBAC Policy Reference
 
-This reference covers every field of a KBAC (Knowledge-Based Access Control) authorization policy - the `policy_version: "2.0-kbac"` shape evaluated by the AuthZEN endpoints.
+This reference covers every field of a KBAC (Knowledge-Based Access Control) authorization policy - the shape evaluated by the AuthZEN endpoints. Two policy versions exist, selected by `meta.policy_version`: `"2.0-kbac"` (platform-rewritten Cypher, the default) and `"3.0-kbac"` (raw Cypher with composite-database routing - see [3.0-kbac: raw Cypher and location routing](#30-kbac-raw-cypher-and-location-routing)). The JSON schema is identical for both; only the condition semantics differ.
 
 ## Top-level structure
 
@@ -8,7 +8,7 @@ A KBAC policy has five top-level keys, all siblings:
 
 | Key         | Use                                                                    |
 |-------------|-----------------------------------------------------------------------|
-| `meta`      | Set `policy_version: "2.0-kbac"`.                                      |
+| `meta`      | Set `policy_version`: `"2.0-kbac"` or `"3.0-kbac"`.                    |
 | `subject`   | Set `type` to the single node type making the request.                |
 | `actions`   | Array of uppercase action verbs this policy grants.                   |
 | `resource`  | Set `type` to the single node type being acted on.                    |
@@ -34,7 +34,19 @@ The condition is expressed as a single Cypher string - the pattern plus an optio
 
 ## `meta.policy_version`
 
-`"2.0-kbac"`. The policy version for a KBAC authorization policy. IndyKite rejects unknown versions.
+`"2.0-kbac"` or `"3.0-kbac"`. IndyKite rejects unknown versions.
+
+| Aspect | `2.0-kbac` | `3.0-kbac` |
+|--------|-----------|-----------|
+| Condition Cypher handling | Rewritten by the platform into evaluation and search variants; always runs against the default database | **Raw**: runs as authored; the platform only pins `subject`/`resource` and appends the projection |
+| Composite-database routing (data residency) | None | `USE graph.byName(...)` clauses, static or via **location parameters** supplied in `context.input_params` |
+| `USE` clause | Rejected (`USE clause is not allowed`) | Allowed, top-level or per `CALL { }` subquery |
+| `CALL { }` subqueries / inner `RETURN` | Rejected (`Cypher contains forbidden clauses: [CALL]`) | Allowed; each subquery can carry its own `USE` clause |
+| Mutating clauses (`CREATE`, `MERGE`, `SET`, `DELETE`, …) | Blocked | Blocked |
+| Top-level `RETURN` | Blocked | Blocked - the platform appends the projection itself |
+| Policy JSON schema | Identical - only `meta.policy_version` differs | Identical - only `meta.policy_version` differs |
+
+A valid `2.0-kbac` condition is also a valid `3.0-kbac` condition: a policy can be carried over by switching `meta.policy_version`, provided it does not reference `$subject_id` (rejected in `3.0-kbac` - see below).
 
 ## `subject.type`
 
@@ -106,6 +118,52 @@ Inside the `WHERE` clause, reference node attributes with these forms:
 
 A value that varies per request is written `$name` in the `WHERE` clause (e.g. `$max_price`). The evaluation call must supply it under `context.input_params` with the key written **without** the leading `$`. If a policy references a partial parameter and is used in a decision, the request must include it or the call returns an error.
 
+## 3.0-kbac: raw Cypher and location routing
+
+`3.0-kbac` exists for **composite IKGs** (data residency): one logical graph spanning multiple constituent databases, so individual nodes can be stored in a specific location. Composite databases are available on customer-hosted deployments; the project setup (constituent databases, `alias_mapping` of logical location names to constituents) is covered by the [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency). Residency support is **opt-in per policy** - `2.0-kbac` policies are unchanged and always evaluate against the default database, where located nodes exist only as property-less proxy nodes.
+
+The two hard rules of [`condition.cypher`](#conditioncypher) apply unchanged: bind `subject` and `resource`, and pass per-request values as partial parameters.
+
+### Routing forms
+
+**Static** - the whole condition evaluates inside one named constituent:
+
+```cypher
+USE graph.byName('ikcomposite.db2') MATCH (subject:Person)-[:OWNS]->(resource:Car)
+```
+
+**Dynamic** - the `graph.byName()` argument is a single parameter, which becomes a **location parameter**:
+
+```cypher
+USE graph.byName($region) MATCH (subject:Person)-[:OWNS]->(resource:Car)
+```
+
+At decision time the caller supplies the **logical location** - a key of the project's `alias_mapping`, e.g. `"east"` - under `context.input_params` (key without the `$`), and IndyKite translates it to the physical constituent database just before execution. Callers never see or supply physical database names. This works identically on `/access/v1/evaluation`, `/access/v1/evaluations`, and the three search endpoints.
+
+**`CALL { }` subquery** - each subquery can carry its own `USE` clause, so one condition can combine matches from several constituents. The explicit variable-scope form `CALL () { … }` lists the outer variables imported into the subquery (empty parentheses = none); the inner `RETURN` hands rows back to the enclosing query:
+
+```cypher
+CALL () { USE graph.byName('ikcomposite.db2') MATCH (subject:Person)-[:OWNS]->(resource:Car) RETURN subject, resource }
+```
+
+### Authoring rules
+
+- The `graph.byName()` argument must be a **string literal or a single parameter** - expressions such as `coalesce($region, 'eu')` are rejected at creation.
+- A location parameter **cannot be referenced anywhere else** in the Cypher: its value is rewritten to the physical alias at request time.
+- `$subject_external_id`, `$subject_type`, `$resource_external_id`, and `$resource_type` are bound by the platform - never supply them in `input_params` and never use them as routing parameters.
+- `$subject_id` **must not be referenced at all**: on a composite IKG the same logical subject has a different internal node ID per location, so `3.0-kbac` identifies subjects by type and external ID only. Creating a policy that references it fails with `422 Unprocessable Entity` (`parameter "$subject_id" is reserved and cannot be referenced`). No replacement is needed - the platform already pins the subject.
+- Mutating clauses (`CREATE`, `MERGE`, `SET`, `DELETE`, …) and a top-level `RETURN` remain blocked, exactly as in `2.0-kbac`.
+
+### Decision-time failures
+
+Errors surfaced by the AuthZEN endpoints when a `3.0-kbac` policy's routing goes wrong:
+
+| Situation | Result |
+|-----------|--------|
+| Required location parameter missing from `context.input_params`, or not a non-empty string | `422 Unprocessable Entity` |
+| Location is not a key of the project's `alias_mapping` | `422 Unprocessable Entity` (unknown location) |
+| Policy uses a location parameter but the project has no composite database | `422 Unprocessable Entity` (requires a composite database) |
+
 ## Config API lifecycle
 
 All policy operations live under one path and use a **Service Account** Bearer token (`Authorization: Bearer <SERVICE_ACCOUNT_TOKEN>`):
@@ -114,7 +172,7 @@ All policy operations live under one path and use a **Service Account** Bearer t
 <API_URL>/configs/v1/authorization-policies
 ```
 
-The same endpoint serves both KBAC and ContX IQ policies; KBAC policies are `policy_version: "2.0-kbac"` and are filtered with `type=kbac` when listing (CIQ uses `type=ciq` and the [`indykite-ciq-*`](../../README.md) skills).
+The same endpoint serves both KBAC and ContX IQ policies; KBAC policies (`2.0-kbac` and `3.0-kbac` alike) are filtered with `type=kbac` when listing (CIQ uses `type=ciq` and the [`indykite-ciq-*`](../../README.md) skills). The lifecycle below is identical for both KBAC versions - only the stringified policy JSON differs.
 
 ### The create / update envelope
 

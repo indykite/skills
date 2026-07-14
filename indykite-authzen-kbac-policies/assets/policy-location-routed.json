@@ -1,0 +1,24 @@
+{
+  "name": "kbac-person-can-drive-location-routed",
+  "display_name": "Person: CAN_DRIVE a Car (location-routed)",
+  "description": "3.0-kbac data-residency policy. $region is a location parameter: it routes graph.byName() and must not be referenced anywhere else in the Cypher. Callers supply a logical location (an alias_mapping key such as east or west) in context.input_params.region; IndyKite translates it to the physical constituent database just before execution.",
+  "project_id": "<project-gid>",
+  "policy": {
+    "meta": {
+      "policy_version": "3.0-kbac"
+    },
+    "subject": {
+      "type": "Person"
+    },
+    "actions": [
+      "CAN_DRIVE"
+    ],
+    "resource": {
+      "type": "Car"
+    },
+    "condition": {
+      "cypher": "USE graph.byName($region) MATCH (subject:Person)-[:OWNS]->(resource:Car)"
+    }
+  },
+  "status": "ACTIVE"
+}

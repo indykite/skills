@@ -4,10 +4,10 @@
 # Three modes, each strictly more thorough than the last:
 #
 #   ./testing/e2e-ciq.sh
-#       Structural only. Runs the four checks documented in
-#       CONTRIBUTING.md § Validating your skill against every
-#       skill: loader dry-run + bash -n + jq empty + file hygiene.
-#       No env vars required, no network calls.
+#       Structural only. Runs the checks documented in
+#       CONTRIBUTING.md § Validating your skill against every skill:
+#       skills-ref validate + loader dry-run + bash -n + jq empty +
+#       file hygiene. No env vars required, no network calls.
 #
 #   ./testing/e2e-ciq.sh --dry-run
 #       Above, plus exercises the --print flag on each helper
@@ -17,10 +17,10 @@
 #       real credentials needed.
 #
 #   ./testing/e2e-ciq.sh --live
-#       Above, plus a guided live walk-through. Requires real
-#       env vars (API_URL, API_KEY, SERVICE_ACCOUNT_TOKEN, …).
-#       This mode is interactive - it prints each command and
-#       asks for confirmation before sending it.
+#       Above, plus a printed checklist for a live walk-through.
+#       Requires real env vars (API_URL, API_KEY, …). Nothing is
+#       sent - the script prints the steps and commands for you
+#       to run yourself.
 #
 # Run from the repo root.
 
@@ -39,7 +39,7 @@ structural | --structural) mode=structural ;;
 --dry-run) mode=dry-run ;;
 --live) mode=live ;;
 -h | --help | help)
-    sed -n '2,30p' "${0}"
+    sed -n '2,25p' "${0}"
     exit 0
     ;;
 *)
@@ -91,17 +91,20 @@ for s in "${skills[@]}"; do
     # skill"`. We force colours off via env vars and strip any escape
     # sequences that slip through. On failure, dump the actual output so
     # CI runs are debuggable.
+    # NB: capture the exit code with `|| loader_rc=$?` - a bare assignment
+    # followed by `loader_rc=$?` would abort the whole run under `set -e`
+    # before the FAIL branch ever reports the error.
+    loader_rc=0
     loader_raw=$(NO_COLOR=1 FORCE_COLOR=0 \
-        npx --yes skills add "./${s}" --list 2>&1)
-    loader_rc=$?
+        npx --yes skills add "./${s}" --list 2>&1) || loader_rc=$?
     loader_out=$(printf '%s\n' "${loader_raw}" | sed 's/\x1b\[[0-9;]*m//g')
     if [[ ${loader_rc} -ne 0 ]]; then
         printf '  loader: FAIL (npx exited %d)\n' "${loader_rc}"
-        printf '%s\n' "${loader_out}" | sed 's/^/    /' | head -20
+        printf '%s\n' "${loader_out}" | sed 's/^/    /' | head -20 || true
         ok=0
     elif ! grep -qE "Found [0-9]+ skill" <<<"${loader_out}"; then
         printf '  loader: FAIL (no "Found <N> skill" in CLI output)\n'
-        printf '%s\n' "${loader_out}" | sed 's/^/    /' | head -20
+        printf '%s\n' "${loader_out}" | sed 's/^/    /' | head -20 || true
         ok=0
     else
         printf '  loader: ok\n'
@@ -167,9 +170,19 @@ fi
 if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
     printf '== --print smoke test ==\n\n'
 
-    # Dummy env so --print can construct the request.
-    export API_URL="https://us.api.indykite.com"
-    export API_KEY="DUMMY_AGENT_TOKEN"
+    if [[ "${mode}" == "live" ]]; then
+        # Live mode runs against caller-supplied values - validate them
+        # BEFORE the dummy exports below could mask a missing one, and
+        # keep them so the live checklist prints the real API_URL.
+        : "${API_URL:?set API_URL (e.g. https://us.api.indykite.com)}"
+        : "${API_KEY:?set API_KEY (AppAgent credential)}"
+        export API_URL API_KEY
+    else
+        # Dummy env so --print can construct the request (kept
+        # unconditional so dry-run output is deterministic in CI).
+        export API_URL="https://us.api.indykite.com"
+        export API_KEY="DUMMY_AGENT_TOKEN"
+    fi
     export QUERY_ID="dummy-kq-gid"
     export BEARER_TOKEN="DUMMY_USER_TOKEN"
     export MCP_URL="https://us.mcp.indykite.com"
@@ -193,8 +206,8 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
 
     for s in "${!fixtures[@]}"; do
         helper="${s}/scripts/execute.sh"
-        if [[ ! -x "${helper}" ]]; then
-            printf '  [%s] SKIP (no execute.sh)\n' "${s}"
+        if [[ ! -r "${helper}" ]]; then
+            printf '  [%s] SKIP (missing or unreadable execute.sh)\n' "${s}"
             continue
         fi
         printed="$(printf '%s' "${fixtures[${s}]}" | bash "${helper}" --print - 2>/dev/null || true)"
@@ -208,7 +221,7 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
     done
 
     # MCP init-session.sh (different shape).
-    if [[ -x "indykite-mcp-server/scripts/init-session.sh" ]]; then
+    if [[ -r "indykite-mcp-server/scripts/init-session.sh" ]]; then
         printed="$(bash indykite-mcp-server/scripts/init-session.sh --print 2>/dev/null || true)"
         if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${MCP_URL}"* ]] && [[ "${printed}" == *"${PROJECT_GID}"* ]]; then
             printf '  [indykite-mcp-server/init-session.sh] --print: ok\n'
@@ -220,7 +233,8 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
     fi
 
     # AuthZEN evaluate.sh - /access/v1/evaluation endpoint.
-    if [[ -x "indykite-authzen-evaluation/scripts/evaluate.sh" ]]; then
+    if [[ -r "indykite-authzen-evaluation/scripts/evaluate.sh" ]] &&
+        [[ -r "indykite-authzen-evaluation/assets/evaluation-provision-server.json" ]]; then
         printed="$(bash indykite-authzen-evaluation/scripts/evaluate.sh --print indykite-authzen-evaluation/assets/evaluation-provision-server.json 2>/dev/null || true)"
         if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"access/v1/evaluation"* ]]; then
             printf '  [indykite-authzen-evaluation/evaluate.sh] --print: ok\n'
@@ -231,9 +245,37 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
         fi
     fi
 
+    # Capture API capture.sh helpers - each prints a curl command for its skill's example asset.
+    for s in indykite-capture-upsert-nodes indykite-capture-upsert-relationships \
+        indykite-capture-delete-nodes indykite-capture-delete-node-properties \
+        indykite-capture-delete-node-property-metadata indykite-capture-delete-relationships \
+        indykite-capture-delete-relationship-properties; do
+        helper="${s}/scripts/capture.sh"
+        if [[ ! -r "${helper}" ]]; then
+            printf '  [%s] SKIP (missing or unreadable capture.sh)\n' "${s}"
+            continue
+        fi
+        asset="$(compgen -G "${s}/assets/*.json" | head -1 || true)"
+        [[ -n "${asset}" ]] || {
+            printf '  [%s] SKIP (no assets/*.json)\n' "${s}"
+            continue
+        }
+        printed="$(bash "${helper}" --print "${asset}" 2>/dev/null || true)"
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"capture/v1/"* ]]; then
+            printf '  [%s/capture.sh] --print: ok\n' "${s}"
+            dry_pass=$((dry_pass + 1))
+        else
+            printf '  [%s/capture.sh] --print: FAIL\n    output: %s\n' "${s}" "${printed}"
+            dry_fail=$((dry_fail + 1))
+        fi
+    done
+
     printf '\ndry-run summary: %d passed, %d failed\n\n' "${dry_pass}" "${dry_fail}"
 
     [[ "${mode}" == "dry-run" ]] && {
+        # Gate on BOTH phases - a structural failure must fail the run even
+        # when every smoke test passes.
+        [[ "${structural_fail}" == "0" ]] || exit 1
         [[ "${dry_fail}" == "0" ]] || exit 1
         exit 0
     }
@@ -246,11 +288,11 @@ fi
 if [[ "${mode}" == "live" ]]; then
     printf '== --live mode ==\n\n'
 
-    : "${API_URL:?set API_URL (e.g. https://us.api.indykite.com)}"
-    : "${API_KEY:?set API_KEY (AppAgent credentials token)}"
+    # API_URL / API_KEY were validated as caller-supplied at the start of
+    # the smoke-test phase, before any dummy values could mask them.
 
-    printf 'live mode is interactive. The script prints each step before\n'
-    printf 'asking for confirmation. No call is sent without your y/N.\n\n'
+    printf 'live mode prints a checklist - it sends nothing itself. Run the\n'
+    printf 'printed commands yourself once you have reviewed each one.\n\n'
 
     printf 'Step 1: confirm the API_URL and API_KEY are valid.\n'
     printf '  Sample probe: GET %s/configs/v1/projects (replace with real path)\n' "${API_URL}"

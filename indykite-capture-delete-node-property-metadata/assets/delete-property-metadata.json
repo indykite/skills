@@ -1,0 +1,13 @@
+{
+  "nodes": [
+    {
+      "external_id": "millicent",
+      "type": "Person",
+      "property_type": "name",
+      "metadata_fields": [
+        "assurance_level",
+        "source"
+      ]
+    }
+  ]
+}
