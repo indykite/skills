@@ -1,0 +1,32 @@
+{
+  "relationships": [
+    {
+      "source": {
+        "external_id": "millicent",
+        "type": "Person"
+      },
+      "target": {
+        "external_id": "kitt",
+        "type": "Car"
+      },
+      "type": "OWNS",
+      "properties": [
+        {
+          "type": "status",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "source": {
+        "external_id": "ryan",
+        "type": "Person"
+      },
+      "target": {
+        "external_id": "kitt",
+        "type": "Car"
+      },
+      "type": "CAN_DRIVE"
+    }
+  ]
+}

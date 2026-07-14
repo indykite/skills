@@ -12,6 +12,13 @@
   "skills": [
     "./indykite-agent-gateway",
     "./indykite-mcp-server",
+    "./indykite-capture-upsert-nodes",
+    "./indykite-capture-upsert-relationships",
+    "./indykite-capture-delete-nodes",
+    "./indykite-capture-delete-node-properties",
+    "./indykite-capture-delete-node-property-metadata",
+    "./indykite-capture-delete-relationships",
+    "./indykite-capture-delete-relationship-properties",
     "./indykite-authzen-kbac-policies",
     "./indykite-authzen-evaluation",
     "./indykite-authzen-evaluations",

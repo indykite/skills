@@ -1,0 +1,18 @@
+{
+  "relationships": [
+    {
+      "source": {
+        "external_id": "millicent",
+        "type": "Person"
+      },
+      "target": {
+        "external_id": "kitt",
+        "type": "Car"
+      },
+      "type": "OWNS",
+      "property_types": [
+        "status"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "nodes": [
+    {
+      "external_id": "kitt",
+      "type": "Car"
+    },
+    {
+      "external_id": "ryan",
+      "type": "Person"
+    }
+  ]
+}

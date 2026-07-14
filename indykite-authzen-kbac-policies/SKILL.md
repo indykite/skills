@@ -1,6 +1,6 @@
 ---
 name: indykite-authzen-kbac-policies
-description: Author and manage an IndyKite KBAC (Knowledge-Based Access Control) authorization policy - a single subject type, an actions list, a single resource type, and a Cypher condition over the IKG - through the Config API (`/configs/v1/authorization-policies` - create / read / list `?type=kbac` / update / delete, ETag-guarded). Use when the user wants to write, publish, inspect, change the status of, update, or delete a `2.0-kbac` policy - e.g. "write a policy letting a Person PROVISION a Server within budget and publish it", "list the active KBAC policies", "deactivate this policy". This authors the rule; it does NOT make decisions - for "can X do Y on Z?" use indykite-authzen-evaluation (single) or indykite-authzen-evaluations (batch), and to enumerate allowed actions/resources/subjects use indykite-authzen-search-action / -search-resource / -search-subject. This is KBAC, not ContX IQ - for CIQ read/write data policies use the indykite-ciq-* skills.
+description: Author and manage an IndyKite KBAC (Knowledge-Based Access Control) authorization policy - a single subject type, an actions list, a single resource type, and a Cypher condition over the IKG - through the Config API (`/configs/v1/authorization-policies` - create / read / list `?type=kbac` / update / delete, ETag-guarded). Covers `2.0-kbac` and `3.0-kbac` (location-routed conditions for composite / data-residency IKGs). Use to write, publish, inspect, update, or delete a KBAC policy - e.g. "write a policy letting a Person PROVISION a Server within budget", "deactivate this policy", "author a location-routed policy for our composite IKG". This authors the rule; it does NOT make decisions - for "can X do Y on Z?" use indykite-authzen-evaluation (single) or indykite-authzen-evaluations (batch), and to enumerate allowed actions/resources/subjects use indykite-authzen-search-action / -search-resource / -search-subject. This is KBAC, not ContX IQ - for CIQ read/write data policies use the indykite-ciq-* skills.
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
@@ -11,7 +11,7 @@ KBAC (Knowledge-Based Access Control) is IndyKite's graph-driven authorization m
 
 This skill is the home of the KBAC **policy lifecycle**: writing the policy JSON and managing it through the Config API.
 
-- A **policy** with `meta.policy_version: "2.0-kbac"`, a single `subject.type`, an `actions` list, a single `resource.type`, and a `condition.cypher` that binds the reserved variables `subject` and `resource`.
+- A **policy** with `meta.policy_version` `"2.0-kbac"` (the default, platform-rewritten Cypher) or `"3.0-kbac"` (raw Cypher with location routing for composite IKGs - see [Location-aware policies](#location-aware-policies-for-data-residency-30-kbac)), a single `subject.type`, an `actions` list, a single `resource.type`, and a `condition.cypher` that binds the reserved variables `subject` and `resource`.
 - The **Config API** operations on `/configs/v1/authorization-policies`: create (`POST`), read (`GET /{id}` or by name), list (`GET ?project_id=…&type=kbac`), update (`PUT /{id}` with an `If-Match` ETag), and delete (`DELETE /{id}`).
 - Publishing: a policy must be **ACTIVE** to participate in decisions; an `INACTIVE` or `DRAFT` policy is stored but ignored (`DRAFT` may even be invalid).
 
@@ -29,7 +29,8 @@ Once a policy is ACTIVE, the runtime AuthZEN skills evaluate it:
 
 Activate this skill when the user wants to:
 
-- **author** a KBAC authorization policy (`policy_version: 2.0-kbac`, `subject`, `actions`, `resource`, `condition.cypher`);
+- **author** a KBAC authorization policy (`policy_version` `2.0-kbac` or `3.0-kbac`, `subject`, `actions`, `resource`, `condition.cypher`);
+- **author a location-aware policy** for a composite / data-residency IKG (`3.0-kbac` with `USE graph.byName()` routing);
 - **create / publish** a policy through the Config API, or flip it between `DRAFT` and `ACTIVE`;
 - **read, list, update, or delete** existing KBAC policies (including listing with `?type=kbac` to separate them from CIQ policies);
 - needs the policy that backs an [`indykite-authzen-evaluation`](../indykite-authzen-evaluation/SKILL.md) decision or the [`indykite-mcp-server`](../indykite-mcp-server/SKILL.md) `authzen_evaluate` tool.
@@ -89,7 +90,7 @@ For the full condition grammar (attribute references, multi-hop patterns, partia
 
 ### 3. Assemble the policy and its create envelope
 
-A KBAC policy has exactly these top-level keys: `meta.policy_version` (`"2.0-kbac"`), `subject.type`, `actions`, `resource.type`, and `condition.cypher`.
+A KBAC policy has exactly these top-level keys: `meta.policy_version` (`"2.0-kbac"` or `"3.0-kbac"`), `subject.type`, `actions`, `resource.type`, and `condition.cypher`.
 
 The Config API does not take the policy object directly - it takes a **create envelope** in which the policy is a **stringified** JSON value:
 
@@ -139,18 +140,41 @@ The same `/configs/v1/authorization-policies` path manages the policy lifecycle 
 
 Full request/response shapes, response fields, and the ETag concurrency rules are in [`references/policy-reference.md`](references/policy-reference.md).
 
+## Location-aware policies for data residency (`3.0-kbac`)
+
+On a **composite IKG** - one logical graph spanning multiple constituent databases so that individual nodes can be stored in a specific location (see the [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency)) - a `2.0-kbac` condition always evaluates against the **default database**, where located nodes exist only as lightweight proxies (external ID, type, and location - no property data). To evaluate a condition **inside a location constituent**, author the policy as `3.0-kbac`:
+
+- The condition is **raw Cypher**: it runs as authored; the platform only pins `subject` / `resource` by type and external ID and appends the projection.
+- Route with `USE graph.byName(...)` - **static** (`USE graph.byName('ikcomposite.db2')` always evaluates in that constituent) or **dynamic** (`USE graph.byName($region)`), where `$region` becomes a **location parameter**: at decision time the caller passes a *logical location* (a key of the project's `alias_mapping`, e.g. `"east"`) under `context.input_params`, and IndyKite translates it to the physical constituent just before execution. Callers never see or supply physical database names.
+- `CALL { }` subqueries with inner `RETURN`s are allowed (each subquery can carry its own `USE` clause), so one condition can combine matches from several constituents. Both are rejected on `2.0-kbac`.
+
+```json
+{
+  "meta": { "policy_version": "3.0-kbac" },
+  "subject": { "type": "Person" },
+  "actions": ["CAN_DRIVE"],
+  "resource": { "type": "Car" },
+  "condition": {
+    "cypher": "USE graph.byName($region) MATCH (subject:Person)-[:OWNS]->(resource:Car)"
+  }
+}
+```
+
+The lifecycle is unchanged - same endpoint, create envelope, statuses, and ETag rules as steps 3-5; only the policy JSON differs. Residency support is **opt-in per policy**: existing `2.0-kbac` policies keep working, and a valid `2.0-kbac` condition can be carried over by switching `meta.policy_version` (as long as it does not reference `$subject_id`, which `3.0-kbac` rejects). The full 2.0 vs 3.0 comparison, authoring rules, and decision-time failure modes are in [`references/policy-reference.md`](references/policy-reference.md#30-kbac-raw-cypher-and-location-routing); a runnable create envelope is in [`assets/policy-location-routed.json`](assets/policy-location-routed.json).
+
 ## Outcome
 
 When this skill has been applied successfully:
 
-- A KBAC policy exists in the project with `policy_version: "2.0-kbac"`, a single `subject.type`, an `actions` list, a single `resource.type`, and a `condition.cypher` binding `subject` and `resource`.
+- A KBAC policy exists in the project with `policy_version` `"2.0-kbac"` (or `"3.0-kbac"` for location-aware conditions), a single `subject.type`, an `actions` list, a single `resource.type`, and a `condition.cypher` binding `subject` and `resource`.
 - The policy is **ACTIVE** (or deliberately `INACTIVE` / `DRAFT`), and its `id` and current ETag are known so it can be read, updated, or deleted.
 - Listing with `?type=kbac` shows the policy, and an [`indykite-authzen-evaluation`](../indykite-authzen-evaluation/SKILL.md) decision over a matching `(subject, action, resource)` triple reflects it.
 
 ## Files in this skill
 
-- [`references/policy-reference.md`](references/policy-reference.md) - KBAC policy schema (`meta`, `subject`, `actions`, `resource`, `condition.cypher`, partial parameters, multi-action and relationship variants) and the Config API lifecycle (create / read / list `?type=kbac` / update / delete, ETag concurrency, response fields).
+- [`references/policy-reference.md`](references/policy-reference.md) - KBAC policy schema (`meta`, `subject`, `actions`, `resource`, `condition.cypher`, partial parameters, multi-action and relationship variants), the 2.0 vs 3.0 version comparison with `3.0-kbac` routing and authoring rules, and the Config API lifecycle (create / read / list `?type=kbac` / update / delete, ETag concurrency, response fields).
 - [`assets/policy-provision-server.json`](assets/policy-provision-server.json) - runnable KBAC policy create envelope for the `Person PROVISION Server` example.
+- [`assets/policy-location-routed.json`](assets/policy-location-routed.json) - runnable `3.0-kbac` create envelope with dynamic `USE graph.byName($region)` location routing.
 - [`scripts/create-policy.sh`](scripts/create-policy.sh) - Bash helper that sets `project_id`, stringifies `policy`, and POSTs the create envelope to `/configs/v1/authorization-policies` (host-pinned; `--print` to preview).
 
 ## Agent-specific notes
@@ -160,10 +184,13 @@ This skill uses generic markdown instructions and works across all agents listed
 ## References
 
 - [AuthZEN guide (developer hub)](https://developer.indykite.com/guides/guide-authzen)
+- [Data Residency guide (developer hub)](https://developer.indykite.com/guides/guide-data-residency) - regions, composite databases, and `3.0-kbac` location routing
 - [Dynamic authorization with Knowledge Graphs (developer hub)](https://developer.indykite.com/guides/guide-dynamic-authz)
 - [Config API documentation - authorization policies](https://openapi.indykite.com/api-documentation-config#tag/authorization-policies)
 - [Cypher query language manual (Neo4j; openCypher)](https://neo4j.com/docs/cypher-manual/current/) - the graph query language used in KBAC policy conditions over the IndyKite Knowledge Graph.
 - [Music dataset tutorial (worked KBAC policy + AuthZEN example)](https://developer.indykite.com/tutorials/tutorial-music-dataset)
 - [KBAC recipes (developer hub resources)](https://developer.indykite.com/resources)
+- [KBAC 3.0: raw-Cypher policies with `CALL { }` subqueries and `USE` routing (authz-7)](https://developer.indykite.com/resources/authz-7)
+- [KBAC 3.0: location-routed policies for data residency (authz-8)](https://developer.indykite.com/resources/authz-8)
 - [IndyKite Terraform provider - `indykite_authorization_policy`](https://registry.terraform.io/providers/indykite/indykite/latest/docs)
 - [Credentials guide](https://developer.indykite.com/guides/guide-credentials)

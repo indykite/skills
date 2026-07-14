@@ -1,0 +1,12 @@
+{
+  "nodes": [
+    {
+      "external_id": "millicent",
+      "type": "Person",
+      "property_types": [
+        "email",
+        "given_name"
+      ]
+    }
+  ]
+}

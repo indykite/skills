@@ -1,0 +1,15 @@
+{
+  "relationships": [
+    {
+      "source": {
+        "external_id": "ryan",
+        "type": "Person"
+      },
+      "target": {
+        "external_id": "kitt",
+        "type": "Car"
+      },
+      "type": "CAN_DRIVE"
+    }
+  ]
+}

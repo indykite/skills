@@ -5,10 +5,10 @@
 # Required env vars:
 #   API_URL       IndyKite regional API base (no trailing slash). Must be one of
 #                 https://eu.api.indykite.com or https://us.api.indykite.com.
-#   API_KEY       AppAgent credentials token (X-IK-ClientKey)
+#   API_KEY       AppAgent credential for the calling application
 #
 # Optional env vars:
-#   BEARER_TOKEN  User OAuth access token. Optional - applies only in some cases.
+#   BEARER_TOKEN  Optional - forwarded only when set; applies only in some cases.
 #
 # Arguments:
 #   $1            Path to a JSON file with the search request body
@@ -34,7 +34,7 @@ fi
 : "${API_KEY:?set API_KEY}"
 
 # Pin the destination to known IndyKite API hosts. This call sends an AppAgent
-# credential (and optionally a user bearer token); restricting the host here
+# credential (and an optional user-supplied value); restricting the host here
 # means those secrets can never be POSTed to an arbitrary, caller-supplied URL.
 API_URL="${API_URL%/}"
 case "${API_URL}" in
