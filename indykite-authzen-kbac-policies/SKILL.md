@@ -1,17 +1,17 @@
 ---
 name: indykite-authzen-kbac-policies
-description: Author and manage an IndyKite KBAC (Knowledge-Based Access Control) authorization policy - a single subject type, an actions list, a single resource type, and a Cypher condition over the IKG - through the Config API (`/configs/v1/authorization-policies` - create / read / list `?type=kbac` / update / delete, ETag-guarded). Covers `2.0-kbac` and `3.0-kbac` (location-routed conditions for composite / data-residency IKGs). Use to write, publish, inspect, update, or delete a KBAC policy - e.g. "write a policy letting a Person PROVISION a Server within budget", "deactivate this policy", "author a location-routed policy for our composite IKG". This authors the rule; it does NOT make decisions - for "can X do Y on Z?" use indykite-authzen-evaluation (single) or indykite-authzen-evaluations (batch), and to enumerate allowed actions/resources/subjects use indykite-authzen-search-action / -search-resource / -search-subject. This is KBAC, not ContX IQ - for CIQ read/write data policies use the indykite-ciq-* skills.
+description: Author and manage an IndyKite KBAC (Knowledge-Based Access Control) authorization policy - a single subject type, an actions list, a single resource type, and a Cypher condition over the IKG - through the Config API (`/configs/v1/authorization-policies` - create / read / list `?type=kbac` / update / delete, ETag-guarded). Covers `2.0-kbac` and `3.0-kbac` (raw-Cypher conditions, with optional location routing for composite / data-residency IKGs). Use to write, publish, inspect, update, or delete a KBAC policy - e.g. "write a policy letting a Person PROVISION a Server within budget", "deactivate this policy", "author a location-routed policy for our composite IKG". This authors the rule; it does NOT make decisions - for "can X do Y on Z?" use indykite-authzen-evaluation (single) or indykite-authzen-evaluations (batch), and to enumerate allowed actions/resources/subjects use indykite-authzen-search-action / -search-resource / -search-subject. This is KBAC, not ContX IQ - for CIQ read/write data policies use the indykite-ciq-* skills.
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
 
 # IndyKite KBAC - authorization policies
 
-KBAC (Knowledge-Based Access Control) is IndyKite's graph-driven authorization model. A KBAC **policy** declares *who* (`subject`) may perform *which* operations (`actions`) on *what* (`resource`), gated by a **condition** in Cypher (the Neo4j / openCypher graph query language) evaluated against the IKG — IndyKite's knowledge graph, a property-graph database. The policy itself renders no decision - it is the *rule* that the AuthZEN endpoints consult when a decision or search is requested.
+KBAC (Knowledge-Based Access Control) is IndyKite's graph-driven authorization model. A KBAC **policy** declares *who* (`subject`) may perform *which* operations (`actions`) on *what* (`resource`), gated by a **condition** in Cypher (the Neo4j / openCypher graph query language) evaluated against the IKG: IndyKite's knowledge graph, a property-graph database. The policy itself renders no decision - it is the *rule* that the AuthZEN endpoints consult when a decision or search is requested.
 
 This skill is the home of the KBAC **policy lifecycle**: writing the policy JSON and managing it through the Config API.
 
-- A **policy** with `meta.policy_version` `"2.0-kbac"` (the default, platform-rewritten Cypher) or `"3.0-kbac"` (raw Cypher with location routing for composite IKGs - see [Location-aware policies](#location-aware-policies-for-data-residency-30-kbac)), a single `subject.type`, an `actions` list, a single `resource.type`, and a `condition.cypher` that binds the reserved variables `subject` and `resource`.
+- A **policy** with `meta.policy_version` `"2.0-kbac"` (the default, platform-rewritten Cypher) or `"3.0-kbac"` (raw Cypher, usable on any IKG, with optional location routing for composite IKGs - see [Location-aware policies](#location-aware-policies-for-data-residency-30-kbac)), a single `subject.type`, an `actions` list, a single `resource.type`, and a `condition.cypher` that binds the reserved variables `subject` and `resource`.
 - The **Config API** operations on `/configs/v1/authorization-policies`: create (`POST`), read (`GET /{id}` or by name), list (`GET ?project_id=…&type=kbac`), update (`PUT /{id}` with an `If-Match` ETag), and delete (`DELETE /{id}`).
 - Publishing: a policy must be **ACTIVE** to participate in decisions; an `INACTIVE` or `DRAFT` policy is stored but ignored (`DRAFT` may even be invalid).
 
@@ -47,6 +47,7 @@ Do **not** activate this skill when the user wants to:
 - An IndyKite **project**, and the project's GID in `PROJECT_GID` - it becomes the policy's `project_id`.
 - A **Service Account token** with Config API write access, in `SERVICE_ACCOUNT_TOKEN` - used for every `/configs/v1/authorization-policies` call.
 - A **subject type** for the policy - the node type making the request (`Person`, `Service`, `Namespace`, etc.). A policy is restricted to a single subject type; if two subject types need the same action, write two policies.
+- For a `2.0-kbac` policy, the subject nodes must be **identity nodes** - ingested with `is_identity: true` (see [`indykite-capture-upsert-nodes`](../indykite-capture-upsert-nodes/SKILL.md)). A subject ingested as a plain entity never matches a `2.0-kbac` condition, so every decision quietly evaluates to `false`. `3.0-kbac` matches the subject by type and external ID only and does not require `is_identity`.
 - The **IKG model** the condition will match (node types, properties, relationships). The policy can be authored before the data exists, but a decision over an empty graph is just `false`.
 
 If any of these are missing, say so before writing JSON.
@@ -60,7 +61,7 @@ Every KBAC policy answers one shape of question. Pin down all four parts before 
 | Part        | What it is                                                        | Example             |
 |-------------|------------------------------------------------------------------|---------------------|
 | `subject`   | The single node type making the request.                          | `Person`            |
-| `actions`   | One or more uppercase verbs the policy grants.                     | `["PROVISION"]`       |
+| `actions`   | Action names the policy grants (1-5 per policy), conventionally uppercase verbs. | `["PROVISION"]`       |
 | `resource`  | The single node type being acted on.                              | `Server`               |
 | `condition` | A Cypher pattern + `WHERE` that must hold for a decision to be `true`. | price within budget |
 
@@ -86,11 +87,11 @@ For relationship-based rules, match the relationship instead of (or in addition 
 MATCH (subject:Person)-[:CAN_AFFORD]->(resource:Server)
 ```
 
-For the full condition grammar (attribute references, multi-hop patterns, partial parameters) see [`references/policy-reference.md`](references/policy-reference.md).
+For the full condition grammar (attribute references, multi-hop patterns, partial parameters, and the reserved `$subject_id` parameter that `2.0-kbac` binds to the user token's identity) see [`references/policy-reference.md`](references/policy-reference.md).
 
 ### 3. Assemble the policy and its create envelope
 
-A KBAC policy has exactly these top-level keys: `meta.policy_version` (`"2.0-kbac"` or `"3.0-kbac"`), `subject.type`, `actions`, `resource.type`, and `condition.cypher`.
+A KBAC policy has exactly five top-level keys: `meta` (with `meta.policy_version` set to `"2.0-kbac"` or `"3.0-kbac"`), `subject` (with `subject.type`), `actions`, `resource` (with `resource.type`), and `condition` (required `condition.cypher`; optional `condition.filter`, a graph-free pre-check over token claims and `input_params` - see [`references/policy-reference.md`](references/policy-reference.md#conditionfilter-optional)).
 
 The Config API does not take the policy object directly - it takes a **create envelope** in which the policy is a **stringified** JSON value:
 
@@ -147,6 +148,8 @@ On a **composite IKG** - one logical graph spanning multiple constituent databas
 - The condition is **raw Cypher**: it runs as authored; the platform only pins `subject` / `resource` by type and external ID and appends the projection.
 - Route with `USE graph.byName(...)` - **static** (`USE graph.byName('ikcomposite.db2')` always evaluates in that constituent) or **dynamic** (`USE graph.byName($region)`), where `$region` becomes a **location parameter**: at decision time the caller passes a *logical location* (a key of the project's `alias_mapping`, e.g. `"east"`) under `context.input_params`, and IndyKite translates it to the physical constituent just before execution. Callers never see or supply physical database names.
 - `CALL { }` subqueries with inner `RETURN`s are allowed (each subquery can carry its own `USE` clause), so one condition can combine matches from several constituents. Both are rejected on `2.0-kbac`.
+- The subject does **not** need to be an identity node: it is matched by type and external ID. Instead, when the decision request carries a user (OAuth bearer) token, the token's subject must be the same identity as the request's `subject`, or the call is denied with `bearer token subject differs from requested subject`.
+- Conditions referencing **external (resolver-backed) properties** are rejected at creation (`external properties cannot be used in data-residency policies`); they are supported only in `2.0-kbac` conditions.
 
 ```json
 {
@@ -160,7 +163,7 @@ On a **composite IKG** - one logical graph spanning multiple constituent databas
 }
 ```
 
-The lifecycle is unchanged - same endpoint, create envelope, statuses, and ETag rules as steps 3-5; only the policy JSON differs. Residency support is **opt-in per policy**: existing `2.0-kbac` policies keep working, and a valid `2.0-kbac` condition can be carried over by switching `meta.policy_version` (as long as it does not reference `$subject_id`, which `3.0-kbac` rejects). The full 2.0 vs 3.0 comparison, authoring rules, and decision-time failure modes are in [`references/policy-reference.md`](references/policy-reference.md#30-kbac-raw-cypher-and-location-routing); a runnable create envelope is in [`assets/policy-location-routed.json`](assets/policy-location-routed.json).
+The lifecycle is unchanged - same endpoint, create envelope, statuses, and ETag rules as steps 3-5; only the policy JSON differs. Note that `3.0-kbac` itself does not require a composite database - only `USE` routing (static or dynamic) does; a `3.0-kbac` policy without a `USE` clause evaluates on any IKG as plain raw Cypher. Residency support is **opt-in per policy**: existing `2.0-kbac` policies keep working, and a valid `2.0-kbac` condition can be carried over by switching `meta.policy_version` (as long as it references neither `$subject_id` nor external properties, both of which `3.0-kbac` rejects). The full 2.0 vs 3.0 comparison, authoring rules, and decision-time failure modes are in [`references/policy-reference.md`](references/policy-reference.md#30-kbac-raw-cypher-and-location-routing); a runnable create envelope is in [`assets/policy-location-routed.json`](assets/policy-location-routed.json).
 
 ## Outcome
 
@@ -172,7 +175,7 @@ When this skill has been applied successfully:
 
 ## Files in this skill
 
-- [`references/policy-reference.md`](references/policy-reference.md) - KBAC policy schema (`meta`, `subject`, `actions`, `resource`, `condition.cypher`, partial parameters, multi-action and relationship variants), the 2.0 vs 3.0 version comparison with `3.0-kbac` routing and authoring rules, and the Config API lifecycle (create / read / list `?type=kbac` / update / delete, ETag concurrency, response fields).
+- [`references/policy-reference.md`](references/policy-reference.md) - KBAC policy schema (`meta`, `subject`, `actions`, `resource`, `condition.cypher`, the optional `condition.filter`, partial parameters, multi-action and relationship variants), the 2.0 vs 3.0 version comparison with `3.0-kbac` routing and authoring rules, and the Config API lifecycle (create / read / list `?type=kbac` / update / delete, ETag concurrency, response fields).
 - [`assets/policy-provision-server.json`](assets/policy-provision-server.json) - runnable KBAC policy create envelope for the `Person PROVISION Server` example.
 - [`assets/policy-location-routed.json`](assets/policy-location-routed.json) - runnable `3.0-kbac` create envelope with dynamic `USE graph.byName($region)` location routing.
 - [`scripts/create-policy.sh`](scripts/create-policy.sh) - Bash helper that sets `project_id`, stringifies `policy`, and POSTs the create envelope to `/configs/v1/authorization-policies` (host-pinned; `--print` to preview).
