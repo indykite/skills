@@ -55,6 +55,13 @@ The new node's stable identifier in the IKG.
 
 If the same `external_id` is supplied a second time, the request is treated as an **upsert** (update) on the existing node — not a duplicate-create error.
 
+### `labels`
+
+Optional array of additional labels attached to the node alongside `type`.
+
+- **Identity nodes:** `"labels": ["DigitalTwin"]` creates the node as an identity node — the same result as `is_identity: true` in the Capture API, which is shorthand for adding this label at ingest. Required whenever the node will act as a `2.0-kbac` authorization subject; a non-identity subject makes every `2.0-kbac` decision silently `false` (`3.0-kbac` matches by type and `external_id` and does not need it).
+- Labels are **not** checked against the policy's `allowed_upserts.nodes.node_types` whitelist — only `type` is.
+
 ### `properties`
 
 Array of property entries. Each:

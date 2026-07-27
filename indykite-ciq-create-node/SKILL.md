@@ -104,9 +104,12 @@ The Knowledge Query references the policy and lists what to write. Each entry in
 - `name` - a **distinct** variable name not used in the policy's `cypher`. This is the variable other arrays (`nodes`, `relationships`) reference.
 - `type` - the node label. Must be in the policy's `allowed_upserts.nodes.node_types`.
 - `external_id` - **required for new nodes**. Hardcode for one-off writes, or use `$param` (the common case) so the caller supplies it at execute time.
+- `labels` - optional array of extra labels attached alongside `type`. Chiefly used to create **identity nodes** - see the note below.
 - `properties` - array of `{type, value, metadata?}` items. The `type` (property name) must be hardcoded; the `value` may be hardcoded or `$param`.
 
 Echo the new node back in the response by listing its variable name in the top-level `nodes` array.
+
+> **Identity nodes.** The Knowledge Query has no `is_identity` field - that flag belongs to the Capture API. In the IKG, identity status is carried by the `DigitalTwin` label; Capture's `is_identity: true` is shorthand for adding it at ingest. The CIQ equivalent is `"labels": ["DigitalTwin"]` on the `upsert_nodes` entry. The label goes in `labels` only - the policy's `node_types` whitelist checks `type`, so `DigitalTwin` is never listed there. Create the node as an identity node whenever it must act as a `2.0-kbac` subject: a non-identity subject makes every `2.0-kbac` decision silently `false` (`3.0-kbac` does not require it). To confirm the label landed, run a `2.0-kbac` evaluation with the new node as subject.
 
 A complete Knowledge Query for the running example: see [`assets/knowledge-query-create-track.json`](assets/knowledge-query-create-track.json).
 
@@ -197,7 +200,7 @@ When this skill has been applied successfully:
 ## Files in this skill
 
 - [`references/policy-reference.md`](references/policy-reference.md) - write-focused policy schema, `allowed_upserts.nodes` deep-dive (existing vs node_types), why other blocks are omitted.
-- [`references/knowledge-query-reference.md`](references/knowledge-query-reference.md) - `upsert_nodes` schema, properties + metadata, protected property names, returning the new node.
+- [`references/knowledge-query-reference.md`](references/knowledge-query-reference.md) - `upsert_nodes` schema, properties + metadata, identity nodes via `labels`, protected property names, returning the new node.
 - [`references/execution-reference.md`](references/execution-reference.md) - `POST /contx-iq/v1/execute` for writes, auth combinations including `_Application` reserved `$_appId`, response shape.
 - [`references/troubleshooting.md`](references/troubleshooting.md) - `403` / `422` / duplicate `external_id` / missing properties patterns.
 - [`assets/policy-create-track.json`](assets/policy-create-track.json) - runnable create-only policy for the `_Application` → new `Track` example.

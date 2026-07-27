@@ -103,7 +103,10 @@ The Knowledge Query has two write arrays:
 - `name` - fresh variable name (not in cypher), e.g. `contract`.
 - `type` - node label, must match `allowed_upserts.nodes.node_types`.
 - `external_id` - required for new nodes; usually `$param`.
+- `labels` - optional array of extra labels attached alongside `type`. Chiefly used to create **identity nodes** - see the note below.
 - `properties` - array of `{type, value, metadata?}` items.
+
+> **Identity nodes.** The Knowledge Query has no `is_identity` field - that flag belongs to the Capture API. In the IKG, identity status is carried by the `DigitalTwin` label; Capture's `is_identity: true` is shorthand for adding it at ingest. The CIQ equivalent is `"labels": ["DigitalTwin"]` on the `upsert_nodes` entry. The label goes in `labels` only - the policy's `node_types` whitelist checks `type`, so `DigitalTwin` is never listed there. Create the node as an identity node whenever it must act as a `2.0-kbac` subject: a non-identity subject makes every `2.0-kbac` decision silently `false` (`3.0-kbac` does not require it). To confirm the label landed, run a `2.0-kbac` evaluation with the new node as subject.
 
 **`upsert_relationships`** - declares each new relationship. Same shape as in [`indykite-ciq-create-relationship`](../indykite-ciq-create-relationship/SKILL.md), with one important twist:
 
@@ -205,7 +208,7 @@ When this skill has been applied successfully:
 ## Files in this skill
 
 - [`references/policy-reference.md`](references/policy-reference.md) - combined `node_types` + `relationship_types`, optional `existing_nodes` for hybrid create-and-update flows.
-- [`references/knowledge-query-reference.md`](references/knowledge-query-reference.md) - `upsert_nodes` + `upsert_relationships` interaction, `source`/`target` cross-referencing, multi-relationship patterns.
+- [`references/knowledge-query-reference.md`](references/knowledge-query-reference.md) - `upsert_nodes` + `upsert_relationships` interaction, `source`/`target` cross-referencing, identity nodes via `labels`, multi-relationship patterns.
 - [`references/execution-reference.md`](references/execution-reference.md) - request/response, atomicity guarantees, idempotence on rerun.
 - [`references/troubleshooting.md`](references/troubleshooting.md) - `403` / empty-data / wiring-mismatch / cross-reference patterns.
 - [`assets/policy-create-contract.json`](assets/policy-create-contract.json) - the canonical insurance-Contract example, lifted from `policyAllowWriteContract` in the developer-hub resources.
