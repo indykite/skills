@@ -36,6 +36,9 @@ Same shape as in the create-node skill. Each entry creates one node:
 - `name` — fresh variable name (not in cypher, not used elsewhere in `upsert_nodes`).
 - `type` — new node label, in the policy's `allowed_upserts.nodes.node_types`.
 - `external_id` — required for new nodes; usually `$param`.
+- `labels` — optional array of additional labels attached alongside `type`.
+  - **Identity nodes:** `"labels": ["DigitalTwin"]` creates the node as an **identity node** — the same result as `is_identity: true` in the Capture API, which is shorthand for adding this label at ingest. Required whenever the node will act as a `2.0-kbac` authorization subject; a non-identity subject makes every `2.0-kbac` decision silently `false` (`3.0-kbac` matches by type and `external_id` and does not need it).
+  - Labels are **not** checked against the policy's `node_types` whitelist — only `type` is.
 - `properties` — array of `{type, value, metadata?}` items. `type` (property name) hardcoded; `value` may be `$param`.
 
 ## `upsert_relationships`
