@@ -19,10 +19,19 @@ jobs:
     name: pre-commit-cache
     runs-on: ubuntu-latest
     steps:
+      - name: Mint ik-code-reader installation token
+        id: code_reader_token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0 - https://github.com/actions/create-github-app-token/releases
+        with:
+          client-id: ${{ vars.IK_CODE_READER_CLIENT_ID }}
+          private-key: ${{ secrets.IK_CODE_READER_PEM }}
+          owner: indykite
+          repositories: ops-common
+
       - name: pre-commit
         uses: indykite/.github/.github/actions/pre-commit@master # master
         with:
-          github_token: ${{ secrets.INDYKITEONE_PAT }}
+          github_token: ${{ steps.code_reader_token.outputs.token }}
           pre_commit_skip: >-
             commitlint,trivy,trivy-conf,trivy-filesystem
             ${{ vars.PRE_COMMIT_SKIP != null && ',' || '' }}${{ vars.PRE_COMMIT_SKIP }}
