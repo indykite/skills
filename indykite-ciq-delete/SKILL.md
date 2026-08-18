@@ -59,7 +59,7 @@ If any of these are missing, stop and tell the user.
 
 A policy is restricted to a single subject type - if both should be allowed, write two policies. The runnable example below uses `Person` (user clears their own profile property); an `_Application` variant - for example, an ETL job pruning stale `:PLAYED_AT` edges - differs only in `subject.type`, the filter, and the execute headers.
 
-**Cypher pattern** - must `MATCH` the element you want to delete and bind it to a variable. For deleting a node or its property, match the node. For deleting a relationship or its property, match the relationship.
+**Cypher pattern** - must `MATCH` the element you want to delete and bind it to a variable. For deleting a node or its property, match the node. For deleting a relationship or its property, match the relationship. If the exact node types, relationship types, or property spellings in the project's IKG are unknown, read them from the Data Schema API first ([`indykite-data-schema`](../indykite-data-schema/SKILL.md)) - a typoed name silently matches nothing, and a delete whose pattern matches nothing is a no-op that still returns `200`.
 
 Working example (used throughout this skill):
 

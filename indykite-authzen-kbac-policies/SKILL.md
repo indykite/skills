@@ -48,7 +48,7 @@ Do **not** activate this skill when the user wants to:
 - A **Service Account token** with Config API write access, in `SERVICE_ACCOUNT_TOKEN` - used for every `/configs/v1/authorization-policies` call.
 - A **subject type** for the policy - the node type making the request (`Person`, `Service`, `Namespace`, etc.). A policy is restricted to a single subject type; if two subject types need the same action, write two policies.
 - For a `2.0-kbac` policy, the subject nodes must be **identity nodes** - ingested with `is_identity: true` (see [`indykite-capture-upsert-nodes`](../indykite-capture-upsert-nodes/SKILL.md)). A subject ingested as a plain entity never matches a `2.0-kbac` condition, so every decision quietly evaluates to `false`. `3.0-kbac` matches the subject by type and external ID only and does not require `is_identity`.
-- The **IKG model** the condition will match (node types, properties, relationships). The policy can be authored before the data exists, but a decision over an empty graph is just `false`.
+- The **IKG model** the condition will match (node types, properties, relationships). The policy can be authored before the data exists, but a decision over an empty graph is just `false`. For a populated IKG, the exact type and property spellings can be read from the Data Schema API ([`indykite-data-schema`](../indykite-data-schema/SKILL.md)).
 
 If any of these are missing, say so before writing JSON.
 

@@ -54,7 +54,7 @@ Do **not** activate this skill when the user:
 
 A policy is restricted to a single subject type - if both should be allowed, write two policies. The runnable example below uses `_Application` (insurance-contract ingestion); a `Person` variant - for example, a user posting a new `Comment` linked to an existing `Document` they own - differs only in `subject.type`, the filter, and the execute headers.
 
-**Cypher pattern** - must `MATCH` the subject **and** every existing endpoint the new node will link to. The new node itself is **not** matched; it's declared in `upsert_nodes`.
+**Cypher pattern** - must `MATCH` the subject **and** every existing endpoint the new node will link to. The new node itself is **not** matched; it's declared in `upsert_nodes`. If the exact node types, relationship types, or property spellings in the project's IKG are unknown, read them from the Data Schema API first ([`indykite-data-schema`](../indykite-data-schema/SKILL.md)) - a typoed name silently matches nothing, and a write whose pattern matches nothing is a no-op that still returns `200`.
 
 Working example (used throughout this skill, taken verbatim from the developer-hub `policyAllowWriteContract` resource):
 

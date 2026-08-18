@@ -54,7 +54,7 @@ If any of these are missing, stop and tell the user - fixing them first is much 
 
 A policy is restricted to a single subject type - if both should be allowed, write two policies. The subject's variable in `cypher` is conventionally named `subject`. The runnable example below uses `Person`; an `_Application` variant - for example, a service reading the catalog - differs only in `subject.type`, the filter, and the execute headers.
 
-**Cypher pattern** - the `MATCH` / `OPTIONAL MATCH` clauses naming every node and relationship the query will touch. Each one must have a **variable name** so the policy and Knowledge Query can reference it.
+**Cypher pattern** - the `MATCH` / `OPTIONAL MATCH` clauses naming every node and relationship the query will touch. Each one must have a **variable name** so the policy and Knowledge Query can reference it. If the exact node types, relationship types, or property spellings in the project's IKG are unknown, read them from the Data Schema API first ([`indykite-data-schema`](../indykite-data-schema/SKILL.md)) - a typoed name silently matches nothing.
 
 Working example used throughout this skill:
 

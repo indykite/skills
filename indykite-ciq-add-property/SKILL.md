@@ -60,7 +60,7 @@ If any of these are missing, stop and tell the user - fixing them first is much 
 
 A policy is restricted to a single subject type - if both should be allowed, write two policies. The runnable example below uses `Person` ("update own profile"); an `_Application` variant - for example, an ETL job that backfills `imported_at` timestamps - differs only in `subject.type`, the filter, and the execute headers.
 
-**Cypher pattern** - the `MATCH` clause that **resolves the node you intend to update**. The variable name you use here is what `existing_nodes` and `upsert_nodes[].name` will reference. The simplest case is `MATCH (subject:Person)` (the subject node itself); the more general case walks a path to a related node, e.g. `MATCH (subject:Person)-[:OWNS]->(car:Car)-[:HAS]->(ln:LicenseNumber)`.
+**Cypher pattern** - the `MATCH` clause that **resolves the node you intend to update**. The variable name you use here is what `existing_nodes` and `upsert_nodes[].name` will reference. The simplest case is `MATCH (subject:Person)` (the subject node itself); the more general case walks a path to a related node, e.g. `MATCH (subject:Person)-[:OWNS]->(car:Car)-[:HAS]->(ln:LicenseNumber)`. If the exact node types, relationship types, or property spellings in the project's IKG are unknown, read them from the Data Schema API first ([`indykite-data-schema`](../indykite-data-schema/SKILL.md)) - a typoed name silently matches nothing, and a write whose pattern matches nothing is a no-op that still returns `200`.
 
 Working example (used throughout this skill, modelled on the music-dataset Chapter 8 `ciqpolicy4`):
 

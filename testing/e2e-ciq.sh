@@ -187,6 +187,7 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
     export BEARER_TOKEN="DUMMY_USER_TOKEN"
     export MCP_URL="https://us.mcp.indykite.com"
     export PROJECT_GID="DUMMY_PROJECT_GID"
+    export SERVICE_ACCOUNT_TOKEN="DUMMY_SA_TOKEN"
 
     # One fixture per skill that ships an execute.sh.
     # NB: array keys MUST be quoted so shfmt does not reformat the hyphens
@@ -241,6 +242,50 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
             dry_pass=$((dry_pass + 1))
         else
             printf '  [indykite-authzen-evaluation/evaluate.sh] --print: FAIL\n    output: %s\n' "${printed}"
+            dry_fail=$((dry_fail + 1))
+        fi
+    fi
+
+    # Other body-taking helpers - each takes `--print <asset>` and must emit a
+    # curl hitting the mapped endpoint fragment. The asset is the skill's first
+    # assets/*.json by glob order.
+    # NB: array keys MUST be quoted (see the fixtures NB above).
+    declare -A body_helpers
+    body_helpers["indykite-authzen-evaluations/scripts/evaluate-batch.sh"]="access/v1/evaluations"
+    body_helpers["indykite-authzen-kbac-policies/scripts/create-policy.sh"]="configs/v1/authorization-policies"
+    body_helpers["indykite-authzen-search-action/scripts/search-action.sh"]="access/v1/search/action"
+    body_helpers["indykite-authzen-search-resource/scripts/search-resource.sh"]="access/v1/search/resource"
+    body_helpers["indykite-authzen-search-subject/scripts/search-subject.sh"]="access/v1/search/subject"
+
+    for helper in "${!body_helpers[@]}"; do
+        s="${helper%%/*}"
+        if [[ ! -r "${helper}" ]]; then
+            printf '  [%s] SKIP (missing or unreadable %s)\n' "${s}" "${helper##*/}"
+            continue
+        fi
+        asset="$(compgen -G "${s}/assets/*.json" | head -1 || true)"
+        [[ -n "${asset}" ]] || {
+            printf '  [%s] SKIP (no assets/*.json)\n' "${s}"
+            continue
+        }
+        printed="$(bash "${helper}" --print "${asset}" 2>/dev/null || true)"
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"${body_helpers[${helper}]}"* ]]; then
+            printf '  [%s/%s] --print: ok\n' "${s}" "${helper##*/}"
+            dry_pass=$((dry_pass + 1))
+        else
+            printf '  [%s/%s] --print: FAIL\n    output: %s\n' "${s}" "${helper##*/}" "${printed}"
+            dry_fail=$((dry_fail + 1))
+        fi
+    done
+
+    # Data Schema read-schema.sh - GET /data-schema/v1/, no request body.
+    if [[ -r "indykite-data-schema/scripts/read-schema.sh" ]]; then
+        printed="$(bash indykite-data-schema/scripts/read-schema.sh --print 2>/dev/null || true)"
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"data-schema/v1/"* ]]; then
+            printf '  [indykite-data-schema/read-schema.sh] --print: ok\n'
+            dry_pass=$((dry_pass + 1))
+        else
+            printf '  [indykite-data-schema/read-schema.sh] --print: FAIL\n    output: %s\n' "${printed}"
             dry_fail=$((dry_fail + 1))
         fi
     fi

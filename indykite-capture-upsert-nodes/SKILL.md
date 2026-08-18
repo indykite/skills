@@ -101,7 +101,7 @@ A `200` returns one result per node, in order:
 { "results": [ { "id": "gid:…" }, { "id": "gid:…" } ] }
 ```
 
-`400` (with `errors[]`) means a malformed body - commonly a missing `external_id` or `type`. Field shapes, batch limits, and error semantics: [`references/capture-reference.md`](references/capture-reference.md).
+`400` (with `errors[]`) means a malformed body - commonly a missing `external_id` or `type`. Field shapes, batch limits, and error semantics: [`references/capture-reference.md`](references/capture-reference.md). To verify the ingest at schema level (types, property names, counts), read the schema back with [`indykite-data-schema`](../indykite-data-schema/SKILL.md).
 
 ## Outcome
 
