@@ -58,7 +58,7 @@ If any of these are missing, stop and tell the user - fixing them first is much 
 
 A policy is restricted to a single subject type - if both should be allowed, write two policies. The runnable example below uses `_Application` (system-side wiring); a `Person` variant - for example, a user accepting a Contract - differs only in `subject.type`, the filter, and the execute headers.
 
-**Cypher pattern** - must `MATCH` both endpoint nodes, **plus** the subject. Use disjoint `MATCH` clauses (separated by spaces) when the endpoints aren't connected through any other path you need.
+**Cypher pattern** - must `MATCH` both endpoint nodes, **plus** the subject. Use disjoint `MATCH` clauses (separated by spaces) when the endpoints aren't connected through any other path you need. If the exact node types, relationship types, or property spellings in the project's IKG are unknown, read them from the Data Schema API first ([`indykite-data-schema`](../indykite-data-schema/SKILL.md)) - a typoed name silently matches nothing, and a write whose pattern matches nothing is a no-op that still returns `200`.
 
 Working example (used throughout this skill):
 
