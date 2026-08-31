@@ -62,7 +62,7 @@ repos:
   #
   # Renovate
   - repo: https://github.com/renovatebot/pre-commit-hooks # ci:ignore:OK to validate locally only, otherwise it adds 850MB+ to unpacked cache
-    rev: "44.31.0"
+    rev: "44.52.1"
     hooks:
       - id: renovate-config-validator
         args: [--strict]
