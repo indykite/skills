@@ -26,7 +26,7 @@ Includes structural validation, plus exercises the `--print` flag on every helpe
 ./testing/e2e-ciq.sh --dry-run
 ```
 
-This confirms each helper script — the CIQ `execute.sh` scripts, the MCP `init-session.sh`, the AuthZEN `evaluate.sh`, and the Capture `capture.sh` helpers — constructs a well-formed `curl` command, without sending it. Useful for verifying the script logic in isolation. Exits non-zero if any structural check or any smoke test fails.
+This confirms each helper script — the CIQ `execute.sh` scripts, the MCP `mcp-call.sh`, the AuthZEN `evaluate.sh`, and the Capture `capture.sh` helpers — constructs a well-formed `curl` command, without sending it. Useful for verifying the script logic in isolation. Exits non-zero if any structural check or any smoke test fails.
 
 The `--print` flag is also available on every helper directly:
 
