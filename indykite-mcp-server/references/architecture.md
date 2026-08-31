@@ -1,4 +1,4 @@
-# IndyKite MCP — Architecture and Session Model
+# IndyKite MCP — Architecture and Protocol Model
 
 This file is loaded by agents that need to reason about *how* the MCP server processes a request, not *what* tools it exposes (that lives in `tools.md`).
 
@@ -17,7 +17,7 @@ This file is loaded by agents that need to reason about *how* the MCP server pro
 
 ## Authentication: a single Bearer token
 
-Every request — including `initialize` — carries **one** auth header:
+Every request — in both protocol styles — carries **one** auth header:
 
 | Header                          | Question                                             | Source                                              |
 |---------------------------------|------------------------------------------------------|-----------------------------------------------------|
@@ -44,7 +44,48 @@ The MCP server speaks JSON-RPC 2.0 (`{ "jsonrpc": "2.0", "id": …, "method": �
 
 The MCP server is built on the official [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk), so any conforming MCP client — the SDK itself, Claude Code, Cursor, Goose, etc. — can talk to it without raw `curl`.
 
-## Session lifecycle
+## Two protocol styles
+
+The request style is selected by the protocol revision the client sends:
+
+| Style                       | Protocol revisions                          | How it works                                                                                     |
+|-----------------------------|---------------------------------------------|--------------------------------------------------------------------------------------------------|
+| **Stateless** (preferred)   | `2026-07-28` and later                      | No handshake and no session: every request is self-contained, carrying the protocol metadata in `params._meta` plus the standard MCP headers. |
+| **Session-based** (legacy)  | Before `2026-07-28` (e.g. `2025-11-25`)     | `initialize` handshake first; the server returns an `Mcp-Session-Id` header that every follow-up request must send back. |
+
+Both styles authenticate the same way (Bearer token) and expose the same tools and resources. The supported revisions can be queried at runtime with the stateless `server/discover` method.
+
+## Stateless protocol (revision 2026-07-28)
+
+Every request is self-contained. It must carry:
+
+**In the body**, a `params._meta` object:
+
+| `_meta` key                                       | Value                                                                                   |
+|---------------------------------------------------|-----------------------------------------------------------------------------------------|
+| `io.modelcontextprotocol/protocolVersion`         | The protocol revision, e.g. `"2026-07-28"`. **Required** — a request without it is treated as session-based (and then fails the session gate). |
+| `io.modelcontextprotocol/clientCapabilities`      | The client's capabilities (`{}` if none).                                               |
+| `io.modelcontextprotocol/clientInfo`              | Optional client name and version.                                                       |
+
+**In the headers**, the standard MCP headers for this revision:
+
+| Header                   | Value                                                                                                                   |
+|--------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| `Mcp-Protocol-Version`   | `2026-07-28`                                                                                                             |
+| `Mcp-Method`             | Must equal the JSON-RPC `method` in the body; mismatch or absence is rejected.                                           |
+| `Mcp-Name`               | Required for `tools/call` (the tool name), `resources/read` (the resource URI), and `prompts/get` (the prompt name); must match the body. |
+| `Accept`                 | `application/json, text/event-stream` — responses may arrive as an SSE stream with the JSON-RPC message in the event data. |
+
+Plus the usual `Authorization: Bearer` and `Content-Type: application/json`.
+
+Rules and behaviors:
+
+1. **No session is created.** Responses carry no `Mcp-Session-Id` header, and no `initialize`/`notifications/initialized` calls exist in this style.
+2. **`_meta` wins over a stale header.** If a mixed-version client sends an `Mcp-Session-Id` header alongside a `2026-07-28` `_meta`, the `_meta` wins and the header is ignored.
+3. **`server/discover`** is a stateless-only method returning `result.supportedVersions` (e.g. `["2026-07-28", "2024-11-05", …]`), `result.capabilities`, and the server's instructions — use it to decide which style to speak.
+4. **Unsupported revisions fail loudly.** Requesting a revision the server does not support returns HTTP `400` with JSON-RPC error `-32022` (`unsupported protocol version`) whose `data` names the `requested` and `supported` versions.
+
+## Legacy session lifecycle (revisions before 2026-07-28)
 
 ```text
 client ──┐
@@ -67,11 +108,11 @@ Three rules:
 2. The server returns `Mcp-Session-Id` as a **response header** on the `initialize` reply; capture it before reading the JSON body.
 3. **All subsequent calls** must include `Mcp-Session-Id: <captured value>`. A request that omits it after `initialize` will be rejected.
 
-There is no documented session expiration model; treat sessions as short-lived (one task, one process). If the server returns an authentication error mid-session, re-initialize.
+There is no documented session expiration model; treat sessions as short-lived (one task, one process). If the server returns an authentication error mid-session, re-initialize. Prefer the stateless style whenever the client can send it — it removes this entire failure class.
 
 ## Process flow
 
-The published process diagram (`mcp-process1.png`, `mcp-process2.png` on the developer hub) shows the same lifecycle in graphical form. The textual version above is sufficient for an agent to drive the protocol.
+The published process diagram (`mcp-process1.png`, `mcp-process2.png` on the developer hub) shows the legacy session lifecycle in graphical form. The textual version above is sufficient for an agent to drive either style of the protocol.
 
 ## Discovery resources
 

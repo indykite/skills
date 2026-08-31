@@ -221,14 +221,15 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
         fi
     done
 
-    # MCP init-session.sh (different shape).
-    if [[ -r "indykite-mcp-server/scripts/init-session.sh" ]]; then
-        printed="$(bash indykite-mcp-server/scripts/init-session.sh --print 2>/dev/null || true)"
-        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${MCP_URL}"* ]] && [[ "${printed}" == *"${PROJECT_GID}"* ]]; then
-            printf '  [indykite-mcp-server/init-session.sh] --print: ok\n'
+    # MCP mcp-call.sh (different shape) - stateless protocol 2026-07-28.
+    if [[ -r "indykite-mcp-server/scripts/mcp-call.sh" ]]; then
+        printed="$(bash indykite-mcp-server/scripts/mcp-call.sh --print tools/list 2>/dev/null || true)"
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${MCP_URL}"* ]] && [[ "${printed}" == *"${PROJECT_GID}"* ]] &&
+            [[ "${printed}" == *"2026-07-28"* ]] && [[ "${printed}" == *"protocolVersion"* ]]; then
+            printf '  [indykite-mcp-server/mcp-call.sh] --print: ok\n'
             dry_pass=$((dry_pass + 1))
         else
-            printf '  [indykite-mcp-server/init-session.sh] --print: FAIL\n    output: %s\n' "${printed}"
+            printf '  [indykite-mcp-server/mcp-call.sh] --print: FAIL\n    output: %s\n' "${printed}"
             dry_fail=$((dry_fail + 1))
         fi
     fi
