@@ -50,6 +50,12 @@ A symptom-first map. Walk it top-down — earlier rows are cheaper to verify.
 | Bearer token expired                                                       | Refresh and retry.                                                                            |
 | Token's `sub` not seeded as a Person `external_id`                          | Either seed the Person, or use a different test user. (See the music-dataset Chapter 5 test-user table for the canonical Cornelius / Marmaduke split.) |
 
+## Symptom: execution is fast on a small graph, slow as data grows
+
+| Likely cause                                                       | How to verify                                                                                        | Fix                                                                                          |
+|--------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| Policy `condition.cypher` is anchored on a high-fan-in node (a brand / tenant / category most records point to) instead of the subject | Execution time grows roughly linearly with dataset size, and the pattern's only selective filters sit at the endpoints of a multi-hop chain. | Take the fan-in node out of the connected chain (separate `MATCH` pinned by `external_id` + a `WHERE (x)-[:REL]->(fanin)` pattern predicate), or pin the subject with `WHERE … WITH subject LIMIT 1` — see "Performance: pin the subject before high-fan-in hops" in `policy-reference.md`. |
+
 ## Useful one-liners
 
 ```bash

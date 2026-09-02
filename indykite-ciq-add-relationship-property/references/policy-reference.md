@@ -59,6 +59,23 @@ MATCH (track:Track)-[r:PLAYED_AT]->(venue:Venue)
 
 Variable names: `subject`, `track`, `r`, `venue`. The relationship variable `r` is what `existing_relationships` and the Knowledge Query's `upsert_relationships[].name` reference. The endpoints (`track`, `venue`) are not strictly required to be variables, but pinning them in `condition.filter` is how you ensure the right edge is updated.
 
+### Performance: pin the subject before high-fan-in hops
+
+On a large graph, a `MATCH` chain whose only selective filters sit at its *endpoints* can execute slowly. If one endpoint is a high-fan-in node — a brand, tenant, or category that a large share of records points to — the query planner may anchor there and traverse its entire fan-in before the subject filter prunes anything, so execution time grows linearly with the dataset.
+
+This skill's canonical disjoint shape avoids the problem outright when both endpoints are pinned inline by `external_id`:
+
+```cypher
+MATCH (subject:_Application {external_id: $_appId})
+MATCH (track:Track {external_id: $track_external_id})-[r:PLAYED_AT]->(venue:Venue {external_id: $venue_external_id})
+```
+
+Reach for the pattern-predicate form (bind the fan-in node in its own `MATCH` and check membership with a `WHERE (x)-[:REL]->(fanin)` predicate) only when the pattern must chain through a node that a large share of records points to.
+
+Server-populated in-cypher parameters make this safe without extra caller input: `$token.<claim>` (e.g. `$token.sub`) carries the Bearer token's claims for user subjects, and `$_appId` carries the application id for `_Application` subjects. Any other `$param` in the cypher must be supplied by the caller via `input_params`.
+
+If the chain cannot be restructured, the fallback is a planning barrier: pin the subject with an in-cypher `WHERE` and `WITH subject LIMIT 1`, then continue the chain from the bound subject (safe because `(type, external_id)` is unique in the IKG). Three rules make the barrier correct: the pinning equality must be an in-cypher `WHERE` placed *before* the `LIMIT 1` — `condition.filter` is applied after the whole pattern, so a `LIMIT 1` after an unpinned `MATCH` grabs an arbitrary node and silently returns zero rows; every `WITH` must keep carrying `subject` (the validator rejects one that drops it: `missing required variables in WITH statement`); and a plain `WITH` without `LIMIT` is flattened by the planner and changes nothing. `USING INDEX` planner hints are rejected by the policy parser, and extra Knowledge Query filter values narrow the result without changing which end the planner anchors on.
+
 ## `condition.filter`
 
 Constrains the match. For `_Application` subjects, the canonical filter pins all three identifiers (subject + both endpoints):

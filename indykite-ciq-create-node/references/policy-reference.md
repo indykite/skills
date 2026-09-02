@@ -72,6 +72,22 @@ MATCH (subject:_Application)-[:OWNS]->(catalog:Catalog)
 
 Variables defined here are referenceable in `condition.filter`, `allowed_reads`, and `allowed_upserts` — but **not** as the `name` of an `upsert_nodes` entry that creates a new node (that name must be fresh).
 
+### Performance: pin the subject before high-fan-in hops
+
+On a large graph, a `MATCH` chain whose only selective filters sit at its *endpoints* can execute slowly. If one endpoint is a high-fan-in node — a brand, tenant, or category that a large share of records points to — the query planner may anchor there and traverse its entire fan-in before the subject filter prunes anything, so execution time grows linearly with the dataset.
+
+A minimal condition that only anchors the subject (`MATCH (subject:_Application)`) has nothing to traverse and is **not** affected. When the condition gates creation on a shared node (e.g. a catalog every record points at), bind that node in its own `MATCH`, pinned inline by `external_id`, and check the link as a pattern predicate:
+
+```cypher
+MATCH (catalog:Catalog {external_id: $catalog_id})
+MATCH (subject:_Application {external_id: $_appId})
+WHERE (subject)-[:OWNS]->(catalog)
+```
+
+Server-populated in-cypher parameters make this safe without extra caller input: `$token.<claim>` (e.g. `$token.sub`) carries the Bearer token's claims for user subjects, and `$_appId` carries the application id for `_Application` subjects. Any other `$param` in the cypher must be supplied by the caller via `input_params`.
+
+If the chain cannot be restructured, the fallback is a planning barrier: pin the subject with an in-cypher `WHERE` and `WITH subject LIMIT 1`, then continue the chain from the bound subject (safe because `(type, external_id)` is unique in the IKG). Three rules make the barrier correct: the pinning equality must be an in-cypher `WHERE` placed *before* the `LIMIT 1` — `condition.filter` is applied after the whole pattern, so a `LIMIT 1` after an unpinned `MATCH` grabs an arbitrary node and silently returns zero rows; every `WITH` must keep carrying `subject` (the validator rejects one that drops it: `missing required variables in WITH statement`); and a plain `WITH` without `LIMIT` is flattened by the planner and changes nothing. `USING INDEX` planner hints are rejected by the policy parser, and extra Knowledge Query filter values narrow the result without changing which end the planner anchors on.
+
 ## `condition.filter`
 
 Constrains the match. Same operator and attribute conventions as the read-side policy schema.

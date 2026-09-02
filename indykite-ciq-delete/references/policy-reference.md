@@ -54,6 +54,22 @@ Must `MATCH` the element you want to delete, binding it to a variable. Three com
 
 Pin the target by `external_id` in the filter so the right element is deleted.
 
+### Performance: pin the subject before high-fan-in hops
+
+On a large graph, a `MATCH` chain whose only selective filters sit at its *endpoints* can execute slowly. If one endpoint is a high-fan-in node — a brand, tenant, or category that a large share of records points to — the query planner may anchor there and traverse its entire fan-in before the subject filter prunes anything, so execution time grows linearly with the dataset.
+
+This matters when the element being deleted sits at the end of a chain (the property-delete and deep-node shapes). The fix is to take the fan-in node out of the connected chain: bind it in its own `MATCH`, pinned inline by `external_id`, and check membership with a pattern predicate in `WHERE`:
+
+```cypher
+MATCH (brand:Brand {external_id: $brand_id})
+MATCH (subject:Person {external_id: $token.sub})-[:OWNS]->(car:Car)-[:HAS]->(ln:LicenseNumber)
+WHERE (car)-[:MADE_BY]->(brand)
+```
+
+Server-populated in-cypher parameters make this safe without extra caller input: `$token.<claim>` (e.g. `$token.sub`) carries the Bearer token's claims for user subjects, and `$_appId` carries the application id for `_Application` subjects. Any other `$param` in the cypher must be supplied by the caller via `input_params`.
+
+If the chain cannot be restructured, the fallback is a planning barrier: pin the subject with an in-cypher `WHERE` and `WITH subject LIMIT 1`, then continue the chain from the bound subject (safe because `(type, external_id)` is unique in the IKG). Three rules make the barrier correct: the pinning equality must be an in-cypher `WHERE` placed *before* the `LIMIT 1` — `condition.filter` is applied after the whole pattern, so a `LIMIT 1` after an unpinned `MATCH` grabs an arbitrary node and silently returns zero rows; every `WITH` must keep carrying `subject` (the validator rejects one that drops it: `missing required variables in WITH statement`); and a plain `WITH` without `LIMIT` is flattened by the planner and changes nothing. `USING INDEX` planner hints are rejected by the policy parser, and extra Knowledge Query filter values narrow the result without changing which end the planner anchors on.
+
 ## `condition.filter`
 
 Standard. For Person subjects use `subject.external_id = $token.sub`. For `_Application` use `$_appId`.
