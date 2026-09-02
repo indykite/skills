@@ -63,6 +63,12 @@ The platform's combined-create is transactional. If you observe partial success,
 | Bearer token missing or expired                                            | Add or refresh.                                                                              |
 | Token's `sub` not seeded as a Person                                       | Seed, or use a different test user.                                                          |
 
+## Symptom: execution is fast on a small graph, slow as data grows
+
+| Likely cause                                                       | How to verify                                                                                        | Fix                                                                                          |
+|--------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| Policy `condition.cypher` is anchored on a high-fan-in node (a brand / tenant / category most records point to) instead of the subject | Execution time grows roughly linearly with dataset size, and the pattern's only selective filters sit at the endpoints of a multi-hop chain. | Take the fan-in node out of the connected chain (separate `MATCH` pinned by `external_id` + a `WHERE (x)-[:REL]->(fanin)` pattern predicate), or pin the subject with `WHERE … WITH subject LIMIT 1` — see "Performance: pin the subject before high-fan-in hops" in `policy-reference.md`. |
+
 ## Useful one-liners
 
 ```bash

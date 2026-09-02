@@ -62,6 +62,21 @@ MATCH (subject:_Application)-[r1:HAS_AGREEMENT_WITH]->(company:Company)-[r2:OWNS
 MATCH (person:Person)
 ```
 
+### Performance: pin the subject before high-fan-in hops
+
+On a large graph, a `MATCH` chain whose only selective filters sit at its *endpoints* can execute slowly. If one endpoint is a high-fan-in node — a brand, tenant, or category that a large share of records points to — the query planner may anchor there and traverse its entire fan-in before the subject filter prunes anything, so execution time grows linearly with the dataset.
+
+The fix is to pin the subject and any shared gate node inline by `external_id` — a pinned mid-chain node stops the planner from entering the chain through its fan-in; disjoint `MATCH` clauses (like `person`) are unaffected:
+
+```cypher
+MATCH (subject:_Application {external_id: $_appId})-[r1:HAS_AGREEMENT_WITH]->(company:Company {external_id: $company_id})-[r2:OWNS]->(vehicle:Vehicle)
+MATCH (person:Person)
+```
+
+Server-populated in-cypher parameters make this safe without extra caller input: `$token.<claim>` (e.g. `$token.sub`) carries the Bearer token's claims for user subjects, and `$_appId` carries the application id for `_Application` subjects. Any other `$param` in the cypher must be supplied by the caller via `input_params`.
+
+If the chain cannot be restructured, the fallback is a planning barrier: pin the subject with an in-cypher `WHERE` and `WITH subject LIMIT 1`, then continue the chain from the bound subject (safe because `(type, external_id)` is unique in the IKG). Three rules make the barrier correct: the pinning equality must be an in-cypher `WHERE` placed *before* the `LIMIT 1` — `condition.filter` is applied after the whole pattern, so a `LIMIT 1` after an unpinned `MATCH` grabs an arbitrary node and silently returns zero rows; every `WITH` must keep carrying `subject` (the validator rejects one that drops it: `missing required variables in WITH statement`); and a plain `WITH` without `LIMIT` is flattened by the planner and changes nothing. `USING INDEX` planner hints are rejected by the policy parser, and extra Knowledge Query filter values narrow the result without changing which end the planner anchors on.
+
 ## `condition.filter`
 
 Pin the subject and every existing endpoint by `external_id`. For the running example:
