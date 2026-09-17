@@ -1,0 +1,86 @@
+# IndyKite Token Service starter config.yaml
+#
+# Copy this file, set every <PLACEHOLDER>, and pass it to the container with
+# --config=/app/config.yaml. In production prefer --config-dir=/etc/token-service
+# and mount the secret parts (signing_keys, client_auth) as a separate file in
+# that directory; files are merged in alphabetical order, later ones override.
+#
+# Field-by-field documentation: see ../references/token-service.md
+---
+service:
+  name: token-service
+  port: 8080
+  environment: <ENVIRONMENT> # demo, staging, prod
+  log_level: info
+  # healthcheck_port: 9080
+  # REQUIRED. Public https base URL: the `iss` of every token signed here and the
+  # base of the discovery URLs. Give the service a host of its own, not a path.
+  base_url: <TOKEN_SERVICE_BASE_URL> # e.g. https://eu.token-service.indykite.com
+idp:
+  # Allow-list of `aud` values this service may issue tokens for. List the
+  # audience of every protected agent / MCP server the gateways request in
+  # protected_agent.authentication.audiences. Anything else -> invalid_target.
+  audiences:
+    - <AUDIENCE_1> # e.g. agent.orchestrator
+    - <AUDIENCE_2> # e.g. agent.retriever
+    # - api.mcp
+  # Optional allow-list for the RFC 8693 `resource` parameter.
+  # resources:
+  #   - https://api.example.com/orders
+  # Lifetime of an exchanged token. Keep it as short as the workflow allows.
+  token_ttl: 5m
+  # Written into the `act` claim beside the actor sub; the backend resolves the
+  # actor in the graph by it. Defaults to Agent.
+  actor_type: Agent
+  # What the gateways present (HTTP Basic) on /oauth2/token and /oauth2/introspect.
+  # Matches token_service.client_auth in every gateway config.
+  client_auth:
+    type: client_secret_basic
+    client_id: <GATEWAY_CLIENT_ID> # e.g. agent-gateway
+    client_secret: <GATEWAY_CLIENT_SECRET>
+  # JSON JWK strings INCLUDING the private part. The first key signs; the rest
+  # stay published on /.well-known/jwks.json for rotation. Each needs `alg`
+  # (RS256/384/512, PS256/384/512, ES256/384/512, EdDSA) and a unique `kid`.
+  signing_keys:
+    - '<PRIVATE_JWK_JSON>' # e.g. {"kty":"RSA","kid":"2026-09","alg":"RS256","n":"...","e":"AQAB","d":"...",...}
+# How tokens of OTHER issuers (the IdP's user and agent tokens) are validated
+# when they arrive as subject_token / actor_token. Keyed by name; a second file
+# can complete one entry (e.g. add client_auth) by naming the same key.
+token_introspection:
+  configurations:
+    # Online RFC 7662 introspection at the IdP, for opaque or revocable tokens:
+    #   <IDP_NAME>-online:
+    #     matcher:
+    #       type: opaque # at most one opaque configuration per token type
+    #     token_types: [subject_token]
+    #     validation:
+    #       online_oauth2:
+    #         introspection_endpoint: <IDP_INTROSPECTION_ENDPOINT>
+    #         cache_ttl: 5m
+    #         client_auth: # belongs in a separate file merged over this one
+    #           type: client_secret_basic
+    #           client_id: <INTROSPECTION_CLIENT_ID>
+    #           client_secret: <INTROSPECTION_CLIENT_SECRET>
+    # Offline JWT validation: verify the signature and exp/nbf locally. Keys are
+    # discovered from the issuer's .well-known/openid-configuration unless
+    # `offline.jwks_uri` is set; `offline.cache_ttl` (default 1h) caches them.
+    <IDP_NAME>-offline:
+      matcher:
+        type: jwt
+        issuer: <IDP_ISSUER> # matched against the token `iss`
+        audience: <IDP_AUDIENCE> # matched against the token `aud`
+      token_types: [subject_token, actor_token]
+      validation:
+        offline: {}
+# Audit every exchange and introspection. Same options as the gateway:
+# `delivery: webhook` with `http.*` (below), or `delivery: file` with
+# `file.storage_path`, `file.format` (csv | json | txt), `file.rotation_strategy`
+# (size | time | size-and-time), `file.rotation_interval`, `file.rotation_max_bytes`.
+# Add `async.buffer_size` (default 512) for buffered delivery in either form.
+audit:
+  delivery: webhook
+  http:
+    url: <AUDIT_WEBHOOK_URL>
+    method: post # post | put
+    auth:
+      type: no-auth # no-auth | api-key | mTLS

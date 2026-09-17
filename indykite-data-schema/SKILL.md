@@ -28,7 +28,7 @@ Do **not** activate this skill when the user:
 
 ## Prerequisites
 
-- An IndyKite **project** with an **AppAgent** and AppAgent **credentials** (the token that goes into `X-IK-ClientKey`) - see the [Credentials guide](https://developer.indykite.com/guides/guide-credentials).
+- An IndyKite **project** with an **AppAgent** holding the **`ReadDataSchema` API permission** and AppAgent **credentials** (the token that goes into `X-IK-ClientKey`) - see the [Credentials guide](https://developer.indykite.com/guides/guide-credentials). Without the permission the call fails with `401` and the message `insufficient API access level for appAgent`; add it to the agent's `api_permissions` (see the [Environment guide](https://developer.indykite.com/guides/guide-environment)).
 - **Data already ingested.** A project with an empty IKG returns `404 Not Found` - that is the normal "nothing ingested yet" answer, not a failure of this skill.
 
 ## Steps

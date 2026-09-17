@@ -18,7 +18,7 @@ The MCP server checks the token's `iss`/`aud` against the project's bound Token 
 | Likely cause                                          | How to verify                                                                  | Fix                                                                  |
 |-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
 | Bearer token's `iss`/`aud` does not match the project's bound Token Introspect | Decode `iss`/`aud`; compare with the project's Token Introspect config. | Re-mint the user token with the right issuer/audience, or point the config at the right Token Introspect. |
-| AppAgent named by `app_agent_id` lacks Authorization API + ContX IQ permissions | Hub UI on the AppAgent referenced by the MCP server config.            | Grant both permissions.                                              |
+| AppAgent named by `app_agent_id` lacks the `Authorization` (for `authzen_*`) or `ContXIQ` (for `ciq_execute`) API permission - the tool result carries `insufficient API access level for appAgent` | Hub UI, or `GET /configs/v1/application-agents/{id}` and check `api_permissions` on the AppAgent referenced by the MCP server config. | Add the missing value to `api_permissions` (`PUT /configs/v1/application-agents/{id}` with the full list). |
 | `app_agent_id` on the MCP server config is wrong or the AppAgent was deleted | `GET /configs/v1/mcp-servers` for the project; check `app_agent_id`.      | Point the config at a valid AppAgent.                                |
 
 ## Symptom: server returns `403` or "no policy match" reason
