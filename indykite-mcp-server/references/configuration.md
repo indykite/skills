@@ -18,7 +18,7 @@ API reference: <https://openapi.indykite.com/api-documentation-config/#tag/mcp-s
 |----------------------|----------------|----------------------------------------------------------------------------------------------------|
 | `name`               | string         | URL-friendly identifier, unique within the project. **Immutable** after creation.                  |
 | `project_id`         | string (GID)   | Project that owns this MCP server configuration.                                                   |
-| `app_agent_id`       | string (GID)   | AppAgent the MCP server uses to call IndyKite APIs at runtime. Needs Authorization API and ContX IQ API permissions. Resolved server-side — not sent by the client. |
+| `app_agent_id`       | string (GID)   | AppAgent the MCP server uses to call IndyKite APIs at runtime. Its `api_permissions` must include `Authorization` and `ContXIQ`. Resolved server-side — not sent by the client. |
 | `token_introspect_id`| string (GID)   | Token Introspect configuration used to validate inbound user Bearer tokens.                        |
 | `enabled`            | boolean        | Whether the MCP server accepts requests for this configuration.                                    |
 | `scopes_supported`   | string[]       | OAuth scopes advertised in `.well-known/oauth-protected-resource`. Must contain at least one entry. |
@@ -57,6 +57,6 @@ curl -X POST "$API_URL/configs/v1/mcp-servers" \
 
 ## Related setup
 
-- **AppAgent**: the AppAgent referenced by `app_agent_id` must exist and hold Authorization API + ContX IQ API permissions. The server resolves and uses it server-side; clients do not send AppAgent credentials at runtime.
+- **AppAgent**: the AppAgent referenced by `app_agent_id` must exist and hold the `Authorization` and `ContXIQ` API permissions (`api_permissions` on `POST` / `PUT /configs/v1/application-agents`, or the Hub UI): the `authzen_*` tools call `/access/v1/evaluation(s)` and `/access/v1/search/*`, and `ciq_execute` calls `/contx-iq/v1/execute`. The server resolves and uses the AppAgent server-side; clients do not send AppAgent credentials at runtime.
 - **Token introspection**: `POST /token-introspects` — required so the MCP server can validate inbound Bearer tokens against the project's IdP.
 - **Environment setup walkthrough**: <https://developer.indykite.com/resources/environment-1>

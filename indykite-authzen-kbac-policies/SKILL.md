@@ -24,6 +24,7 @@ Once a policy is ACTIVE, the runtime AuthZEN skills evaluate it:
 | Actions a subject may perform on a resource     | `/access/v1/search/action`   | [`indykite-authzen-search-action`](../indykite-authzen-search-action/SKILL.md) |
 | Resources a subject may act on, given an action | `/access/v1/search/resource` | [`indykite-authzen-search-resource`](../indykite-authzen-search-resource/SKILL.md) |
 | Subjects allowed an action on a resource        | `/access/v1/search/subject`  | [`indykite-authzen-search-subject`](../indykite-authzen-search-subject/SKILL.md) |
+| Which ACTIVE policies apply, read from an AppAgent | `GET /access/v1/policies` | [`indykite-authzen-list-policies`](../indykite-authzen-list-policies/SKILL.md) |
 
 ## When to use
 
@@ -39,6 +40,7 @@ Do **not** activate this skill when the user wants to:
 
 - **make a decision** (one triple or many) - use [`indykite-authzen-evaluation`](../indykite-authzen-evaluation/SKILL.md) / [`indykite-authzen-evaluations`](../indykite-authzen-evaluations/SKILL.md);
 - **enumerate** allowed actions, resources, or subjects - use the search skills [`-search-action`](../indykite-authzen-search-action/SKILL.md) / [`-search-resource`](../indykite-authzen-search-resource/SKILL.md) / [`-search-subject`](../indykite-authzen-search-subject/SKILL.md);
+- **read the ACTIVE policies at runtime from an application** (AppAgent credential, no Service Account token, no IDs / ETags) - use [`indykite-authzen-list-policies`](../indykite-authzen-list-policies/SKILL.md);
 - author a **ContX IQ** read/write policy (the same `/configs/v1/authorization-policies` endpoint also serves CIQ, distinguished by `type=ciq`) - use the [`indykite-ciq-*`](../README.md) skills;
 - **create / update / delete graph data** - a KBAC policy is a rule over the graph, not a write to it.
 
@@ -135,7 +137,7 @@ The same `/configs/v1/authorization-policies` path manages the policy lifecycle 
 
 - **Read by id**: `GET /configs/v1/authorization-policies/{id}` - returns the full record, including the stringified `policy`, `status`, `tags`, audit fields, and the current ETag.
 - **Read by name**: `GET /configs/v1/authorization-policies/{name}?location={PROJECT_GID}`.
-- **List KBAC policies**: `GET /configs/v1/authorization-policies?project_id={PROJECT_GID}&type=kbac` - `type=kbac` returns only KBAC policies (use `type=ciq` for ContX IQ). List responses carry an empty `policy` string per item; read by id to get the body.
+- **List KBAC policies**: `GET /configs/v1/authorization-policies?project_id={PROJECT_GID}&type=kbac` - `type=kbac` returns only KBAC policies (use `type=ciq` for ContX IQ). List responses carry an empty `policy` string per item; read by id to get the body. To read the **ACTIVE** policies with their bodies from an **application** at runtime (AppAgent credential with the `ReadAuthZConfigs` permission, no IDs or ETags), use `GET /access/v1/policies` instead - [`indykite-authzen-list-policies`](../indykite-authzen-list-policies/SKILL.md).
 - **Update**: `PUT /configs/v1/authorization-policies/{id}` with header `If-Match: <etag>` and a body of the fields to change (`display_name`, `description`, `policy`, `status`, `tags`). Use this to publish (`status: "ACTIVE"`), deactivate (`status: "INACTIVE"`), or hold as `DRAFT`, or to revise the condition. A new ETag comes back.
 - **Delete**: `DELETE /configs/v1/authorization-policies/{id}` with header `If-Match: <etag>`.
 

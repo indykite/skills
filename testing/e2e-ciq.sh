@@ -291,6 +291,34 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
         fi
     fi
 
+    # AuthZEN list-policies.sh - GET /access/v1/policies, optional subject_type argument.
+    if [[ -r "indykite-authzen-list-policies/scripts/list-policies.sh" ]]; then
+        printed="$(bash indykite-authzen-list-policies/scripts/list-policies.sh --print Person 2>/dev/null || true)"
+        # NB: --print shell-quotes the URL, so `?` appears as `\?` - match the two halves separately.
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"access/v1/policies"* ]] &&
+            [[ "${printed}" == *"subject_type=Person"* ]]; then
+            printf '  [indykite-authzen-list-policies/list-policies.sh] --print: ok\n'
+            dry_pass=$((dry_pass + 1))
+        else
+            printf '  [indykite-authzen-list-policies/list-policies.sh] --print: FAIL\n    output: %s\n' "${printed}"
+            dry_fail=$((dry_fail + 1))
+        fi
+    fi
+
+    # ContX IQ whoami.sh - GET /contx-iq/v1/whoami, no request body, bearer token required.
+    if [[ -r "indykite-ciq-whoami/scripts/whoami.sh" ]]; then
+        printed="$(bash indykite-ciq-whoami/scripts/whoami.sh --print 2>/dev/null || true)"
+        # NB: --print shell-quotes header values, so match the redacted variable name, not the header text.
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"contx-iq/v1/whoami"* ]] &&
+            [[ "${printed}" == *"BEARER_TOKEN"* ]]; then
+            printf '  [indykite-ciq-whoami/whoami.sh] --print: ok\n'
+            dry_pass=$((dry_pass + 1))
+        else
+            printf '  [indykite-ciq-whoami/whoami.sh] --print: FAIL\n    output: %s\n' "${printed}"
+            dry_fail=$((dry_fail + 1))
+        fi
+    fi
+
     # Capture API capture.sh helpers - each prints a curl command for its skill's example asset.
     for s in indykite-capture-upsert-nodes indykite-capture-upsert-relationships \
         indykite-capture-delete-nodes indykite-capture-delete-node-properties \

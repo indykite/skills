@@ -131,7 +131,7 @@ POST <API_URL>/contx-iq/v1/execute
 Authentication:
 
 - Always: `X-IK-ClientKey: <AppAgent-credentials-token>`.
-- If `subject.type` is **not** `_Application`: also `Authorization: Bearer <user-access-token>`. The token's `sub` is the subject identifier.
+- If `subject.type` is **not** `_Application`: also `Authorization: Bearer <user-access-token>`. The token's `sub` is the subject identifier. To see the exact `type` / `id` a token resolves to, call `GET /contx-iq/v1/whoami` ([`indykite-ciq-whoami`](../indykite-ciq-whoami/SKILL.md)).
 - If `subject.type` **is** `_Application`: the reserved `$_appId` parameter is auto-filled from the application's `external_id`; do not pass it in `input_params`.
 
 Request:

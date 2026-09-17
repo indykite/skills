@@ -13,6 +13,7 @@
 # it's just an unhealth-checkable base hostname.
 ^https://(eu|us)\.api\.indykite\.com/?$
 ^https://(eu|us)\.mcp\.indykite\.com/?$
+^https://(eu|us)\.token-service\.indykite\.com/?$
 
 # Docker-internal hostname placeholder used as an example in
 # indykite-agent-gateway/assets/config-template.yaml. It's documentation,

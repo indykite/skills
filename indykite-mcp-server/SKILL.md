@@ -36,7 +36,7 @@ Do **not** activate this skill when the user:
 
 The MCP server will reject requests for a project until all of the following exist:
 
-- An IndyKite **project** with an **Application** and an **AppAgent** (with Authorization API + ContX IQ API permissions). The server uses this AppAgent to call IndyKite APIs at runtime, resolved server-side from the MCP server configuration's `app_agent_id` - the client no longer sends an AppAgent token.
+- An IndyKite **project** with an **Application** and an **AppAgent** whose `api_permissions` include **`Authorization`** (the `authzen_*` tools) and **`ContXIQ`** (`ciq_execute`). The server uses this AppAgent to call IndyKite APIs at runtime, resolved server-side from the MCP server configuration's `app_agent_id` - the client no longer sends an AppAgent token.
 - A **Token Introspect** configuration on the project - used to validate inbound user Bearer tokens.
 - An **MCP server configuration** (`POST /configs/v1/mcp-servers`) that binds the runtime endpoint to the AppAgent (`app_agent_id`) and Token Introspect, and declares `scopes_supported`. Without this configuration, requests for the project are rejected. See [`references/configuration.md`](references/configuration.md).
 - The project's **GID** (used in the URL path).

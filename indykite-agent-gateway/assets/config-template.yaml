@@ -4,9 +4,10 @@
 # container with --config=/app/config.yaml
 #
 # Per-instance overrides (when running multiple IAG instances):
-# change service.name, service.port, protected_agent.base_url, and
-# protected_agent.authentication.client_id / client_secret.
-# Everything else can stay shared across instances.
+# change service.name, service.port, protected_agent.base_url,
+# protected_agent.authentication.client_id / client_secret (and
+# authentication.audiences with the Token Service). Everything else,
+# including token_service, can stay shared across instances.
 #
 # Field-by-field documentation: see ../references/configuration.md
 ---
@@ -15,11 +16,31 @@ service:
   port: <SERVICE_PORT> # e.g. 8881
   environment: <ENVIRONMENT> # demo, staging, prod
   log_level: info # debug, info, warn, error
+  # Port of the /healthz, /readyz and /startupz endpoints. Defaults to 9080,
+  # which the container image HEALTHCHECK probes - change it only together
+  # with that probe.
+  # healthcheck_port: 9080
 identity_provider:
   base_url: <IDP_BASE_URL>
   introspect_endpoint: oauth-introspect
   client_credential_endpoint: oauth-token
   exchange_endpoint: oauth-token
+# Optional. Left out, the identity provider above mints the delegation token
+# and it replaces the caller's token in Authorization (policies read $token).
+# Filled in, the IndyKite Token Service mints it: the caller's access token is
+# forwarded untouched in Authorization with the delegation token beside it in
+# X-IK-Token (policies read $ik_token), and an incoming X-IK-Token becomes the
+# subject of the next exchange so multi-hop chains grow hop by hop.
+# Every field is required once the section is present. The client_auth values
+# are the Token Service's own idp.client_auth, not the IdP credentials below.
+# token_service:
+#   base_url: <TOKEN_SERVICE_BASE_URL> # e.g. https://token-service.example.com
+#   exchange_endpoint: /oauth2/token
+#   introspect_endpoint: /oauth2/introspect
+#   client_auth:
+#     type: client_secret_basic # the only supported method
+#     client_id: <TOKEN_SERVICE_CLIENT_ID> # e.g. agent-gateway
+#     client_secret: <TOKEN_SERVICE_CLIENT_SECRET>
 protected_agent:
   base_url: <PROTECTED_AGENT_BASE_URL> # e.g. http://orchestrator:6001
   # a2a (default) protects an A2A agent; mcp puts IAG in front of an MCP
@@ -30,12 +51,21 @@ protected_agent:
     type: credentials
     client_id: <PROTECTED_AGENT_CLIENT_ID>
     client_secret: <PROTECTED_AGENT_CLIENT_SECRET>
+    # Audiences requested on the token exchange. With the Token Service every
+    # value must be listed in its idp.audiences, or the exchange is refused
+    # with invalid_target.
+    # audiences:
+    #   - <PROTECTED_AGENT_AUDIENCE> # e.g. agent.orchestrator
 authzen:
   base_url: <INDYKITE_BASE_URL>/access/v1
   action: CAN_TRIGGER
   subject_types:
     - User
     # add Person, Agent, etc. as needed
+  # cache_update_after defaults to cache_ttl; cache_update_after_error to
+  # min(10s, cache_update_after). Startup fails if any is negative, if
+  # cache_update_after > cache_ttl, or if cache_update_after_error >
+  # cache_update_after.
   cache_ttl: 5m
   cache_update_after: 5m
   cache_update_after_error: 10s
@@ -50,16 +80,25 @@ contx_iq:
 # Audit is optional. Pick one delivery form and delete the other.
 audit:
   delivery: webhook
+  # Optional buffered delivery for either form; records are drained on
+  # shutdown, a full queue drops records with a warning in the service log.
+  # async:
+  #   buffer_size: 512
   http:
     url: <AUDIT_WEBHOOK_URL>
-    method: post
+    method: post # post | put
     auth:
-      type: no-auth # no-auth | api-key | basic | mTLS
+      type: no-auth # no-auth | api-key | mTLS
+      # api_key: <API_KEY>
+      # api_key_header: X-API-Key # default
+      # mtls_certificate_file_path: /run/secrets/cert.pem
+      # mtls_private_key_path: /run/secrets/key.pem
 
 # audit:
 #   delivery: file
-#   storage_path: /var/log/iag
-#   format: json                   # csv | json | txt
-#   rotation_strategy: size_and_time
-#   rotation_interval: 24h
-#   rotation_max_bytes: 100MiB
+#   file:
+#     storage_path: /var/log/iag
+#     format: json                   # csv | json | txt
+#     rotation_strategy: size-and-time # size | time | size-and-time
+#     rotation_interval: 24h
+#     rotation_max_bytes: 100MiB
