@@ -36,8 +36,8 @@ fi
 : "${BEARER_TOKEN:?set BEARER_TOKEN (whoami requires the end-user token)}"
 
 # Pin the destination to known IndyKite API hosts. This call sends an AppAgent
-# credential and a user bearer token; restricting the host here means those
-# secrets can never be sent to an arbitrary, caller-supplied URL.
+# credential and a bearer token; restricting the host here means they can
+# never be sent to an arbitrary, caller-supplied URL.
 API_URL="${API_URL%/}"
 case "${API_URL}" in
 https://eu.api.indykite.com | https://us.api.indykite.com) ;;
