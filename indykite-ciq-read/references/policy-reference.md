@@ -116,6 +116,7 @@ Optional array of filters that constrain the match. Each filter is an object wit
 | Pattern                                       | Meaning                                  | Example                                |
 |-----------------------------------------------|------------------------------------------|----------------------------------------|
 | `$token.<property>`                           | Property on the requestor token          | `$token.acr`                           |
+| `$ik_token.<claim>`                           | Claim of the optional delegation token sent in `X-IK-Token` (minted by the [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service)). Dot paths walk the RFC 8693 `act` chain: `act.sub` is the agent making this call, `act.act.sub` the one before it. Absent token: the filter fails closed. | `$ik_token.act.act.sub`                |
 | `<var>.<attr>`                                | Attribute on a node or relationship      | `subject.external_id`                  |
 | `<var>.property.<name>`                       | Named property on a node                  | `subject.property.email`               |
 | `<var>.property.<name>.metadata.<meta>`       | Metadata on a property                    | `subject.property.email.metadata.source` |
@@ -129,7 +130,7 @@ Optional array of filters that constrain the match. Each filter is an object wit
 
 ## `condition.token_filter`
 
-Same shape as `filter` but only references `$token.*` attributes. When a `token_filter` does not match, the response includes a `WWW-Authenticate: insufficient_user_authentication` header carrying the `advice.error` and `advice.error_description` you set on the failing leaf — useful for OAuth step-up flows.
+Same shape as `filter` but only references `$token.*` and `$ik_token.*` attributes - for example `{"attribute": "$ik_token.act.act.sub", "operator": "=", "value": "orchestrator"}` requires the delegation chain to start at a given agent. The name `ik_token` is reserved: a value sent under `input_params.ik_token` is ignored. When a `token_filter` does not match, the response includes a `WWW-Authenticate: insufficient_user_authentication` header carrying the `advice.error` and `advice.error_description` you set on the failing leaf — useful for OAuth step-up flows.
 
 Omit `token_filter` if you have no token-related conditions.
 

@@ -101,6 +101,7 @@ This skill uses generic markdown instructions and works across all agents listed
 ## References
 
 - [ContX IQ guide (developer hub)](https://developer.indykite.com/guides/guide-contx-iq) - "How do I find out which subject a user token resolves to?"
+- [Resource ciq-24 (developer hub)](https://developer.indykite.com/resources/ciq-24) - full worked example of `GET /contx-iq/v1/whoami`
 - [Token Introspect guide (developer hub)](https://developer.indykite.com/guides/guide-token-introspect)
 - [Environment guide (developer hub)](https://developer.indykite.com/guides/guide-environment) - Application Agent API permissions
 - [IndyKite REST API documentation (ContX IQ API)](https://openapi.indykite.com/api-documentation)

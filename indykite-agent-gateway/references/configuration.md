@@ -2,7 +2,7 @@
 
 IAG accepts either a YAML config file (`--config=/app/config.yaml`) or a set of environment variables. Keys are identical between the two forms - YAML uses dots (`service.name`), env vars use the `JARVIS_` prefix with underscores (`JARVIS_SERVICE_NAME`, `JARVIS_TOKEN_SERVICE_CLIENT_AUTH_CLIENT_ID`).
 
-The iag-demo uses the env-var form so a single shared base service (`iag-base-docker.yaml`) can be reused across three IAG instances. Production deployments often prefer the YAML form for stricter configuration management.
+The iag-mcp-demo uses the env-var form so a single shared base service (`iag-base-docker.yaml`) can be reused across its IAG instances. Production deployments often prefer the YAML form for stricter configuration management.
 
 ## Sections
 
@@ -77,7 +77,7 @@ Each IAG instance must override these (and only these need to differ in a multi-
 - `protected_agent.authentication.client_secret` / `JARVIS_PROTECTED_AGENT_AUTHENTICATION_CLIENT_SECRET`
 - `protected_agent.authentication.audiences` / `JARVIS_PROTECTED_AGENT_AUTHENTICATION_AUDIENCES` (with the Token Service)
 
-Example mapping from iag-demo:
+Example mapping from iag-mcp-demo:
 
 | IAG instance         | Port    | Protected agent URL          | Client-id env var              |
 |----------------------|---------|------------------------------|--------------------------------|
@@ -85,7 +85,7 @@ Example mapping from iag-demo:
 | `retriever-iag`      | `8882`  | `http://retriever:6002`      | `RETRIEVER_IDP_CLIENT_ID`      |
 | `weather-iag`        | `8884`  | `http://weather:6004`        | `WEATHER_IDP_CLIENT_ID`        |
 
-## Env-var form (iag-demo excerpt)
+## Env-var form (iag-mcp-demo excerpt)
 
 ```yaml
 services:

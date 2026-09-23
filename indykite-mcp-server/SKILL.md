@@ -64,7 +64,7 @@ The `protocolVersion` key is **required** - a request without it is treated as l
 
 | Header                             | Value                                                                                          |
 |------------------------------------|------------------------------------------------------------------------------------------------|
-| `Authorization: Bearer <token>`    | The user's OAuth access token - the only auth header.                                          |
+| `Authorization: Bearer <token>`    | The user's OAuth access token - the only auth header (an Agent Gateway in Token Service mode may add `X-IK-Token`, see below). |
 | `Content-Type`                     | `application/json`                                                                             |
 | `Accept`                           | `application/json, text/event-stream` - responses may arrive as an SSE stream.                 |
 | `Mcp-Protocol-Version`             | `2026-07-28`                                                                                   |
@@ -88,6 +88,8 @@ export PROJECT_GID="<your-project-gid>"
 ```
 
 A single `Authorization: Bearer` header is the only auth header on every call. The AppAgent the server uses to call IndyKite APIs at runtime is resolved **server-side** from the MCP server configuration's `app_agent_id` - clients no longer send an `X-IK-ClientKey` AppAgent token. See [`references/architecture.md`](references/architecture.md) for the rationale (the Bearer token identifies the user as the AuthZEN subject).
+
+One optional addition: a caller routed through the IndyKite Agent Gateway in Token Service mode also carries `X-IK-Token: <delegation-token>` (no prefix) beside the untouched Bearer token. The server validates it like the Bearer token, requires the same `sub`, forwards it with every `authzen_*` and `ciq_execute` call, and policies read its `act` chain as `$ik_token`. A delegation token that does not hold up is refused with `400 invalid_request` before anything is forwarded. Details in [`references/architecture.md`](references/architecture.md); the `indykite-agent-gateway` skill covers minting it.
 
 ### 2. Probe the server with `server/discover` (optional but recommended)
 

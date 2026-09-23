@@ -45,7 +45,11 @@ Deleting a located node removes **both** its full data node in the location cons
 | `400 Bad Request` | Malformed body; `errors[]` lists details (missing `external_id` / `type`, batch size out of 1-250). | Fix the listed fields. |
 | `401 Unauthorized` | Invalid AppAgent credentials. | Refresh the AppAgent credentials. |
 | `422 Unprocessable Entity` | Well-formed but unprocessable - e.g. unknown `location`, or `location` without a composite database. | Match `location` to an `alias_mapping` key, or drop it. |
-| `500` | Server-side issue. | Retry with backoff; escalate if persistent. |
+| `404 Not Found` + `{"message": "knowledge graph not found for this project"}` | The project has no knowledge graph to write to: it was deleted, or it has not finished provisioning yet. The request itself is fine. | Check the project in the Hub or via `GET /configs/v1/projects/{id}`. If it is still provisioning, wait for it to complete and resend. If the graph was deleted, waiting will not help: provision a project again (and point the AppAgent credential at it) before re-ingesting. |
+| `503 Service Unavailable` + `{"message": "Unable to verify the AppAgent credential token, retry the request"}` | The credential could not be checked right now (transient); it was not judged. | Retry the same request with the same credential, with backoff. |
+| `503 Service Unavailable` (other) | The graph backend could not answer right now. Nothing is wrong with the request. | Retry with backoff. Batches are idempotent, so resending the same payload is safe. |
+| `500` + `{"message": "Unable to verify the AppAgent credential token"}` | Non-transient failure of the credential check; the credential was not judged. | Report the request's trace to IndyKite support; the credential itself was not judged. |
+| `500` (other) | Server-side issue. | Retry with backoff; escalate if persistent. |
 
 ## Sibling endpoints
 
