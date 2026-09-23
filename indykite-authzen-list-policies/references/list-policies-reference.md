@@ -90,7 +90,9 @@ GET https://us.api.indykite.com/access/v1/policies
 | `401 Unauthorized`   | `{"message": …}`                                      | Invalid or expired AppAgent credential.                                     | Mint a new credential (`POST /configs/v1/application-agent-credentials`).                                          |
 | `422 Unprocessable`  | `{"message": …, "errors": ["…"]}`                     | `subject_type` is not a valid node type (too short, too long, bad label).   | Use a plain node label such as `Person` or `_Application`; read `errors[]` for the offending field.                |
 | `404 Not Found`      | -                                                     | Wrong base path.                                                            | Confirm `<API_URL>/access/v1/policies` and the region.                                                             |
-| `5xx`                | `{"message": …}`                                      | Server-side issue.                                                          | Retry with backoff; escalate if persistent.                                                                        |
+| `503 Service Unavailable` | `{"message": "Unable to verify the AppAgent credential token, retry the request"}` | The credential could not be checked right now (transient); it was not judged. | Retry the same request with the same credential, with backoff.              |
+| `500 Internal Server Error` | `{"message": "Unable to verify the AppAgent credential token"}` | Non-transient failure of the credential check; the credential was not judged. | Report the request's trace to IndyKite support; the credential itself was not judged.                           |
+| other `5xx`          | `{"message": …}`                                      | Server-side issue.                                                          | Retry with backoff; escalate if persistent.                                                                        |
 
 ## Troubleshooting
 

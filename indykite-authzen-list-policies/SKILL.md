@@ -124,6 +124,7 @@ This skill uses generic markdown instructions and works across all agents listed
 ## References
 
 - [AuthZEN guide (developer hub)](https://developer.indykite.com/guides/guide-authzen) - "How do I read the policies behind the decisions?"
+- [Resource authz-9 (developer hub)](https://developer.indykite.com/resources/authz-9) - full worked example of `GET /access/v1/policies`
 - [Environment guide (developer hub)](https://developer.indykite.com/guides/guide-environment) - Application Agent API permissions
 - [IndyKite REST API documentation (Authorization API)](https://openapi.indykite.com/api-documentation)
 - [Credentials guide](https://developer.indykite.com/guides/guide-credentials)

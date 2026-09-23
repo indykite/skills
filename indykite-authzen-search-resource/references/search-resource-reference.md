@@ -16,6 +16,8 @@ The call authenticates the **calling application** via its AppAgent credentials 
 
 The subject is identified by `subject.id` (matched to a node `external_id`), not by the caller's credentials.
 
+Requests routed through the Agent Gateway may also carry an `X-IK-Token` delegation token; see the [evaluation reference](../../indykite-authzen-evaluation/references/evaluation-reference.md#authentication).
+
 ## Request
 
 The subject is fully pinned; the resource carries **only a `type`** — you are searching across resources of that type. The action is required (it scopes the search).
@@ -54,7 +56,9 @@ Each `results[]` entry is a resource (`type` + `id`, the `external_id`) the subj
 | `400 Bad Request`  | Malformed JSON or missing required field (e.g. no `action`).                       | Fix the request body.                                                       |
 | `401 Unauthorized` | Invalid AppAgent credentials.                                                       | Refresh the AppAgent credentials.                                           |
 | `404 Not Found`    | Wrong base path or project context.                                                | Confirm `<API_URL>/access/v1/search/resource` and the credentials' project. |
-| `5xx`              | Server-side issue.                                                                  | Retry with backoff; escalate if persistent.                                |
+| `503` + `Unable to verify the AppAgent credential token, retry the request` | The credential could not be checked right now (transient); it was not judged. | Retry the same request with the same credential, with backoff. |
+| `500` + `Unable to verify the AppAgent credential token` | Non-transient failure of the credential check; the credential was not judged. | Report the request's trace to IndyKite support; the credential itself was not judged. |
+| other `5xx`        | Server-side issue.                                                                  | Retry with backoff; escalate if persistent.                                |
 
 ## Troubleshooting empty / unexpected results
 

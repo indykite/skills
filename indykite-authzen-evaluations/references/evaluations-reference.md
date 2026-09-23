@@ -14,6 +14,7 @@ POST <API_URL>/access/v1/evaluations       # batch decisions (one per entry)
 
 - **Always**: `X-IK-ClientKey: <AppAgent-credentials-token>` — authenticates the calling application.
 - **Optional**: `Authorization: Bearer <user-access-token>` — applies only in some cases (e.g. a policy condition references a token claim or scope). When supplied it can flip claim-gated entries from `true` to `false` (or back).
+- Requests routed through the Agent Gateway may also carry an `X-IK-Token` delegation token; see the [evaluation reference](../../indykite-authzen-evaluation/references/evaluation-reference.md#authentication).
 
 ## Batch evaluations
 
@@ -82,7 +83,9 @@ Entries that did not need the parameter (e.g. an entry whose resource type match
 | `400 Bad Request`  | Malformed JSON, or `evaluations[]` missing / not an array.                             | Fix the envelope: top-level defaults plus an `evaluations` array.                   |
 | `401 Unauthorized` | Invalid `X-IK-ClientKey`, or an invalid user OAuth token when one is supplied.         | Refresh the AppAgent credentials token; if a user token is required, ensure it is valid. |
 | `404 Not Found`    | Wrong base path or project context.                                                    | Confirm `<API_URL>/access/v1/evaluations` and the credentials' project.             |
-| `5xx`              | Server-side issue.                                                                     | Retry with backoff; escalate if persistent.                                         |
+| `503` + `{"message": "Unable to verify the AppAgent credential token, retry the request"}` | The credential could not be checked right now (transient); it was not judged. | Retry the same request with the same credential, with backoff. |
+| `500` + `{"message": "Unable to verify the AppAgent credential token"}` | The credential check failed for a non-transient reason; the credential was not judged. | Report the request's trace to IndyKite support; the credential itself was not judged. |
+| other `5xx`        | Server-side issue.                                                                     | Retry with backoff; escalate if persistent.                                         |
 
 ## Relationship to the other AuthZEN skills
 

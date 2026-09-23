@@ -21,6 +21,16 @@ The MCP server checks the token's `iss`/`aud` against the project's bound Token 
 | AppAgent named by `app_agent_id` lacks the `Authorization` (for `authzen_*`) or `ContXIQ` (for `ciq_execute`) API permission - the tool result carries `insufficient API access level for appAgent` | Hub UI, or `GET /configs/v1/application-agents/{id}` and check `api_permissions` on the AppAgent referenced by the MCP server config. | Add the missing value to `api_permissions` (`PUT /configs/v1/application-agents/{id}` with the full list). |
 | `app_agent_id` on the MCP server config is wrong or the AppAgent was deleted | `GET /configs/v1/mcp-servers` for the project; check `app_agent_id`.      | Point the config at a valid AppAgent.                                |
 
+## Symptom: `400 Bad Request` with `{"error": "invalid_request", "error_description": "Token in X-IK-Token header …"}`
+
+Only requests that carry the optional `X-IK-Token` delegation token (Agent Gateway in Token Service mode) can hit this. The Bearer token is fine - there is no `WWW-Authenticate` challenge, and re-authenticating the user will not help.
+
+| Likely cause                                          | How to verify                                                                  | Fix                                                                  |
+|-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
+| `… is invalid or expired`: no Token Introspect configuration matches the Token Service issuer + audience, or the token expired | Decode the `X-IK-Token` `iss`/`aud`/`exp`; compare with the project's Token Introspect configurations. | Create one Token Introspect per audience with the Token Service issuer and its public JWK (see the `indykite-agent-gateway` skill); keep `idp.token_ttl` short but long enough for the hop. |
+| `… carries a different sub than the subject token` / `… is missing the sub claim` | Compare `sub` of the Bearer token and of the `X-IK-Token`.        | Forward both headers exactly as received from the previous hop. |
+| A policy references `$ik_token` but the request has no `X-IK-Token` | The tool result is a denial (`403` / `decision: false`), not a `400`. | Route the call through a gateway in Token Service mode, or drop the `$ik_token` reference. |
+
 ## Symptom: server returns `403` or "no policy match" reason
 
 | Likely cause                                          | How to verify                                                                  | Fix                                                                  |

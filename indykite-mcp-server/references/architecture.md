@@ -29,6 +29,22 @@ The Bearer token's `sub` claim becomes the **subject** in AuthZEN evaluations. T
 
 Because the Bearer token is bound to the project's configured Token Introspect, the server checks that the token's `iss`/`aud` match the project's expectation before delegating to authoritative introspection; a token minted for a different issuer/audience is rejected even if otherwise valid.
 
+### Optional delegation token: `X-IK-Token`
+
+When the caller is an agent acting on a user's behalf through the [Agent Gateway](https://developer.indykite.com/tutorials/tutorial-agent-gateway-mcp) in Token Service mode, the request also carries a **delegation token** minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service):
+
+- **Header**: `X-IK-Token: <delegation-token>`, sent as is with no prefix, beside the untouched `Authorization: Bearer` header. It never replaces the Bearer token.
+- **Validation**: introspected through the project's Token Introspect configurations like the Bearer token; its `sub` must equal the Bearer token's `sub`.
+- **Purpose**: forwarded with every `ciq_execute` and `authzen_*` call, where ContX IQ and KBAC policies read its claims as `$ik_token`, including the nested `act` delegation chain (`$ik_token.act.sub` = the calling agent, `$ik_token.act.act.sub` = the one before it).
+
+A delegation token that does not hold up is refused **before anything is forwarded**, with `400 Bad Request` and no `WWW-Authenticate` challenge - the Bearer token itself is fine, so re-authenticating would not help:
+
+```json
+{"error": "invalid_request", "error_description": "Token in X-IK-Token header is invalid or expired"}
+```
+
+The same shape with `carries a different sub than the subject token` or `is missing the sub claim` means the two tokens are not about the same user. (The REST AuthZEN and ContX IQ endpoints answer the same conditions with `401` instead.)
+
 ## What happens without a Bearer token
 
 If `Authorization` is missing or invalid, the server returns:

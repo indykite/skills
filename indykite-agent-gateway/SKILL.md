@@ -2,7 +2,7 @@
 name: indykite-agent-gateway
 description: Configure IndyKite Agent Gateway (IAG) in front of agent-to-agent (A2A) workflows or MCP servers, optionally with the self-hosted IndyKite Token Service (ITS) that mints the delegation token carried in `X-IK-Token` so multi-hop chains grow hop by hop. Use when wiring up A2A or MCP policy enforcement, modeling workflows in the IKG, configuring `JARVIS_*` / `config.yaml` (including `token_service`), running the Token Service, reading IAG audit records, or debugging IAG 401/403 responses.
 license: Apache-2.0
-compatibility: Requires Docker and Docker Compose to run the iag-demo reference app. Runtime network access to the configured IndyKite Hub, OAuth IdP, AuthZEN, ContX IQ endpoints, and the optional Token Service is required.
+compatibility: Requires Docker and Docker Compose to run the iag-mcp-demo reference app. Runtime network access to the configured IndyKite Hub, OAuth IdP, AuthZEN, ContX IQ endpoints, and the optional Token Service is required.
 ---
 
 # IndyKite Agent Gateway
@@ -28,7 +28,7 @@ Activate this skill when the user:
 - is modeling a `Workflow` and `Agent` nodes with `INVOKES` relationships in the IndyKite Graph (IKG);
 - is configuring `JARVIS_*` environment variables or a `config.yaml` for one or more IAG instances (including `token_service`, `healthcheck_port`, cache tuning, audit delivery);
 - is reading IAG or Token Service audit records (`AUTHORIZED` / `NOT_AUTHORIZED`, `TOKEN_EXCHANGED` / `EXCHANGE_REFUSED`, `INTROSPECTED*`) and trying to explain a `401` or `403`;
-- is reproducing or extending the [`iag-demo`](https://github.com/indykite/developer-hub/tree/master/a2a/iag-demo) (A2A) or [`iag-mcp-demo`](https://github.com/indykite/developer-hub/tree/master/a2a/iag-mcp-demo) (A2A + MCP) reference applications.
+- is reproducing or extending the [`iag-mcp-demo`](https://github.com/indykite/developer-hub/tree/master/a2a/iag-mcp-demo) (A2A + MCP), or [`iag-token-exchange`](https://github.com/indykite/developer-hub/tree/master/a2a/iag-token-exchange) (Token Service) reference applications.
 
 Do **not** activate this skill when the user:
 
@@ -46,7 +46,7 @@ Before any of the steps below will succeed, the user needs:
 - A **ContX IQ query** that returns `(workflow, agent_list)` pairs for each protected downstream - its `query_id` goes into IAG configuration.
 - For an **MCP downstream** (`protocol: mcp`): the MCP server's origin and endpoint path, and the gateway image `indykite/agent-gateway` **≥ 2.0.1** (older images ignore the protocol and behave as an A2A proxy). MCP clients typically authenticate with an App Agent token, which must be introspectable and pass the AuthZEN check.
 - For **workflows longer than one hop** (agent → agent → agent), or whenever the protected agent must see the caller's original access token: a running **IndyKite Token Service** (`indykite/token-service`) with an `https` issuer `base_url`, at least one signing key, the audiences of every protected agent, and a `client_auth` client for the gateways - see [`references/token-service.md`](references/token-service.md). Without it the gateway exchanges tokens at the IdP on every hop and the chain never grows past one hop.
-- Docker (and Docker Compose) to run the iag-demo reference app.
+- Docker (and Docker Compose) to run the iag-mcp-demo reference app.
 
 If any of these are missing, stop and tell the user - IAG cannot run without them.
 
@@ -83,7 +83,7 @@ If the KBAC policy behind `CAN_TRIGGER` reads the delegation token, it must refe
 Pick one of the two configuration forms:
 
 - **YAML config file** - pass with `--config=/app/config.yaml`. Best for production where configuration management is strict. See `assets/config-template.yaml` in this skill.
-- **Environment variables** - keys use the `JARVIS_` prefix with underscores (e.g. `JARVIS_SERVICE_NAME`). Best when multiple IAG instances share a base image (as in the iag-demo) and override only per-agent fields.
+- **Environment variables** - keys use the `JARVIS_` prefix with underscores (e.g. `JARVIS_SERVICE_NAME`). Best when multiple IAG instances share a base image (as in the iag-mcp-demo) and override only per-agent fields.
 
 The full set of sections is `service`, `identity_provider`, `token_service` (optional), `protected_agent`, `authzen`, `contx_iq`, and `audit`. See `references/configuration.md` for every field and its default.
 
@@ -105,11 +105,13 @@ The `token_service` section itself is the same for every instance.
 
 ### 5. Deploy the IAG instances (and the Token Service, if used)
 
-For Docker Compose, follow the iag-demo pattern: one shared `iag-base-docker.yaml` plus one service per protected agent that overrides only the per-instance fields above. For Kubernetes, deploy each IAG as a standalone Pod for independent scaling, or as a sidecar to its protected agent for tighter coupling.
+For Docker Compose, follow the iag-mcp-demo pattern: one shared `iag-base-docker.yaml` plus one service per protected agent that overrides only the per-instance fields above. For Kubernetes, deploy each IAG as a standalone Pod for independent scaling, or as a sidecar to its protected agent for tighter coupling.
 
 Each gateway serves `/healthz`, `/readyz`, and `/startupz` on `service.healthcheck_port` (default `9080`), and the container image's `HEALTHCHECK` probes `http://localhost:9080/healthz`. Older images did not serve that endpoint and reported unhealthy for their whole life - pull a current image if orchestration keyed on container health never fires.
 
-The Token Service is one deployment shared by all gateways: run `indykite/token-service` with `--config=/app/config.yaml` or, in production, `--config-dir=/etc/token-service` so the secret (signing keys, `client_auth`) can be mounted as a separate file merged over the non-sensitive definitions. `service.base_url` (the `iss` of every token it signs) is mandatory and has no default. Details in [`references/token-service.md`](references/token-service.md).
+The Token Service is one deployment shared by all gateways: run `indykite/token-service` (pin a concrete tag such as `1.0.0`, never `latest`) with `--config=<file>` or, in production, `--config-dir=<dir>` so the secret (signing keys, `client_auth`) can be mounted as a separate file merged over the non-sensitive definitions. `service.base_url` (the `iss` of every token it signs) is mandatory, has no default, and must be `https`. Details in [`references/token-service.md`](references/token-service.md).
+
+The IndyKite platform must also **trust** the tokens ITS signs, or every request that reaches AuthZEN, ContX IQ, or the MCP server with an `X-IK-Token` is refused with `401 Invalid token in X-IK-Token header`. Create one Token Introspect configuration per audience the delegation token can carry (`POST /configs/v1/token-introspects`, Service Account token): `jwt_matcher.issuer` = the ITS `base_url`, `jwt_matcher.audience` = the protected agent's audience, `offline_validation.public_jwks` = the **public** half of the signing key. Exact payload in the *Making the platform trust ITS tokens* section of [`references/token-service.md`](references/token-service.md).
 
 Verify that each IAG can reach the IdP, AuthZEN, ContX IQ, the Token Service (if configured), and the protected agent - common deployment failures are network-level, not IAG-level.
 
@@ -156,7 +158,7 @@ When this skill has been applied successfully:
 - A `Workflow` node, the relevant `Agent` nodes, and `INVOKES` edges (with `workflow_name`) exist in the IKG.
 - A ContX IQ query returns the right `(workflow, agent_list)` pairs for each protected agent.
 - One IAG instance runs in front of each protected agent with the right per-instance config, reporting healthy on `/healthz`.
-- If the workflow has more than one hop, the Token Service runs, every gateway points at it, and the forwarded request carries `Authorization` plus `X-IK-Token` with a chain that grows on every hop.
+- If the workflow has more than one hop, the Token Service runs, every gateway points at it, the project holds a Token Introspect configuration for each audience ITS issues for, and the forwarded request carries `Authorization` plus `X-IK-Token` with a chain that grows on every hop.
 - A canonical successful prompt flows through the gateway chain and produces `AUTHORIZED` audit records on every IAG it touches (and `TOKEN_EXCHANGED` records at the Token Service).
 - A canonical denial path produces `403 Forbidden` plus a `NOT_AUTHORIZED` audit record with a human-readable `reason`.
 
@@ -175,12 +177,11 @@ This skill uses generic markdown instructions and works across all agents listed
 
 ## References
 
-- [IndyKite Agent Gateway documentation](https://docs.indykite.com/docs/agent-gateway)
-- [IndyKite Token Service documentation](https://docs.indykite.com/docs/agent-gateway/token-service)
-- [Protect A2A workflows with Agent Gateway (tutorial)](https://developer.indykite.com/tutorials/tutorial-agent-gateway)
-- [Protect an MCP server with Agent Gateway (tutorial)](https://developer.indykite.com/tutorials/tutorial-agent-gateway-mcp)
-- [`iag-demo` reference app](https://github.com/indykite/developer-hub/tree/master/a2a/iag-demo) - A2A only.
-- [`iag-mcp-demo` reference app](https://github.com/indykite/developer-hub/tree/master/a2a/iag-mcp-demo) - adds an `mcp-iag` instance (`protocol: mcp`) protecting the IndyKite MCP server.
+- [IndyKite Token Service guide](https://developer.indykite.com/guides/guide-token-service) - endpoints, exchange and introspection contracts, configuration, platform trust via Token Introspect, audit records.
+- [Protect an MCP server with Agent Gateway (tutorial)](https://developer.indykite.com/tutorials/tutorial-agent-gateway-mcp) - the rest of the gateway configuration, demonstrated in MCP proxy mode.
+- [AuthZEN guide](https://developer.indykite.com/guides/guide-authzen) and [ContX IQ guide](https://developer.indykite.com/guides/guide-contx-iq) - how policies read `$token` and `$ik_token`.
+- [`iag-mcp-demo` reference app](https://github.com/indykite/developer-hub/tree/master/a2a/iag-mcp-demo) - three A2A gateways (orchestrator, retriever, weather) plus an `mcp-iag` instance (`protocol: mcp`) protecting the IndyKite MCP server.
+- [`iag-token-exchange` reference app](https://github.com/indykite/developer-hub/tree/master/a2a/iag-token-exchange) - runs the Token Service setup end to end (`token_service` on every gateway, `X-IK-Token` growing hop by hop).
 - [`canbank` dataset](https://github.com/indykite/developer-hub/tree/master/canbank)
 - [RFC 8693 OAuth 2.0 Token Exchange](https://www.rfc-editor.org/rfc/rfc8693) and [RFC 7662 Token Introspection](https://www.rfc-editor.org/rfc/rfc7662) - the two protocols the Token Service implements.
 - A2A protocol - see the protected agent's vendor docs for the JSON-RPC shape IAG forwards. For MCP, IAG proxies MCP Streamable HTTP (`initialize`, `tools/list`, `tools/call`, …).

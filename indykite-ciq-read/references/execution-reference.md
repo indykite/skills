@@ -23,6 +23,8 @@ For non-`_Application` subjects, the Bearer token's `sub` claim is what AuthZEN 
 
 For `_Application` subjects, the reserved input parameter `$_appId` is auto-filled from the application's `external_id` — **do not** pass it in `input_params` yourself.
 
+**Optional delegation token.** A request that carries a user Bearer token may also carry `X-IK-Token: <delegation-token>` (no prefix), minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service) and forwarded by the Agent Gateway. It never replaces the Bearer token; it adds the chain of agents acting for that user. The platform validates it through the project's Token Introspect configurations, requires its `sub` to equal the Bearer token's `sub`, and exposes its claims to the policy's `filter` / `token_filter` as `$ik_token` (`$ik_token.act.sub` = the calling agent, `$ik_token.act.act.sub` = the one before it). The name `ik_token` is reserved: a value sent under `input_params.ik_token` is ignored.
+
 ## Request
 
 ```json
@@ -71,11 +73,15 @@ An empty `data` array means the policy ran without error but matched no rows. Th
 |------------------------|-----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
 | `400 Bad Request`      | Missing `id`, malformed JSON, or `input_params` missing a parameter that the policy requires. | Fix the request body; cross-check partial filters listed in the policy.                     |
 | `401 Unauthorized`     | Missing or invalid Bearer token (for non-`_Application` subjects), or invalid `X-IK-ClientKey`. | Refresh the AppAgent token; ensure the user token is present and `sub` matches expectations. |
-| `403 Forbidden`        | Policy's `condition` denied the request, or `token_filter` failed.                            | Check `token_filter` `advice`, the subject's relationship to the data, and `$token.*` values. |
+| `401` + `{"message": "Invalid token in X-IK-Token header"}` | The delegation token is expired, untrusted, or matches no Token Introspect configuration. | Create a Token Introspect configuration for the Token Service issuer + audience, or mint a fresh delegation token. |
+| `401` + `{"message": "Token in X-IK-Token header carries a different sub than the subject token"}` (or `is missing the sub claim`) | The Bearer token and the delegation token are not about the same user. | Forward both headers exactly as received from the previous hop. |
+| `403 Forbidden`        | Policy's `condition` denied the request, or `token_filter` failed.                            | Check `token_filter` `advice`, the subject's relationship to the data, and `$token.*` / `$ik_token.*` values (a referenced token that was not sent fails closed). |
 | `403` + `WWW-Authenticate: insufficient_user_authentication` | A `token_filter` triggered step-up advice.                              | Re-authenticate with the requested factor and retry.                                        |
 | `404 Not Found`        | Knowledge Query `id` does not exist, or the project does not own it.                          | Verify the Knowledge Query GID/name and the project context.                                |
 | `408 Request Timeout`  | Query exceeded the timeout (default few seconds, 5 minutes with `batch_read: true`).          | Set `batch_read: true` if appropriate, or simplify the Cypher.                              |
-| `5xx`                  | Server-side issue.                                                                            | Retry with backoff; if persistent, file with the IndyKite team.                              |
+| `503` + `{"message": "Unable to verify the AppAgent credential token, retry the request"}` | The credential could not be checked right now (transient); it was not judged. | Retry the same request with the same credential, with backoff. |
+| `500` + `{"message": "Unable to verify the AppAgent credential token"}` | Non-transient failure of the credential check; the credential was not judged. | Report the request's trace to IndyKite support; the credential itself was not judged. |
+| other `5xx`            | Server-side issue.                                                                            | Retry with backoff; if persistent, file with the IndyKite team.                              |
 
 ## Step-up advice (`token_filter`)
 

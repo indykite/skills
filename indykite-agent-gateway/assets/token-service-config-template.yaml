@@ -9,7 +9,7 @@
 ---
 service:
   name: token-service
-  port: 8080
+  port: 8102 # the image default is 8080; publish whichever value you set here
   environment: <ENVIRONMENT> # demo, staging, prod
   log_level: info
   # healthcheck_port: 9080

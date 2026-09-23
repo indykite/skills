@@ -24,11 +24,41 @@ The IdP stays required in both cases: it introspects the caller's access token a
 | `/.well-known/openid-configuration`        | `GET`      | Discovery document (issuer, endpoints, supported auth methods).                              |
 | `/.well-known/oauth-authorization-server`  | `GET`      | RFC 8414 discovery, same content.                                                            |
 | `/.well-known/jwks.json`                   | `GET`      | Public halves of `idp.signing_keys`, so relying parties can verify issued tokens.            |
-| `/userinfo`                                | `GET`/`POST` | Claims of a presented token.                                                              |
-| `/oauth2/auth`, `/oauth2/revoke`           | -          | Not implemented (no authorization-code flow, no revocation - tokens expire, nothing revokes them). |
+| `/userinfo`                                | `GET`/`POST` | Claims of an ITS-issued token presented as `Authorization: Bearer`, minus the token mechanics (`iss`, `aud`, `exp`, `iat`, `nbf`, `jti`). A token of any other issuer is refused with `401 invalid_token`. |
+| `/oauth2/auth`, `/oauth2/revoke`           | -          | Advertised in discovery for completeness but answer `501` with `{"error": "not_implemented"}`: tokens are obtained only by exchange, and nothing revokes them before they expire. |
 | `/healthz`, `/readyz`, `/startupz`         | `GET`      | On `service.healthcheck_port` (default `9080`).                                              |
 
-The gateway's `token_service.exchange_endpoint` and `introspect_endpoint` are `/oauth2/token` and `/oauth2/introspect`.
+The gateway's `token_service.exchange_endpoint` and `introspect_endpoint` are `/oauth2/token` and `/oauth2/introspect`. All paths are relative to `service.base_url`, which is also the `iss` of every token. The discovery document is cacheable for 5 minutes.
+
+## Exchange request
+
+The gateway performs this call on every request; it is listed here so a policy author can read the resulting token. `POST /oauth2/token` takes form parameters, and the caller authenticates as the `idp.client_auth` client (HTTP Basic).
+
+| Parameter                                | Rule                                                                                                      |
+|------------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| `grant_type`                             | Must be `urn:ietf:params:oauth:grant-type:token-exchange`.                                                |
+| `subject_token`, `subject_token_type`    | Required. Type must be `urn:ietf:params:oauth:token-type:access_token`. The user's token on the first hop, the previous hop's delegation token afterwards. |
+| `actor_token`, `actor_token_type`        | Required - ITS only issues delegated tokens. Same type rule.                                              |
+| `requested_token_type`                   | Optional: `urn:ietf:params:oauth:token-type:access_token` or `urn:ietf:params:oauth:token-type:jwt`.      |
+| `audience`, `resource`                   | Optional, repeatable; every value must be in `idp.audiences` / `idp.resources`, else `invalid_target`.     |
+| `scope`                                  | Accepted and ignored: the claims of an issued token are fixed.                                            |
+
+The `200` response (`Cache-Control: no-store`) carries `access_token`, `issued_token_type`, `token_type: Bearer`, and `expires_in`. The token's claims are exactly `iss`, `sub`, `aud`, `iat`, `exp`, `jti`, and `act` (`sub` + `type` of the actor, nesting the subject token's own `act`, so the oldest agent ends up innermost).
+
+### Exchange errors
+
+RFC 6749 shape: a JSON body with `error` and `error_description`.
+
+| Status / `error`             | Meaning                                                                                                          |
+|------------------------------|------------------------------------------------------------------------------------------------------------------|
+| `401 invalid_client`         | Client credentials missing or wrong; comes with a `WWW-Authenticate: Basic` challenge.                            |
+| `400 unsupported_grant_type` | `grant_type` is not the token-exchange grant.                                                                    |
+| `400 invalid_request`        | A required parameter is missing (`subject_token is required`, `actor_token is required, this service only issues delegated tokens`), a token type is not the access-token URN, or `requested_token_type` is unsupported. |
+| `400 invalid_grant`          | `the subject_token is not valid` / `the actor_token is not valid` (no configuration matches, expired, badly signed, inactive), `the <name> has no subject`, or `the subject_token has a malformed act claim`. |
+| `400 invalid_target`         | `this service does not issue tokens for the audience "<value>"` (or `resource`): the value is not configured.    |
+| `500 server_error`           | `the tokens could not be validated` (a provider could not be reached) or `the token could not be issued` (signing failed). Audited as `ERROR`, not as a refusal. |
+
+Introspection: `POST /oauth2/introspect` with `token=<jwt>` (same client authentication) answers the token's claims plus `active: true`, or `{"active": false}` with status `200` for anything unusable. `token_type_hint` is accepted and ignored; no `token` gives `400 invalid_request` (`token is required`); an unauthenticated call gives `401 invalid_client`.
 
 ## How an exchange is decided
 
@@ -95,13 +125,51 @@ Decisions, read together with the record's `action`:
 
 The CSV sink carries a `tokenID` column; files rotated before it was added keep the old header.
 
+## Making the platform trust ITS tokens
+
+The IndyKite platform validates an `X-IK-Token` through the project's [Token Introspect configurations](https://developer.indykite.com/guides/guide-token-introspect), exactly as it validates the user's Bearer token. Without a matching configuration every AuthZEN, ContX IQ, and MCP request that carries an `X-IK-Token` is refused (`401 Invalid token in X-IK-Token header` on REST, `400 invalid_request` on the MCP server). Create **one configuration per audience** ITS can issue for, once per project, with a Service Account token:
+
+```bash
+curl -X POST "$API_URL/configs/v1/token-introspects" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $SERVICE_ACCOUNT_TOKEN" \
+  -d '{
+        "name": "its-indykiteagent-2",
+        "project_id": "gid-of-project",
+        "jwt_matcher": {
+          "issuer": "https://its.example.com",
+          "audience": "indykiteagent-2"
+        },
+        "offline_validation": {
+          "public_jwks": [
+            "{\"kty\":\"RSA\",\"alg\":\"RS256\",\"kid\":\"its-2026-q3\",\"use\":\"sig\",\"n\":\"...\",\"e\":\"AQAB\"}"
+          ]
+        },
+        "ikg_node_type": "Person",
+        "perform_upsert": false
+      }'
+```
+
+- `jwt_matcher.issuer` is the ITS `service.base_url`, and it must be `https`: the platform treats an `http` issuer as opaque and skips offline validation.
+- `offline_validation.public_jwks` holds the **public** JWK only (`kty`, `n`, `e`, `alg`, `kid`, `use`) as a JSON string, up to 10 keys - which is how a rotation is prepared ahead of time. Left empty, the platform fetches the keys from the issuer's discovery document instead, which requires ITS to be reachable from the platform.
+- One configuration per `audience` value the delegation token can carry on that path. Allow a few minutes for a new configuration to propagate.
+
+Once trusted, the delegation token is accepted on every AuthZEN and ContX IQ endpoint and by the MCP server, always beside the user's Bearer token and with the same `sub`. Policies read it as `$ik_token`; for example a KBAC filter `{"operator": "=", "attribute": "$ik_token.act.act.sub", "value": "orchestrator"}` allows the action only when the chain started at the orchestrator. See the [AuthZEN guide](https://developer.indykite.com/guides/guide-authzen) and [ContX IQ guide](https://developer.indykite.com/guides/guide-contx-iq).
+
 ## Deployment notes
 
-- Run the `indykite/token-service` container with `--config=/app/config.yaml`, or `--config-dir=<dir>` when the sensitive part (`idp.signing_keys`, `idp.client_auth`, introspection `client_auth`) is delivered as a separate file, e.g. from a secret store or a Kubernetes Secret mounted next to the non-sensitive definitions.
-- `service.base_url` must be the public `https` URL the gateways and any relying party reach the service at; it is the issuer of every token, so it must not change once tokens are in flight.
-- Expose only the ports you need: the request port for the gateways, the health port for orchestration. Ingress, TLS termination, and monitoring are your deployment's concern.
+```bash
+docker run --rm -d --name token-service -p 8102:8102 \
+  -v "$(pwd)/token-service.yaml:/app/.configs/token-service.yaml:ro" \
+  indykite/token-service:1.0.0 --config=/app/.configs/token-service.yaml
+```
 
-After the rollout, confirm the issuer is reachable at its public URL:
+- Pin a concrete tag from Docker Hub rather than `latest`. The image is built for `linux/amd64`; on Apple Silicon add `--platform linux/amd64`.
+- Use `--config=<file>` for a single file, or `--config-dir=<dir>` when the sensitive part (`idp.signing_keys`, `idp.client_auth`, introspection `client_auth`) is delivered as a separate file, e.g. from a secret store or a Kubernetes Secret mounted next to the non-sensitive definitions.
+- `service.base_url` must be the public `https` URL the gateways, the platform, and any relying party reach the service at; it is the issuer of every token, so it must not change once tokens are in flight. Put the service behind TLS on its own hostname.
+- The published port must match `service.port`: the command above and the starter template both use `8102`; if you keep the image default of `8080`, publish `-p 8080:8080` instead. Expose only the ports you need: the request port for the gateways, the health port for orchestration. Ingress, TLS termination, and monitoring are your deployment's concern.
+
+After the rollout, probe readiness on the discovery endpoint rather than only on `/healthz`: a `200` here proves the configuration loaded and traffic is served.
 
 ```bash
 curl --fail "https://token-service.example.com/.well-known/openid-configuration"
@@ -111,7 +179,8 @@ A starter `config.yaml` is in [`../assets/token-service-config-template.yaml`](.
 
 ## References
 
-- [IndyKite Token Service documentation](https://docs.indykite.com/docs/agent-gateway/token-service)
+- [IndyKite Token Service guide](https://developer.indykite.com/guides/guide-token-service)
+- [Token Introspect guide](https://developer.indykite.com/guides/guide-token-introspect)
 - [RFC 8693 OAuth 2.0 Token Exchange](https://www.rfc-editor.org/rfc/rfc8693)
 - [RFC 7662 OAuth 2.0 Token Introspection](https://www.rfc-editor.org/rfc/rfc7662)
 - [RFC 8414 OAuth 2.0 Authorization Server Metadata](https://www.rfc-editor.org/rfc/rfc8414)

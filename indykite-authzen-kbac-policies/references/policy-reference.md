@@ -145,6 +145,7 @@ Each node of the tree is either a **branch** or a **leaf**:
 How `attribute` and `value` entries resolve:
 
 - `"$token.<claim>"` - a claim from the user (OAuth bearer) token, e.g. `"$token.email"`.
+- `"$ik_token.<claim>"` - a claim from the optional **delegation token** sent in the `X-IK-Token` header (minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service) and forwarded by the Agent Gateway). Dot paths walk the RFC 8693 `act` chain: `$ik_token.sub` is the user (always equal to `$token.sub`), `$ik_token.act.sub` the agent making this call, `$ik_token.act.act.sub` the one before it, down to the first agent the user delegated to; each link also carries a `type` (`Agent` by default). A reference to a token that was not sent **fails the filter closed**. The name `ik_token` is reserved: a value sent under `context.input_params.ik_token` is ignored, so a caller cannot feed the policy a chain of its own making.
 - `"$<name>"` - a value from `context.input_params` (key without the `$`); dot paths reach into object params, e.g. `"$order.total"`.
 - Any other JSON value is a literal. `attribute` must be a string (in practice a `$…` reference); `value` can be a scalar or an array.
 - For date/time comparisons, wrap the side in `{ "type": "datetime", "value": "<RFC3339 timestamp or $param>" }`. Plain values need no wrapper.
@@ -171,7 +172,7 @@ Example - the graph relationship must exist **and** the token's plan must be `pr
 }
 ```
 
-Like partial parameters in the Cypher, every `$<name>` the filter references must be supplied in `context.input_params` at decision time, and `$token.…` references require the request to carry a user token.
+Like partial parameters in the Cypher, every `$<name>` the filter references must be supplied in `context.input_params` at decision time, `$token.…` references require the request to carry a user token, and `$ik_token.…` references require it to carry an `X-IK-Token` as well. A filter that pins where a delegation chain started looks like `{ "operator": "=", "attribute": "$ik_token.act.act.sub", "value": "orchestrator" }`.
 
 ## 3.0-kbac: raw Cypher and location routing
 

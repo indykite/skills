@@ -61,7 +61,9 @@ Full configuration details: [Token Introspect guide](https://developer.indykite.
 | `401 Unauthorized`  | `{"message": …}`                                            | Invalid or expired AppAgent credential.                                                     | Mint a new credential (`POST /configs/v1/application-agent-credentials`).                           |
 | `200` + empty strings | `{"type": "", "id": ""}`                                  | The configuration that validated the token has no IKG node type to match against.           | Set `ikg_node_type` on that Token Introspect configuration.                                          |
 | `404 Not Found`     | -                                                           | Wrong base path.                                                                            | Confirm `<API_URL>/contx-iq/v1/whoami` and the region.                                              |
-| `5xx`               | `{"message": …}`                                            | Server-side issue.                                                                          | Retry with backoff; escalate if persistent.                                                         |
+| `503 Service Unavailable` | `{"message": "Unable to verify the AppAgent credential token, retry the request"}` | The credential could not be checked right now (transient); it was not judged.       | Retry the same request with the same credential, with backoff.          |
+| `500 Internal Server Error` | `{"message": "Unable to verify the AppAgent credential token"}` | Non-transient failure of the credential check; the credential was not judged.                | Report the request's trace to IndyKite support; the credential itself was not judged.                      |
+| other `5xx`         | `{"message": …}`                                            | Server-side issue.                                                                          | Retry with backoff; escalate if persistent.                                                         |
 
 ## Troubleshooting
 

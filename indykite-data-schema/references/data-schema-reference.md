@@ -138,7 +138,8 @@ jq -r '.graph.nodes | to_entries[]
 |-----------------------------|---------------------------------------------------------------------------------------------------|
 | `400 Bad Request`           | Malformed request; the body carries a `message`.                                                   |
 | `404 Not Found`             | No data schema for the project - typically nothing has been ingested yet. Body carries `message` and `errors[]`. Not a failure: it correctly describes an empty project. |
-| `500 Internal Server Error` | Server-side issue; retry with backoff.                                                             |
+| `503 Service Unavailable`   | `{"message": "Unable to verify the AppAgent credential token, retry the request"}`: the credential could not be checked right now (transient) and was not judged. Retry the same request with the same credential, with backoff; do not mint new credentials. |
+| `500 Internal Server Error` | With `{"message": "Unable to verify the AppAgent credential token"}`: non-transient failure of the credential check, the credential was not judged - do not rotate it, report the request's trace to IndyKite support. Otherwise a server-side issue; retry with backoff. |
 
 ## Troubleshooting
 

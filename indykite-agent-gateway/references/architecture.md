@@ -2,7 +2,7 @@
 
 This file is loaded by agents that need to reason about how IAG processes a single request, so they can answer questions like "why was this `403`?" or "where in the path does the failure happen?".
 
-## Topology (iag-demo)
+## Topology (iag-mcp-demo)
 
 ```text
 leslie (user)
@@ -26,7 +26,7 @@ weather-iag:8884    ──▶  weather:6004           (weather questions)
 
 Three protected agents, three IAG instances, one shared IdP, one shared IndyKite project, and - when multi-hop chains are needed - one shared Token Service.
 
-The `iag-mcp-demo` variant adds a fourth instance, `mcp-iag:8886`, running in MCP proxy mode (`protocol: mcp`) in front of the IndyKite MCP server. The `retriever` and `weather` agents are MCP clients routed through `mcp-iag` instead of calling the MCP server directly, so MCP traffic gets the same introspection, AuthZEN check, and audit as the A2A flows.
+The iag-mcp-demo also runs a fourth instance, `mcp-iag:8886`, running in MCP proxy mode (`protocol: mcp`) in front of the IndyKite MCP server. The `retriever` and `weather` agents are MCP clients routed through `mcp-iag` instead of calling the MCP server directly, so MCP traffic gets the same introspection, AuthZEN check, and audit as the A2A flows.
 
 Neither the gateway nor the Token Service is part of the IndyKite platform: both are deployed and operated in the customer's environment and talk to the platform's AuthZEN and ContX IQ endpoints over the public API.
 
