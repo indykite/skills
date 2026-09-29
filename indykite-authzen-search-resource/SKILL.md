@@ -17,7 +17,7 @@ It is one of three AuthZEN search endpoints, each pinning two of the three `(sub
 | `/search/resource`        | subject + action   | **resources** | this skill                                                         |
 | `/search/subject`         | resource + action  | subjects   | [`indykite-authzen-search-subject`](../indykite-authzen-search-subject/SKILL.md) |
 
-This skill covers building and sending the request and reading the results. It does **not** author policies - the `2.0-kbac` policies these results are evaluated against are authored with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
+This skill covers building and sending the request and reading the results. It does **not** author policies - the `2.0-kbac` and `3.0-kbac` policies these results are evaluated against are authored with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
 
 ## When to use
 
@@ -63,7 +63,7 @@ Do **not** set `resource.id` - the instances are what the search returns.
 }
 ```
 
-Include `context.input_params` only if a candidate policy references a `$name` partial parameter; supply each key **without** the `$`, correctly typed. A ready body: [`assets/search-resource-request.json`](assets/search-resource-request.json).
+Include `context.input_params` only if a candidate policy references a `$name` partial parameter; supply each key **without** the `$`, correctly typed. A location-routed `3.0-kbac` policy on a composite IKG takes its logical location here too (`{ "region": "east" }`, a key of the project's `alias_mapping`); only resources stored in that location can be returned, a missing or unknown location is a `422`, and a user token for a different identity than `subject` is a `403` - see [`references/search-resource-reference.md`](references/search-resource-reference.md#request). A ready body: [`assets/search-resource-request.json`](assets/search-resource-request.json).
 
 ### 3. Send the search
 

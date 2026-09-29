@@ -9,7 +9,7 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 Batch evaluation makes **many KBAC decisions in one request**. You supply top-level `subject` / `action` / `resource` / `context` as **defaults** and an `evaluations[]` array where each entry overrides only the parts it specifies; the response carries one boolean `decision` per entry, in order.
 
-This skill covers building and sending the batch request and reading the results. It does **not** author policies - the `2.0-kbac` policies every entry is evaluated against are authored with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
+This skill covers building and sending the batch request and reading the results. It does **not** author policies - the `2.0-kbac` and `3.0-kbac` policies every entry is evaluated against are authored with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
 
 ## When to use
 
@@ -52,7 +52,7 @@ Decide which parts are constant across the batch (put them at the top level) and
 }
 ```
 
-`subject.id` / `resource.id` are node `external_id`s; `action.name` is case-sensitive; `context.input_params` keys are written **without** the `$` and keep their types. A ready body: [`assets/evaluations-provision-servers.json`](assets/evaluations-provision-servers.json).
+`subject.id` / `resource.id` are node `external_id`s; `action.name` is case-sensitive; `context.input_params` keys are written **without** the `$` and keep their types. A location-routed `3.0-kbac` policy on a composite IKG takes its logical location (`{ "region": "east" }`, a key of the project's `alias_mapping`) the same way, per entry or as the default - see [`references/evaluations-reference.md`](references/evaluations-reference.md#location-routed-policies-30-kbac). A ready body: [`assets/evaluations-provision-servers.json`](assets/evaluations-provision-servers.json).
 
 ### 3. Send the batch
 

@@ -36,9 +36,11 @@ Both the subject and the resource are fully pinned — you ask about one specifi
 | `subject.id`           | yes      | The subject node's `external_id`.                                                       |
 | `resource.type`        | yes      | Node type being acted on.                                                               |
 | `resource.id`          | yes      | The resource node's `external_id`.                                                      |
-| `context.input_params` | maybe    | Supply every `$name` partial parameter that any candidate policy references (key without the `$`). Required only if a relevant policy uses one. |
+| `context.input_params` | maybe    | Supply every `$name` partial parameter that any candidate policy references (key without the `$`). Required only if a relevant policy uses one. For a location-routed `3.0-kbac` policy (`USE graph.byName($region)` on a composite IKG) this is also where the **logical location** goes - `{ "region": "east" }`, a key of the project's `alias_mapping`, never a database name. |
 
 There is no `action` field — discovering the actions is the point.
+
+Candidate policies may be `2.0-kbac` or `3.0-kbac`; the search reads both. With a location-routed `3.0-kbac` policy the location physically routes the query, so a subject or resource not stored in the named constituent contributes no actions - a normal empty result. A location that is missing, empty, unknown (not a key of `alias_mapping`), or `USE` routing on a project without a composite database is a `422`; a user token on the request that belongs to a different identity than `subject` is a `403` (both below). Authoring rules are in [`indykite-authzen-kbac-policies`](../../indykite-authzen-kbac-policies/references/policy-reference.md#30-kbac-raw-cypher-and-location-routing).
 
 ## Response
 
@@ -54,6 +56,8 @@ Each `results[]` entry is an action the subject may currently perform on that re
 |--------------------|------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
 | `200` + `results:[]`| Well-formed, but no policy grants any action for the pair (or a user token narrowed it to nothing). | Confirm a matching ACTIVE policy exists and the graph data is present. Not an error. |
 | `422 Unprocessable`| A candidate policy needs a partial parameter that `input_params` did not supply.   | Add the missing key, e.g. `"errors": ["missing or wrong input params, 'max_price'"]`. |
+| `422` + `location parameter "$<name>" must be a non-empty string` / `unknown location "<value>" for parameter "$<name>"` / `location parameter "$<name>" requires a composite database, …` / `policy requires a composite database, but the app space has none configured` | A `3.0-kbac` candidate routes by location and the request's location is missing, malformed, unknown, or the project has no composite database. | Pass a key of the project's `alias_mapping` as a string under `context.input_params`. |
+| `403 Forbidden` + `bearer token subject differs from requested subject` | A `3.0-kbac` candidate matched and the user token on the request belongs to a different identity than `subject` (action search runs the same per-policy check as a single evaluation). | Send the token of the subject being searched for, or drop the user token and search with the AppAgent credentials alone. |
 | `400 Bad Request`  | Malformed JSON or missing required field.                                          | Fix the request body.                                                       |
 | `401 Unauthorized` | Invalid AppAgent credentials.                                                       | Refresh the AppAgent credentials.                                           |
 | `404 Not Found`    | Wrong base path or project context.                                                | Confirm `<API_URL>/access/v1/search/action` and the credentials' project.  |

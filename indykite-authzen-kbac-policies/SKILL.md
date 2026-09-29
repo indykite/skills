@@ -89,7 +89,9 @@ For relationship-based rules, match the relationship instead of (or in addition 
 MATCH (subject:Person)-[:CAN_AFFORD]->(resource:Server)
 ```
 
-For the full condition grammar (attribute references, multi-hop patterns, partial parameters, and the reserved `$subject_id` parameter that `2.0-kbac` binds to the user token's identity) see [`references/policy-reference.md`](references/policy-reference.md).
+Token claims can be read directly in the `WHERE` clause without any caller input: `$token.<claim>` (the user token) and `$ik_token.<claim>` (the delegation token in `X-IK-Token`, e.g. `$ik_token.act.sub` for the calling agent). Both names are reserved - never required in `context.input_params`, ignored if sent there, and an absent token makes the comparison `null` so the decision is a plain denial.
+
+For the full condition grammar (attribute references, multi-hop patterns, partial parameters, the token claim parameters, and the reserved `$subject_id` parameter that `2.0-kbac` binds to the user token's identity) see [`references/policy-reference.md`](references/policy-reference.md).
 
 ### 3. Assemble the policy and its create envelope
 

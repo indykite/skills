@@ -17,7 +17,7 @@ It is one of three AuthZEN search endpoints, each pinning two of the three `(sub
 | `/search/resource`        | subject + action   | resources  | [`indykite-authzen-search-resource`](../indykite-authzen-search-resource/SKILL.md) |
 | `/search/subject`         | resource + action  | subjects   | [`indykite-authzen-search-subject`](../indykite-authzen-search-subject/SKILL.md)   |
 
-This skill covers building and sending the request and reading the results. It does **not** author policies - the `2.0-kbac` policies whose `actions` these results come from are authored with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
+This skill covers building and sending the request and reading the results. It does **not** author policies - the `2.0-kbac` and `3.0-kbac` policies whose `actions` these results come from are authored with [`indykite-authzen-kbac-policies`](../indykite-authzen-kbac-policies/SKILL.md).
 
 ## When to use
 
@@ -61,7 +61,7 @@ There is no `action` field - discovering the actions is the point.
 }
 ```
 
-Include `context.input_params` only if a candidate policy's condition references a `$name` partial parameter; supply each key **without** the leading `$`, with the correct type (numbers stay numbers). A ready body: [`assets/search-action-request.json`](assets/search-action-request.json).
+Include `context.input_params` only if a candidate policy's condition references a `$name` partial parameter; supply each key **without** the leading `$`, with the correct type (numbers stay numbers). A location-routed `3.0-kbac` policy on a composite IKG takes its logical location here too (`{ "region": "east" }`, a key of the project's `alias_mapping`); a missing or unknown location is a `422`, and a user token for a different identity than `subject` is a `403` - see [`references/search-action-reference.md`](references/search-action-reference.md#request). A ready body: [`assets/search-action-request.json`](assets/search-action-request.json).
 
 ### 3. Send the search
 

@@ -7,7 +7,7 @@ compatibility: Requires Docker and Docker Compose to run the iag-mcp-demo refere
 
 # IndyKite Agent Gateway
 
-The Indykite Agent Gateway (IAG) is a standalone service that protects exactly one downstream - an **A2A agent** or an **MCP server**. Run one IAG per protected downstream. From the caller's perspective IAG appears as the Target; from the protected downstream's perspective IAG appears as the Source. IAG is **not a generic reverse proxy**: by default (`protocol: a2a`) it speaks the **A2A protocol** and tracks A2A sessions so JSON-RPC streams flow correctly; with `protocol: mcp` it proxies **MCP Streamable HTTP** traffic (forwarding `Mcp-Session-Id` and streaming SSE responses through). Either way the same authorization runs in front.
+The Indykite Agent Gateway (IAG) is a standalone service that protects exactly one downstream - an **A2A agent** or an **MCP server**. Run one IAG per protected downstream. From the caller's perspective IAG appears as the Target; from the protected downstream's perspective IAG appears as the Source. IAG is **not a generic reverse proxy**: by default (`protocol: a2a`) it speaks the **A2A protocol** and tracks A2A sessions so JSON-RPC streams flow correctly; with `protocol: mcp` it proxies **MCP Streamable HTTP** traffic (forwarding `Mcp-Session-Id` and streaming SSE responses through) and forwards only the MCP protocol revisions `2025-06-18`, `2025-11-25`, and `2026-07-28`. Either way the same authorization runs in front.
 
 For each request IAG validates three things:
 
@@ -87,7 +87,7 @@ Pick one of the two configuration forms:
 
 The full set of sections is `service`, `identity_provider`, `token_service` (optional), `protected_agent`, `authzen`, `contx_iq`, and `audit`. See `references/configuration.md` for every field and its default.
 
-Pick the downstream protocol with `protected_agent.protocol` (env `JARVIS_PROTECTED_AGENT_PROTOCOL`): `a2a` (default) for an A2A agent, `mcp` for an MCP server. Any other value fails startup with *invalid protected_agent protocol*. In `mcp` mode `protected_agent.base_url` is the MCP server **origin only** - IAG appends the incoming request path. The authorization sequence is unchanged; only the forwarded protocol differs. See the *Protecting an MCP server* section of `references/configuration.md`.
+Pick the downstream protocol with `protected_agent.protocol` (env `JARVIS_PROTECTED_AGENT_PROTOCOL`): `a2a` (default) for an A2A agent, `mcp` for an MCP server. Any other value fails startup with *invalid protected_agent protocol*. In `mcp` mode `protected_agent.base_url` is the MCP server **origin only** - IAG appends the incoming request path. The authorization sequence is unchanged; only the forwarded protocol differs. In `mcp` mode the gateway also enforces the MCP protocol revision: only `2025-06-18`, `2025-11-25`, and `2026-07-28` are forwarded, every request other than `initialize` must carry `Mcp-Protocol-Version` with one of them, and JSON-RPC batches, encoded bodies, and bodies over 4 MiB are refused with a JSON-RPC error before authorization. The MCP server behind the gateway must speak at least one of the three revisions. See the *Protecting an MCP server* section of `references/configuration.md` and the *MCP protocol revisions* section of `references/architecture.md`.
 
 Pick where the delegation token comes from with the optional `token_service` section (`base_url`, `exchange_endpoint`, `introspect_endpoint`, `client_auth.type: client_secret_basic`, `client_auth.client_id`, `client_auth.client_secret`; env `JARVIS_TOKEN_SERVICE_*`). Left out, the IdP exchanges the tokens. Filled in, the Token Service mints the delegation token, the request is forwarded with both `Authorization` and `X-IK-Token`, and an incoming `X-IK-Token` is validated at the Token Service and becomes the subject of the next exchange. When set, also list the audiences the gateway requests in `protected_agent.authentication.audiences` - every one of them must be in the Token Service's `idp.audiences`, or the exchange is refused with `invalid_target`.
 
@@ -120,9 +120,10 @@ Verify that each IAG can reach the IdP, AuthZEN, ContX IQ, the Token Service (if
 Send a request through the gateway and confirm the [nine-step path](references/architecture.md) executes end-to-end. The expected HTTP responses are:
 
 - `200` - request was authorized and forwarded.
-- `400` - bad request.
+- `400` - bad request. In `mcp` mode a JSON-RPC error body: `-32020` (`Mcp-Protocol-Version` header missing), `-32022` (unsupported revision, `error.data.supported` lists the three revisions), `-32600` (JSON-RPC batch), or `-32700` (body could not be read).
 - `401` - caller token missing or inactive (`Missing bearer token`, `Invalid token, missing subject`), or an incoming `X-IK-Token` that cannot be used (`Invalid delegated token, subject mismatch` / `missing subject`).
 - `403` - caller authenticated but not allowed (subject, chain, or both) - `Authorization check failed`.
+- `413` / `415` - `mcp` mode only: body over 4 MiB, or a `Content-Encoding` other than `identity`; JSON-RPC error `-32600`.
 - `500` - internal error.
 - `502` - upstream / gateway-side processing error, including an IdP or Token Service that cannot be reached or answers unreadably. A provider outage is reported as a fault, never counted as a denial.
 
@@ -148,8 +149,9 @@ To gain confidence that IAG is enforcing as expected, deliberately force `NOT_AU
 - **Delete the `CAN_TRIGGER` edge** between the subject and the workflow - AuthZEN says no.
 - **Use a subject whose type is not in `JARVIS_AUTHZEN_SUBJECT_TYPES`** - no policy matches.
 - **With the Token Service: replay an `X-IK-Token` with a different user's access token** - `401 Invalid delegated token, subject mismatch`.
+- **On an `mcp` instance: send `tools/list` without the `Mcp-Protocol-Version` header** - `400` with JSON-RPC error `-32020`, audited as `NOT_AUTHORIZED` with reason `MCP request refused: Header mismatch: Mcp-Protocol-Version header is missing`.
 
-Each should return `403 Forbidden` (or `401` for the token pairing) and produce a `NOT_AUTHORIZED` audit record with a useful `reason`.
+Each should return `403 Forbidden` (or `401` for the token pairing, `400` for the MCP revision check) and produce a `NOT_AUTHORIZED` audit record with a useful `reason`.
 
 ## Outcome
 
@@ -164,7 +166,7 @@ When this skill has been applied successfully:
 
 ## Files in this skill
 
-- [`references/architecture.md`](references/architecture.md) - the nine-step IAG request path, delegation-token delivery (`$token` vs `$ik_token`), multi-hop chains, and the IKG data shape.
+- [`references/architecture.md`](references/architecture.md) - the nine-step IAG request path, delegation-token delivery (`$token` vs `$ik_token`), multi-hop chains, the MCP protocol revisions the gateway forwards, and the IKG data shape.
 - [`references/configuration.md`](references/configuration.md) - every IAG configuration section, field, and default, including `token_service`, health port, cache rules, and audit delivery.
 - [`references/token-service.md`](references/token-service.md) - the IndyKite Token Service: endpoints, configuration (`service.base_url`, `idp`, `token_introspection`), config directory merging, audit decisions, deployment notes.
 - [`references/troubleshooting.md`](references/troubleshooting.md) - common failure modes mapped to fixes.
@@ -184,4 +186,4 @@ This skill uses generic markdown instructions and works across all agents listed
 - [`iag-token-exchange` reference app](https://github.com/indykite/developer-hub/tree/master/a2a/iag-token-exchange) - runs the Token Service setup end to end (`token_service` on every gateway, `X-IK-Token` growing hop by hop).
 - [`canbank` dataset](https://github.com/indykite/developer-hub/tree/master/canbank)
 - [RFC 8693 OAuth 2.0 Token Exchange](https://www.rfc-editor.org/rfc/rfc8693) and [RFC 7662 Token Introspection](https://www.rfc-editor.org/rfc/rfc7662) - the two protocols the Token Service implements.
-- A2A protocol - see the protected agent's vendor docs for the JSON-RPC shape IAG forwards. For MCP, IAG proxies MCP Streamable HTTP (`initialize`, `tools/list`, `tools/call`, …).
+- A2A protocol - see the protected agent's vendor docs for the JSON-RPC shape IAG forwards. For MCP, IAG proxies MCP Streamable HTTP (`initialize`, `tools/list`, `tools/call`, …) on protocol revisions `2025-06-18`, `2025-11-25`, and `2026-07-28`; the stateless `2026-07-28` style is documented in [`indykite-mcp-server`](../indykite-mcp-server/SKILL.md).

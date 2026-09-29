@@ -121,7 +121,26 @@ Inside the `WHERE` clause, reference node attributes with these forms:
 
 ### Partial parameters
 
-A value that varies per request is written `$name` in the `WHERE` clause (e.g. `$max_price`). The evaluation call must supply it under `context.input_params` with the key written **without** the leading `$`. If a policy references a partial parameter and is used in a decision, the request must include it or the call returns an error.
+A value that varies per request is written `$name` in the `WHERE` clause (e.g. `$max_price`). The evaluation call must supply it under `context.input_params` with the key written **without** the leading `$`. If a policy references a partial parameter and is used in a decision, the request must include it or the call returns an error (`422`, `missing or wrong input params, '<name>'`). The two exceptions are the reserved token parameters below.
+
+### Token claims in the condition: `$token` and `$ik_token`
+
+The claim sets of the two request tokens are bound as Cypher parameters, so the `WHERE` clause can compare graph data against a claim directly - `$token.<claim>` for the user (OAuth bearer) token and `$ik_token.<claim>` for the delegation token sent in `X-IK-Token`, with the same dot paths as in [`condition.filter`](#conditionfilter-optional) (`$ik_token.act.sub` = the calling agent, `$ik_token.act.act.sub` = the one before it). This works on `2.0-kbac` and `3.0-kbac`, and on every decision endpoint: evaluation, evaluations, and the resource and action searches.
+
+```cypher
+MATCH (subject:Person)-[:OWNS]->(resource:Car)
+WHERE resource.delegated_to = $ik_token.act.sub AND resource.driver = $token.sub
+```
+
+`token` and `ik_token` are **reserved parameter names**, which changes the partial-parameter rules for them:
+
+- **They are never input parameters.** A policy that references them does not require `context.input_params.token` or `.ik_token` on the request, and a value the caller sends under either name is ignored - the platform always binds the introspected claims. A caller cannot feed a policy a delegation chain of its own making.
+- **An absent token fails closed.** A request without a user token binds `token` to an empty claim set; one without `X-IK-Token` binds `ik_token` empty. `$ik_token.act.sub` then resolves to `null`, the comparison is false, and the decision is `false`. It is a denial, not an error.
+- **Subject search binds both sets empty.** `POST /access/v1/search/subject` carries no user token, so a condition that reads a claim matches no subject there.
+- **Only the exact names are reserved.** A typo such as `$iktoken.act.sub` is an ordinary partial parameter, so the request fails with `422` and `missing or wrong input params, 'iktoken'`. The named parameter points at the typo.
+- **Not for routing.** A `3.0-kbac` policy cannot pass a claim to `USE graph.byName(...)`; creation fails with `graph.byName() cannot take "$token", the platform binds it to the token claims`.
+
+Which token a policy behind the Agent Gateway should read depends on who minted the delegation token - `$token` when the IdP did (it replaces `Authorization`), `$ik_token` when the Token Service did (it travels in `X-IK-Token`); see the [`indykite-agent-gateway`](../../indykite-agent-gateway/references/architecture.md) skill.
 
 ### `$subject_id` and the user token (`2.0-kbac` only)
 
@@ -145,7 +164,7 @@ Each node of the tree is either a **branch** or a **leaf**:
 How `attribute` and `value` entries resolve:
 
 - `"$token.<claim>"` - a claim from the user (OAuth bearer) token, e.g. `"$token.email"`.
-- `"$ik_token.<claim>"` - a claim from the optional **delegation token** sent in the `X-IK-Token` header (minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service) and forwarded by the Agent Gateway). Dot paths walk the RFC 8693 `act` chain: `$ik_token.sub` is the user (always equal to `$token.sub`), `$ik_token.act.sub` the agent making this call, `$ik_token.act.act.sub` the one before it, down to the first agent the user delegated to; each link also carries a `type` (`Agent` by default). A reference to a token that was not sent **fails the filter closed**. The name `ik_token` is reserved: a value sent under `context.input_params.ik_token` is ignored, so a caller cannot feed the policy a chain of its own making.
+- `"$ik_token.<claim>"` - a claim from the optional **delegation token** sent in the `X-IK-Token` header (minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service) and forwarded by the Agent Gateway). Dot paths walk the RFC 8693 `act` chain: `$ik_token.sub` is the user (always equal to `$token.sub`), `$ik_token.act.sub` the agent making this call, `$ik_token.act.act.sub` the one before it, down to the first agent the user delegated to; each link also carries a `type` (`Agent` by default). A reference to a token that was not sent **fails the filter closed**. The names `token` and `ik_token` are reserved: a value sent under `context.input_params.token` or `.ik_token` is ignored, so a caller cannot feed the policy a chain of its own making. The same two references work inside `condition.cypher` - see [Token claims in the condition](#token-claims-in-the-condition-token-and-ik_token).
 - `"$<name>"` - a value from `context.input_params` (key without the `$`); dot paths reach into object params, e.g. `"$order.total"`.
 - Any other JSON value is a literal. `attribute` must be a string (in practice a `$…` reference); `value` can be a scalar or an array.
 - For date/time comparisons, wrap the side in `{ "type": "datetime", "value": "<RFC3339 timestamp or $param>" }`. Plain values need no wrapper.
@@ -172,7 +191,7 @@ Example - the graph relationship must exist **and** the token's plan must be `pr
 }
 ```
 
-Like partial parameters in the Cypher, every `$<name>` the filter references must be supplied in `context.input_params` at decision time, `$token.…` references require the request to carry a user token, and `$ik_token.…` references require it to carry an `X-IK-Token` as well. A filter that pins where a delegation chain started looks like `{ "operator": "=", "attribute": "$ik_token.act.act.sub", "value": "orchestrator" }`.
+Like partial parameters in the Cypher, every `$<name>` the filter references must be supplied in `context.input_params` at decision time - except `token` and `ik_token`, which are never demanded from the caller: a `$token.…` reference on a request without a user token, or a `$ik_token.…` reference on one without `X-IK-Token`, simply evaluates false and denies. A filter that pins where a delegation chain started looks like `{ "operator": "=", "attribute": "$ik_token.act.act.sub", "value": "orchestrator" }`.
 
 ## 3.0-kbac: raw Cypher and location routing
 
@@ -206,7 +225,7 @@ CALL () { USE graph.byName('ikcomposite.db2') MATCH (subject:Person)-[:OWNS]->(r
 
 - The `graph.byName()` argument must be a **string literal or a single parameter** - expressions such as `coalesce($region, 'eu')` are rejected at creation.
 - A location parameter **cannot be referenced anywhere else** in the Cypher: its value is rewritten to the physical alias at request time.
-- `$subject_external_id`, `$subject_type`, `$resource_external_id`, and `$resource_type` are bound by the platform - never supply them in `input_params` and never use them as routing parameters.
+- `$subject_external_id`, `$subject_type`, `$resource_external_id`, and `$resource_type` are bound by the platform - never supply them in `input_params` and never use them as routing parameters. The same goes for `$token` and `$ik_token`: they may be read in the `WHERE` clause, but `USE graph.byName($token)` (or any claim path) fails at creation with `graph.byName() cannot take "$token", the platform binds it to the token claims`.
 - `$subject_id` (available to `2.0-kbac` conditions - see [`$subject_id` and the user token](#subject_id-and-the-user-token-20-kbac-only)) **must not be referenced at all**: on a composite IKG the same logical subject has a different internal node ID per location, so `3.0-kbac` identifies subjects by type and external ID only. Creating a policy that references it fails with `422 Unprocessable Entity` (`parameter "$subject_id" is reserved and cannot be referenced`). No replacement is needed - the platform already pins the subject.
 - **External (resolver-backed) properties cannot be used in the condition**: creating the policy fails with `external properties cannot be used in data-residency policies`. A `2.0-kbac` condition that relies on them cannot be carried over to `3.0-kbac`.
 - Mutating clauses (`CREATE`, `MERGE`, `SET`, `DELETE`, …) and a top-level `RETURN` remain blocked, exactly as in `2.0-kbac`.

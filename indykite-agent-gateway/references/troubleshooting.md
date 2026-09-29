@@ -61,6 +61,20 @@ A symptom-first map from observable failure to most likely cause. Walk it top-to
 | Image too old for MCP proxying                        | Gateway behaves as A2A proxy / ignores `JARVIS_PROTECTED_AGENT_PROTOCOL`.          | Pin `indykite/agent-gateway` ≥ `2.0.1`.                            |
 | To isolate the gateway                                | Point the agent's `MCP_SERVER_URL` back at the direct MCP server URL.             | If it works direct, the failure is auth/config on the MCP instance. |
 
+## Symptom: `400` / `413` / `415` with a JSON-RPC error body on MCP calls (`protocol: mcp` instance)
+
+The gateway forwards only MCP protocol revisions `2025-06-18`, `2025-11-25`, and `2026-07-28`, and refuses the request itself, before authorization, when the revision rules are not met. The audit record is `NOT_AUTHORIZED` with `reason` = `MCP request refused: <message>`; the downstream never saw the request.
+
+| Likely cause                                          | How to verify                                                                     | Fix                                                                 |
+|-------------------------------------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| Client sends no `Mcp-Protocol-Version` after `initialize` | `400`, JSON-RPC `-32020`, `Header mismatch: Mcp-Protocol-Version header is missing`. Older MCP client libraries only send the header on some calls. | Send `Mcp-Protocol-Version: <negotiated revision>` on every request (next to `Mcp-Session-Id` for session-based clients). |
+| Client names a revision the gateway does not forward  | `400`, JSON-RPC `-32022`, `error.data.requested` shows what was sent, `error.data.supported` the three revisions. | Use one of the supported revisions; prefer the stateless `2026-07-28` when the server speaks it. |
+| Handshake succeeded, but every later call is `-32022` | The downstream server answered `initialize` with a revision the gateway does not support (the gateway checks requests only). | Upgrade or configure the MCP server to speak `2025-06-18`, `2025-11-25`, or `2026-07-28`. |
+| Client sends a JSON-RPC batch                         | `400`, `-32600`, `Invalid Request: JSON-RPC batching is not supported`.           | Send one JSON-RPC message per request.                              |
+| Client compresses the body                            | `415`, `-32600`, `Invalid Request: content coding gzip is not supported`.         | Send the body with `Content-Encoding: identity` (or no header).     |
+| Body over 4 MiB                                       | `413`, `-32600`.                                                                  | Reduce the payload; the gateway forwards at most 4 MiB per request. |
+| `initialize` with an old revision (e.g. `2025-03-26`) "changes" the version | The gateway rewrote `protocolVersion` to `2025-11-25` and the server offered it. | Expected; make the client accept `2025-11-25`, or switch to `2026-07-28`. |
+
 ## Symptom: gateway fails to start
 
 | Message                                               | Cause                                                                             | Fix                                                                 |

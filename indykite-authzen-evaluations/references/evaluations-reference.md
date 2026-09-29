@@ -57,6 +57,23 @@ Response — one decision per entry, in request order:
 - `action.name` must match a policy's `actions` exactly (case-sensitive).
 - `context.input_params` supplies every `$name` partial parameter the conditions reference (keys without the `$`); values are typed (numbers stay numbers).
 
+## Location-routed policies (`3.0-kbac`)
+
+Batch evaluation reads `2.0-kbac` and `3.0-kbac` policies alike. When a `3.0-kbac` policy routes on a composite IKG with `USE graph.byName($region)`, the **logical location** (a key of the project's `alias_mapping`, e.g. `"east"`) is passed under `context.input_params` exactly like any other partial parameter - in the top-level default `context`, or per entry, since each entry's location is resolved on its own. That lets one batch test the same triple in several locations:
+
+```json
+{
+  "subject": { "type": "Person", "id": "person-alice" },
+  "action":  { "name": "CAN_DRIVE" },
+  "evaluations": [
+    { "resource": { "type": "Car", "id": "car-kitt" }, "context": { "input_params": { "region": "east" } } },
+    { "resource": { "type": "Car", "id": "car-kitt" }, "context": { "input_params": { "region": "west" } } }
+  ]
+}
+```
+
+An entry routed to a constituent that does not hold the subject or resource node comes back `decision: false` - a normal denial. A location that is missing, empty, not a string, or not a key of `alias_mapping`, or `USE` routing on a project without a composite database, surfaces the way a missing partial parameter does (next section): the call stays `200` and the entry carries `decision: false` with a `context.reason` that quotes the same message the single endpoint returns as a `422` (`unknown location "mars" for parameter "$region"`, `location parameter "$region" must be a non-empty string`, `… requires a composite database, but the app space has none configured`). A user token on the request whose identity differs from an entry's `subject` fails that entry the same way, with the message `bearer token subject differs from requested subject` (a `403` on the single endpoint). Only the `missing or wrong input params` reason is known to carry the `invalid_argument:` prefix shown below; match on the message, not the prefix. Policy authoring for `3.0-kbac` is in [`indykite-authzen-kbac-policies`](../../indykite-authzen-kbac-policies/references/policy-reference.md#30-kbac-raw-cypher-and-location-routing); the single-decision view of the same rules in the [evaluation reference](../../indykite-authzen-evaluation/references/evaluation-reference.md#location-routed-policies-30-kbac).
+
 ## Missing input_params behaves differently from single evaluation
 
 A single `/evaluation` call that omits a required partial parameter returns **`422`** with `errors: ["missing or wrong input params, 'max_price'"]`.
