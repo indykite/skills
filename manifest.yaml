@@ -20,7 +20,7 @@ common:
     runtime listing of a project's active KBAC policies, Capture API ingests and deletes (nodes, relationships, properties,
     property metadata), IKG data-schema reads, ContX IQ policies / Knowledge Queries / executes
     (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete),
-    ContX IQ whoami (resolve an end-user token to its IKG subject), and tamper-proof audit log reads and verification.
+    ContX IQ whoami (resolve an end-user token to its IKG subject), and tamper-proof audit log reads and exports.
   author:
     name: IndyKite
     email: support@indykite.com
@@ -84,6 +84,12 @@ config:
       User OAuth access token. Required for Person-subject CIQ flows, for ContX IQ whoami, and for MCP session initialisation;
       omit for _Application-subject flows.
     sensitive: true
+  IK_TOKEN:
+    title: Delegation token (X-IK-Token)
+    description: >-
+      Optional delegation token minted by the IndyKite Token Service and forwarded by the Agent Gateway on multi-hop workflows.
+      Goes into the X-IK-Token header next to the user token; only needed to exercise policies that read $ik_token.
+    sensitive: true
   SERVICE_ACCOUNT_TOKEN:
     title: Service Account token
     description: >-
@@ -99,7 +105,8 @@ config:
   PROJECT_GID:
     title: Project GID
     description: >-
-      IndyKite project identifier. Visible in the Hub UI on the project settings page; required by indykite-mcp-server for the URL path.
+      IndyKite project identifier. Visible in the Hub UI on the project settings page; required by indykite-mcp-server for the URL path
+      and by indykite-audit-logs as the project_id query parameter.
     sensitive: false
 # Gemini CLI uses a single context file alongside the skills. Point it at the
 # repo README so a Gemini user sees the overview when the extension loads.

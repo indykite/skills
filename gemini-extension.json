@@ -1,7 +1,7 @@
 {
   "name": "indykite-skills",
   "version": "1.0.0",
-  "description": "IndyKite skills for coding agents \u2014 Agent Gateway deployment, MCP server calls, KBAC authorization policy authoring and lifecycle, AuthZEN decisions and search (single evaluation, batch evaluations, action / resource / subject search), runtime listing of a project's active KBAC policies, Capture API ingests and deletes (nodes, relationships, properties, property metadata), IKG data-schema reads, ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete), ContX IQ whoami (resolve an end-user token to its IKG subject), and tamper-proof audit log reads and verification.",
+  "description": "IndyKite skills for coding agents \u2014 Agent Gateway deployment, MCP server calls, KBAC authorization policy authoring and lifecycle, AuthZEN decisions and search (single evaluation, batch evaluations, action / resource / subject search), runtime listing of a project's active KBAC policies, Capture API ingests and deletes (nodes, relationships, properties, property metadata), IKG data-schema reads, ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete), ContX IQ whoami (resolve an end-user token to its IKG subject), and tamper-proof audit log reads and exports.",
   "contextFileName": "README.md",
   "settings": [
     {
@@ -20,6 +20,11 @@
       "envVar": "BEARER_TOKEN"
     },
     {
+      "name": "Delegation token (X-IK-Token)",
+      "description": "Optional delegation token minted by the IndyKite Token Service and forwarded by the Agent Gateway on multi-hop workflows. Goes into the X-IK-Token header next to the user token; only needed to exercise policies that read $ik_token.",
+      "envVar": "IK_TOKEN"
+    },
+    {
       "name": "Service Account token",
       "description": "Token with Config API write access. Used to create CIQ policies and Knowledge Queries (POST /configs/v1/authorization-policies and POST /configs/v1/knowledge-queries). Not required to execute existing Knowledge Queries.",
       "envVar": "SERVICE_ACCOUNT_TOKEN"
@@ -31,7 +36,7 @@
     },
     {
       "name": "Project GID",
-      "description": "IndyKite project identifier. Visible in the Hub UI on the project settings page; required by indykite-mcp-server for the URL path.",
+      "description": "IndyKite project identifier. Visible in the Hub UI on the project settings page; required by indykite-mcp-server for the URL path and by indykite-audit-logs as the project_id query parameter.",
       "envVar": "PROJECT_GID"
     }
   ]

@@ -62,7 +62,7 @@ Each row is one skill — what it does and a representative prompt it's *designe
 | [`indykite-ciq-add-property`](indykite-ciq-add-property/SKILL.md) | Author a CIQ policy + Knowledge Query that sets one or more properties on an existing node. | "Let a `Person` update their own `music_mood` property." |
 | [`indykite-ciq-add-relationship-property`](indykite-ciq-add-relationship-property/SKILL.md) | Author a CIQ policy + Knowledge Query that sets one or more properties on an existing relationship. | "Annotate an existing `PLAYED_AT` relationship with a `verified` flag and timestamp." |
 | [`indykite-ciq-delete`](indykite-ciq-delete/SKILL.md) | Author a CIQ policy + Knowledge Query that deletes a node, a relationship, or one or more properties. | "Clear the `music_mood` property from a `Person` — GDPR-style erase." |
-| [`indykite-audit-logs`](indykite-audit-logs/SKILL.md) | Read and verify a project's tamper-proof audit trail (`GET /audit/v1/logs`, `/manifests`, `/checkpoints`, public JWKS) - export the signed event batches and prove offline that the chain was not altered or truncated (`Audit` permission). | "Export last week's audit events and verify the chain has not been tampered with." |
+| [`indykite-audit-logs`](indykite-audit-logs/SKILL.md) | Read and export a project's tamper-proof audit trail (`GET /audit/v1/logs`, `/manifests`, `/checkpoints`, public JWKS) - the signed event batches, the manifests that link them, and the keys that signed them (`Audit` permission). | "Export last week's audit events together with the chain manifests and signing keys." |
 
 ## Install
 

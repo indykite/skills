@@ -65,6 +65,12 @@ if [[ -n "${BEARER_TOKEN:-}" ]]; then
 fi
 
 if [[ -n "${IK_TOKEN:-}" ]]; then
+    # X-IK-Token is an addition to the user token: the API pairs the two by subject and
+    # rejects a delegation token sent on its own.
+    if [[ -z "${BEARER_TOKEN:-}" ]]; then
+        printf "%s: IK_TOKEN requires BEARER_TOKEN\n" "${0##*/}" >&2
+        exit 2
+    fi
     args+=(-H "X-IK-Token: ${IK_TOKEN}")
 fi
 
