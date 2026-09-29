@@ -178,10 +178,17 @@ while :; do
     fi
     seen["_${next}"]=1
     build_args "${next}"
-    # On an HTTP error the API's JSON error body goes to stderr and the export stops,
-    # rather than being swallowed into the page buffer.
-    if ! page="$(curl --fail-with-body "${args[@]}")"; then
-        printf '%s: page request failed: %s\n' "${0##*/}" "${page}" >&2
+    # The HTTP status is appended to the body on its own line with -w, which every curl
+    # version supports. On an error status the API's JSON error body goes to stderr and
+    # the export stops, rather than being taken for a page.
+    if ! response="$(curl "${args[@]}" -w $'\n%{http_code}')"; then
+        printf '%s: page request failed (curl could not complete the request)\n' "${0##*/}" >&2
+        exit 1
+    fi
+    status="${response##*$'\n'}"
+    page="${response%$'\n'*}"
+    if [[ ! "${status}" =~ ^2[0-9][0-9]$ ]]; then
+        printf '%s: page request failed with HTTP %s: %s\n' "${0##*/}" "${status}" "${page:0:300}" >&2
         exit 1
     fi
     # Types matter, not just key presence: a page with "has_more": null would otherwise
