@@ -71,6 +71,8 @@ The request style is selected by the protocol revision the client sends:
 
 Both styles authenticate the same way (Bearer token) and expose the same tools and resources. The supported revisions can be queried at runtime with the stateless `server/discover` method.
 
+When the server sits behind an IndyKite Agent Gateway in `protocol: mcp` mode (see [`indykite-agent-gateway`](../../indykite-agent-gateway/references/architecture.md#mcp-protocol-revisions)), the gateway forwards only revisions `2025-06-18`, `2025-11-25`, and `2026-07-28`, whatever `server/discover` lists. It rewrites an `initialize` naming any other revision to `2025-11-25`, and refuses every non-`initialize` request that lacks `Mcp-Protocol-Version` (`400`, `-32020`) or names another revision (`400`, `-32022`), as well as JSON-RPC batches and compressed bodies. The stateless `2026-07-28` requests this skill sends already satisfy all of that.
+
 ## Stateless protocol (revision 2026-07-28)
 
 Every request is self-contained. It must carry:

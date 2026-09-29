@@ -9,6 +9,7 @@
 # Optional env vars:
 #   BEARER_TOKEN  User OAuth access token. Required when the policy's
 #                 subject.type is NOT _Application; omit otherwise.
+#   IK_TOKEN      Delegation token from the Token Service (X-IK-Token). Optional.
 #
 # Arguments:
 #   $1            Path to a JSON file containing input_params, e.g.
@@ -58,9 +59,20 @@ if [[ -n "${BEARER_TOKEN:-}" ]]; then
     args+=(-H "Authorization: Bearer ${BEARER_TOKEN}")
 fi
 
+if [[ -n "${IK_TOKEN:-}" ]]; then
+    args+=(-H "X-IK-Token: ${IK_TOKEN}")
+fi
+
 if [[ "${print_only}" == "1" ]]; then
     printf 'curl'
     for a in "${args[@]}"; do
+        # --print shows placeholders instead of header values.
+        case "${a}" in
+        "X-IK-ClientKey: "*) a="X-IK-ClientKey: \$API_KEY" ;;
+        "Authorization: Bearer "*) a="Authorization: Bearer \$BEARER_TOKEN" ;;
+        "X-IK-Token: "*) a="X-IK-Token: \$IK_TOKEN" ;;
+        *) ;;
+        esac
         printf ' %q' "${a}"
     done
     printf '\n'

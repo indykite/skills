@@ -16,7 +16,7 @@ GET https://us.api.indykite.com/access/v1/policies
 - **Auth**: the AppAgent credential in the `X-IK-ClientKey` header, passed as is, without any prefix. No user bearer token is involved, and none is needed. Which credential goes in which header is documented in the [Credentials guide](https://developer.indykite.com/guides/guide-credentials).
 - **Permission**: the AppAgent must hold the **`ReadAuthZConfigs`** API permission. This permission gates this endpoint and nothing else. It is independent of `Authorization`: an agent with `Authorization` alone is refused here with `401`, and an agent with `ReadAuthZConfigs` alone can read the rules but cannot evaluate them.
 - **Granting it**: add `"ReadAuthZConfigs"` to the agent's `api_permissions` when creating it (`POST /configs/v1/application-agents`) or by updating it (`PUT /configs/v1/application-agents/{id}` with the full list), both with a Service Account token; or in the Hub UI. Permissions are per agent and are never granted to existing agents automatically.
-- **Accepted values**: `api_permissions` takes `Authorization`, `Capture`, `ContXIQ`, `EntityMatching`, `ReadAuthZConfigs`, `ReadDataSchema` - see the [Environment guide](https://developer.indykite.com/guides/guide-environment).
+- **Accepted values**: `api_permissions` takes `Authorization`, `Capture`, `ContXIQ`, `EntityMatching`, `ReadAuthZConfigs`, `ReadDataSchema`, `Audit` - see the [Environment guide](https://developer.indykite.com/guides/guide-environment).
 
 ## Query parameter
 

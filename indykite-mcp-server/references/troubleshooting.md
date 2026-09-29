@@ -72,6 +72,7 @@ The request asked for a protocol revision the server does not support. The error
 | Likely cause                                          | How to verify                                                                  | Fix                                                                  |
 |-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
 | Typo or future/unknown revision in `_meta` / `Mcp-Protocol-Version` | Compare against `data.supported` in the error, or call `server/discover`. | Send a supported revision, normally `2026-07-28`.                     |
+| Request goes through an Agent Gateway (`protocol: mcp`) that forwards only `2025-06-18`, `2025-11-25`, `2026-07-28` | `data.supported` lists exactly those three; the gateway's audit shows `NOT_AUTHORIZED` with `MCP request refused: …`. A missing header is `-32020` instead. | Send `Mcp-Protocol-Version: 2026-07-28` on every request; see the [`indykite-agent-gateway`](../../indykite-agent-gateway/references/troubleshooting.md) troubleshooting. |
 
 ## Symptom (legacy sessions): every call after `initialize` is rejected
 

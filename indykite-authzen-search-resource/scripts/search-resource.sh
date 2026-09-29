@@ -9,6 +9,7 @@
 #
 # Optional env vars:
 #   BEARER_TOKEN  User OAuth access token. Optional - applies only in some cases.
+#   IK_TOKEN      Delegation token from the Token Service (X-IK-Token). Optional.
 #
 # Arguments:
 #   $1            Path to a JSON file with the search request body
@@ -76,13 +77,18 @@ if [[ -n "${BEARER_TOKEN:-}" ]]; then
     args+=(-H "Authorization: Bearer ${BEARER_TOKEN}")
 fi
 
+if [[ -n "${IK_TOKEN:-}" ]]; then
+    args+=(-H "X-IK-Token: ${IK_TOKEN}")
+fi
+
 if [[ "${print_only}" == "1" ]]; then
     printf 'curl'
     for a in "${args[@]}"; do
-        # Redact credential values so --print never emits a live token.
+        # --print shows placeholders instead of header values.
         case "${a}" in
         "X-IK-ClientKey: "*) a="X-IK-ClientKey: \$API_KEY" ;;
         "Authorization: Bearer "*) a="Authorization: Bearer \$BEARER_TOKEN" ;;
+        "X-IK-Token: "*) a="X-IK-Token: \$IK_TOKEN" ;;
         *) ;;
         esac
         printf ' %q' "${a}"

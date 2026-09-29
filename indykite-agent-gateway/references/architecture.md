@@ -77,9 +77,10 @@ The Token Service keeps no record of the tokens it issued: introspection re-vali
 | Code | Meaning                                                                                  |
 |------|------------------------------------------------------------------------------------------|
 | 200  | Authorized - request forwarded, response returned, audit `AUTHORIZED`.                   |
-| 400  | Bad request - content cannot be processed.                                               |
+| 400  | Bad request - content cannot be processed. In `mcp` mode: a JSON-RPC error body for a missing `Mcp-Protocol-Version` header (`-32020`), an unsupported revision (`-32022`), a JSON-RPC batch (`-32600`), or a body that cannot be read (`-32700`) - see [MCP protocol revisions](#mcp-protocol-revisions). |
 | 401  | Unauthorized - IAG cannot identify the caller: `Missing bearer token`, introspection says inactive, `Invalid token, missing subject`, `Invalid token, missing act claim`, or an incoming `X-IK-Token` that is invalid or not paired with the access token (`Invalid delegated token, …`). |
 | 403  | Forbidden - caller is authenticated but not allowed (subject, chain, or both): `Authorization check failed`. |
+| 413 / 415 | `mcp` mode only - body over 4 MiB (`413`) or a `Content-Encoding` other than `identity` (`415`); JSON-RPC error `-32600`. |
 | 500  | Internal error - unexpected internal failure.                                            |
 | 502  | Bad gateway - upstream or gateway-side processing issue (IdP / Token Service unreachable or answering unreadably, protected agent unreachable, etc.). |
 
@@ -92,13 +93,32 @@ The same nine-step authorization path runs regardless of what IAG protects - onl
 - **`a2a`** (default) - IAG parses the A2A JSON-RPC method and forwards via the A2A gateway (the methods listed under *Supported endpoints* below).
 - **`mcp`** - IAG proxies MCP **Streamable HTTP** JSON-RPC (`initialize`, `notifications/initialized`, `tools/list`, `tools/call`) to a downstream MCP server. It is a transparent pass-through: the `Mcp-Session-Id` header is forwarded in both directions and SSE response bodies are streamed through without being cut off. IAG mints its own token for the downstream MCP server, so the request is forwarded with the delegation token attached. `base_url` is the MCP server **origin only** - the incoming request path/query is appended on top. Requires the gateway image ≥ 2.0.1.
 
-Steps 1–7 and 9 (introspect, exchange, ContX IQ, AuthZEN `CAN_TRIGGER`, chain check, audit) are identical for both protocols. An MCP server is gated exactly like an A2A agent.
+Steps 1–7 and 9 (introspect, exchange, ContX IQ, AuthZEN `CAN_TRIGGER`, chain check, audit) are identical for both protocols. An MCP server is gated exactly like an A2A agent. In `mcp` mode one extra check runs between step 2 and step 5: the protocol revision check below.
+
+## MCP protocol revisions
+
+In front of an MCP server the gateway forwards only the MCP protocol revisions **`2025-06-18`**, **`2025-11-25`**, and **`2026-07-28`**. The check runs after token introspection (step 2) and before authorization (steps 5-7), so an invalid token still gets `401` first, and a refused request never costs a ContX IQ or AuthZEN call. It reads the body only far enough to enforce these rules; it does not authorize by MCP payload or per tool. The rules are those the `2026-07-28` revision defines for the `Mcp-Protocol-Version` header:
+
+| Request                                                        | Gateway behaviour                                                                                                       |
+|----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| `initialize` naming a supported revision                       | Forwarded unchanged.                                                                                                    |
+| `initialize` naming any other revision (e.g. `2025-03-26`)     | Forwarded with `params.protocolVersion` rewritten to `2025-11-25`, the newest revision a handshake can agree on. The server then offers that revision; a client that does not speak it disconnects. An `initialize` with no readable `protocolVersion` is forwarded as is, for the server to reject. |
+| Any other request without `Mcp-Protocol-Version` - including a `GET` stream or a `DELETE` session teardown, which carry no body | `400`, JSON-RPC error `-32020`, `Header mismatch: Mcp-Protocol-Version header is missing`. |
+| Any request with an unsupported `Mcp-Protocol-Version` header - even an `initialize`; only the body's `protocolVersion` is rewritten, never the header | `400`, JSON-RPC error `-32022`, `Unsupported protocol version`; `error.data.supported` lists the three revisions and `error.data.requested` echoes the header. |
+| JSON-RPC batch (body is a JSON array)                          | `400`, `-32600`, `Invalid Request: JSON-RPC batching is not supported`.                                                 |
+| `Content-Encoding` other than `identity`                       | `415`, `-32600`, `Invalid Request: content coding <coding> is not supported`.                                            |
+| Body over 4 MiB                                                | `413`, `-32600`.                                                                                                        |
+| Body that cannot be read to the end                            | `400`, `-32700`, `Parse error`.                                                                                         |
+
+A refused request is never forwarded and is audited as `NOT_AUTHORIZED` with `reason` = `MCP request refused: <error message>`. The error body is a JSON-RPC response under the request's `id` when the body was parsed (missing or unsupported header); it has no `id` when it was not (batch, unsupported encoding, oversized or unreadable body).
+
+The gateway checks requests only. If the downstream server answers an `initialize` with a revision the gateway does not support, the handshake succeeds and every later request is refused with `-32022` - so the MCP server behind the gateway must support at least one of the three revisions. A server that speaks `2026-07-28` needs no handshake at all: clients use `server/discover` and self-contained requests, the style the [`indykite-mcp-server`](../../indykite-mcp-server/SKILL.md) skill uses. A session-based client (`2025-06-18` / `2025-11-25`) must send `Mcp-Protocol-Version` on every request after `initialize`, next to `Mcp-Session-Id`.
 
 ## Supported endpoints
 
 For an A2A agent (`protocol: a2a`), the gateway accepts any path and routes JSON-RPC by method (A2A v1.0): `SendMessage`, `SendStreamingMessage` (answered as `text/event-stream` SSE frames), `GetTask`, `ListTasks`, `CancelTask`, `SubscribeToTask`, `GetExtendedAgentCard`, and the push-notification config methods (`CreateTaskPushNotificationConfig`, `GetTaskPushNotificationConfig`, `ListTaskPushNotificationConfigs`, `DeleteTaskPushNotificationConfig`). The REST-style aliases `POST /v1/message:send`, `/v1/message/send`, `/v1/tasks:get`, `/v1/tasks/get` are still served.
 
-For an MCP server (`protocol: mcp`), IAG accepts MCP Streamable HTTP JSON-RPC on any path and forwards it unchanged (`initialize`, `notifications/initialized`, `tools/list`, `tools/call`, …).
+For an MCP server (`protocol: mcp`), IAG accepts MCP Streamable HTTP JSON-RPC on any path and forwards it (`initialize`, `notifications/initialized`, `tools/list`, `tools/call`, …), provided the request is on a supported protocol revision - see [MCP protocol revisions](#mcp-protocol-revisions). Apart from the `initialize` revision rewrite, the payload is forwarded unchanged.
 
 Health: `GET /healthz`, `/readyz`, `/startupz` on `service.healthcheck_port` (default `9080`), separate from the request port.
 
@@ -127,3 +147,5 @@ Any chain that skips the orchestrator (e.g. `chatbot -> retriever`) or adds an a
 - **`subject_types` mismatch** - if the caller's type is not listed in `JARVIS_AUTHZEN_SUBJECT_TYPES`, no policy matches and the call is denied.
 - **Policy reads the wrong token** - `$token` with a Token Service, or `$ik_token` without one, resolves to nothing and denies.
 - **Second hop refused with no Token Service** - on an IdP alone the chain restarts from the user's access token on every hop; configure `token_service` on every gateway of the workflow.
+- **MCP client omits `Mcp-Protocol-Version` after `initialize`** - every request after the handshake is refused with `400` / `-32020` before authorization runs; send the negotiated revision on every call.
+- **MCP server negotiates a revision the gateway does not forward** - the handshake succeeds and every later request is refused with `-32022`; the server must speak `2025-06-18`, `2025-11-25`, or `2026-07-28`.

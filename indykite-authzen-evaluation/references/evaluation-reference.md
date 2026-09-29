@@ -16,7 +16,7 @@ Every call authenticates the **application making the decision request** via its
 
 The subject being evaluated is identified by the request's `subject.id` (matched to the node `external_id`), not by the caller's credentials.
 
-A request that already carries a user token may also carry an optional **delegation token** in the `X-IK-Token` header (as is, no prefix), minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service) and forwarded by the Agent Gateway. It never replaces the user token: `Authorization: Bearer` still identifies the subject, and the delegation token adds the chain of agents acting on that subject's behalf. The platform validates it through the project's Token Introspect configurations exactly like the user token, requires its `sub` to equal the user token's `sub`, and exposes its claims to the policy as `$ik_token` (`$ik_token.act.sub` = the calling agent, `$ik_token.act.act.sub` = the one before it). The name `ik_token` is reserved in `context.input_params` and ignored there.
+A request that already carries a user token may also carry an optional **delegation token** in the `X-IK-Token` header (as is, no prefix), minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service) and forwarded by the Agent Gateway. It never replaces the user token: `Authorization: Bearer` still identifies the subject, and the delegation token adds the chain of agents acting on that subject's behalf. The platform validates it through the project's Token Introspect configurations exactly like the user token, requires its `sub` to equal the user token's `sub`, and exposes its claims to the policy as `$ik_token` (`$ik_token.act.sub` = the calling agent, `$ik_token.act.act.sub` = the one before it), both in `condition.filter` and inside `condition.cypher`; the user token's claims are `$token.<claim>` the same way. The names `token` and `ik_token` are reserved in `context.input_params`: never required there, and ignored if sent. A policy that reads a token the request did not carry compares against `null` and returns `decision: false` - a denial, not an error; only a misspelt prefix (e.g. `$iktoken.act.sub`) is treated as an ordinary input param and fails with `422` `missing or wrong input params, 'iktoken'`. The helper scripts of this skill and of the batch and search skills forward the delegation token when the `IK_TOKEN` environment variable is set, next to `BEARER_TOKEN`.
 
 (Policy *creation* is a separate operation with its own auth - a Service Account token; see [`indykite-authzen-kbac-policies`](../../indykite-authzen-kbac-policies/SKILL.md) and its [`policy-reference.md`](../../indykite-authzen-kbac-policies/references/policy-reference.md).)
 
@@ -52,6 +52,31 @@ Response:
 
 `true` = at least one ACTIVE policy granted the triple and its condition held. `false` = nothing granted it.
 
+## Location-routed policies (`3.0-kbac`)
+
+The decision endpoints evaluate both KBAC policy versions the same way; a caller cannot tell from the request which version matched. The one thing a `3.0-kbac` policy can add is **location routing** on a composite IKG (data residency): a condition that starts with `USE graph.byName($region)` turns `region` into a **location parameter**, and the request supplies the **logical location** - a key of the project's `alias_mapping`, e.g. `"east"` - under `context.input_params` like any other partial parameter. No new endpoint or field is involved, and the caller never sees or supplies a physical database name:
+
+```json
+{
+  "subject":  { "type": "Person", "id": "person-alice" },
+  "resource": { "type": "Car",    "id": "car-kitt" },
+  "action":   { "name": "CAN_DRIVE" },
+  "context":  { "input_params": { "region": "east" } }
+}
+```
+
+The location physically routes the query: the same request with `"region": "west"` returns `decision: false` when the subject or resource node is not stored in that constituent. That is a normal denial, not an error. Rules that differ from a `2.0-kbac` decision:
+
+| Situation                                                                                     | Result                                                                                                   |
+|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| Location parameter missing from `context.input_params`, empty, or not a string                | `422`, `location parameter "$region" must be a non-empty string`                                         |
+| Location is not a key of the project's `alias_mapping`                                        | `422`, `unknown location "mars" for parameter "$region"` (the error never names a physical database)     |
+| Policy routes with `USE` but the project has no composite database                            | `422` - `location parameter "$region" requires a composite database, but the app space has none configured` for a parameterised `USE`, `policy requires a composite database, but the app space has none configured` for a static one |
+| Request carries a user (bearer) token whose subject differs from the request's `subject`       | `403 Forbidden`, `bearer token subject differs from requested subject`. A `2.0-kbac` policy pins the subject inside the query and returns `false` instead. |
+| Subject node was not ingested with `is_identity: true`                                        | Matches anyway - `3.0-kbac` pins the subject by type and `external_id` only (`2.0-kbac` returns `false`) |
+
+A `3.0-kbac` policy without a `USE` clause needs no composite database and no location parameter; it is plain raw Cypher against the default database and behaves like the examples above. Authoring the policy - routing forms, `CALL { }` subqueries, what is rejected at creation - is covered in [`indykite-authzen-kbac-policies`](../../indykite-authzen-kbac-policies/references/policy-reference.md#30-kbac-raw-cypher-and-location-routing); the project setup (constituent databases, `alias_mapping`) in the [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency).
+
 ## Beyond a single decision
 
 This reference covers the single `/evaluation` endpoint. The same policy is evaluated by sibling endpoints, each with its own skill:
@@ -63,7 +88,7 @@ This reference covers the single `/evaluation` endpoint. The same policy is eval
 | Resources a subject may act on, given an action     | `/access/v1/search/resource`   | [`indykite-authzen-search-resource`](../../indykite-authzen-search-resource/SKILL.md) |
 | Subjects allowed an action on a resource            | `/access/v1/search/subject`    | [`indykite-authzen-search-subject`](../../indykite-authzen-search-subject/SKILL.md)  |
 
-All of them authenticate the same way (AppAgent credentials, optional user token) and read the same `2.0-kbac` policies authored via [`indykite-authzen-kbac-policies`](../../indykite-authzen-kbac-policies/SKILL.md).
+All of them authenticate the same way (AppAgent credentials, optional user token), accept location parameters the same way, and read the same `2.0-kbac` and `3.0-kbac` policies authored via [`indykite-authzen-kbac-policies`](../../indykite-authzen-kbac-policies/SKILL.md).
 
 ## Error semantics
 
@@ -71,6 +96,8 @@ All of them authenticate the same way (AppAgent credentials, optional user token
 |--------------------|---------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
 | `200` + `decision:false` | Request well-formed but no policy granted the triple, or the condition did not hold. | Walk the [troubleshooting checklist](troubleshooting.md). This is **not** an error. |
 | `422 Unprocessable Entity` | `input_params` missing a parameter the condition requires - body carries `errors: ["missing or wrong input params, '<name>'"]`. | Supply every `$name` the policy references. (In a *batch* call this instead surfaces per-entry as `decision:false` + `context.reason`.) |
+| `422` + `location parameter "$<name>" must be a non-empty string` / `unknown location "<value>" for parameter "$<name>"` / `location parameter "$<name>" requires a composite database, …` / `policy requires a composite database, but the app space has none configured` | A `3.0-kbac` policy routes by location and the request's location is missing, malformed, unknown, or the project has no composite database. | Pass a key of the project's `alias_mapping` as a string under `context.input_params` - see [Location-routed policies](#location-routed-policies-30-kbac). |
+| `403 Forbidden` + `bearer token subject differs from requested subject` | A `3.0-kbac` policy matched and the user token on the request belongs to a different identity than `subject`. | Send the token of the subject being evaluated, or drop the user token and decide with the AppAgent credentials alone. |
 | `400 Bad Request`  | Malformed JSON or a missing required field.                                            | Fix the request body.                                                                |
 | `401 Unauthorized` | Invalid AppAgent credentials, or an invalid user token when one is supplied. | Refresh the AppAgent credentials; if a user token is required, ensure it is valid. |
 | `401` + `{"message": "Invalid token in X-IK-Token header"}` | The delegation token is expired, not signed by a trusted issuer, or matches no Token Introspect configuration. | Create a Token Introspect configuration for the Token Service issuer + audience, or mint a fresh delegation token. |

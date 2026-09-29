@@ -67,7 +67,7 @@ Pin the three parts of the question, plus any per-request values:
 }
 ```
 
-Supply `context.input_params` only when the matched policy's condition references a `$name` partial parameter; write each key **without** the leading `$`, keeping its type (numbers stay numbers). A ready body: [`assets/evaluation-provision-server.json`](assets/evaluation-provision-server.json).
+Supply `context.input_params` only when the matched policy's condition references a `$name` partial parameter; write each key **without** the leading `$`, keeping its type (numbers stay numbers). A location-routed `3.0-kbac` policy (`USE graph.byName($region)` on a composite IKG) takes its **logical location** the same way - `{ "region": "east" }`, a key of the project's `alias_mapping`, never a database name; a missing or unknown location is a `422`, and a user token for a different identity than `subject` is a `403` (see [`references/evaluation-reference.md`](references/evaluation-reference.md#location-routed-policies-30-kbac)). A ready body: [`assets/evaluation-provision-server.json`](assets/evaluation-provision-server.json).
 
 ### 3. Send the decision request
 

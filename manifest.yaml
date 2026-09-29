@@ -20,7 +20,7 @@ common:
     runtime listing of a project's active KBAC policies, Capture API ingests and deletes (nodes, relationships, properties,
     property metadata), IKG data-schema reads, ContX IQ policies / Knowledge Queries / executes
     (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete),
-    and ContX IQ whoami (resolve an end-user token to its IKG subject).
+    ContX IQ whoami (resolve an end-user token to its IKG subject), and tamper-proof audit log reads and verification.
   author:
     name: IndyKite
     email: support@indykite.com
@@ -36,6 +36,7 @@ common:
     - kbac
     - contxiq
     - ikg
+    - audit
 skills:
   - indykite-agent-gateway
   - indykite-mcp-server
@@ -62,6 +63,7 @@ skills:
   - indykite-ciq-add-property
   - indykite-ciq-add-relationship-property
   - indykite-ciq-delete
+  - indykite-audit-logs
 # User-supplied configuration values. Each agent renders these in its own
 # dialect (Claude Code asks at install time with the `sensitive` flag honoured;
 # Gemini exposes them as env vars to mint at runtime).

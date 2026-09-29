@@ -78,7 +78,7 @@ args=(
 if [[ "${print_only}" == "1" ]]; then
     printf 'curl'
     for a in "${args[@]}"; do
-        # Redact the credential value so --print never emits a live token.
+        # --print shows placeholders instead of header values.
         case "${a}" in
         "Authorization: Bearer "*) a="Authorization: Bearer \$SERVICE_ACCOUNT_TOKEN" ;;
         *) ;;

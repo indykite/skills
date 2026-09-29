@@ -185,6 +185,7 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
     fi
     export QUERY_ID="dummy-kq-gid"
     export BEARER_TOKEN="DUMMY_USER_TOKEN"
+    export IK_TOKEN="DUMMY_DELEGATION_TOKEN"
     export MCP_URL="https://us.mcp.indykite.com"
     export PROJECT_GID="DUMMY_PROJECT_GID"
     export SERVICE_ACCOUNT_TOKEN="DUMMY_SA_TOKEN"
@@ -212,7 +213,9 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
             continue
         fi
         printed="$(printf '%s' "${fixtures[${s}]}" | bash "${helper}" --print - 2>/dev/null || true)"
-        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"contx-iq/v1/execute"* ]]; then
+        # The three token headers must appear redacted (variable names), never as the dummy values.
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"contx-iq/v1/execute"* ]] &&
+            [[ "${printed}" == *"IK_TOKEN"* ]] && [[ "${printed}" != *"DUMMY_"* ]]; then
             printf '  [%s] --print: ok\n' "${s}"
             dry_pass=$((dry_pass + 1))
         else
@@ -238,6 +241,8 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
     if [[ -r "indykite-authzen-evaluation/scripts/evaluate.sh" ]] &&
         [[ -r "indykite-authzen-evaluation/assets/evaluation-provision-server.json" ]]; then
         printed="$(bash indykite-authzen-evaluation/scripts/evaluate.sh --print indykite-authzen-evaluation/assets/evaluation-provision-server.json 2>/dev/null || true)"
+        # X-IK-Token must be forwarded when IK_TOKEN is set, and redacted in --print.
+        [[ "${printed}" == *"IK_TOKEN"* && "${printed}" != *"DUMMY_"* ]] || printed="missing or unredacted X-IK-Token: ${printed}"
         if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"access/v1/evaluation"* ]]; then
             printf '  [indykite-authzen-evaluation/evaluate.sh] --print: ok\n'
             dry_pass=$((dry_pass + 1))
@@ -315,6 +320,31 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
             dry_pass=$((dry_pass + 1))
         else
             printf '  [indykite-ciq-whoami/whoami.sh] --print: FAIL\n    output: %s\n' "${printed}"
+            dry_fail=$((dry_fail + 1))
+        fi
+    fi
+
+    # Audit Log API audit-logs.sh - GET /audit/v1/<resource>?project_id=..., no request body.
+    # The helper validates PROJECT_GID as a GID, so a gid-shaped dummy is passed for the call.
+    if [[ -r "indykite-audit-logs/scripts/audit-logs.sh" ]]; then
+        printed="$(PROJECT_GID="gid:AAAAAdummyProject" bash indykite-audit-logs/scripts/audit-logs.sh --print manifests --pagesize 10 2>/dev/null || true)"
+        # NB: --print shell-quotes the URL, so `?` and `&` appear escaped - match the pieces separately.
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${API_URL}"* ]] && [[ "${printed}" == *"audit/v1/manifests"* ]] &&
+            [[ "${printed}" == *"project_id=gid:AAAAAdummyProject"* ]] && [[ "${printed}" == *"pagesize=10"* ]] &&
+            [[ "${printed}" == *"API_KEY"* ]]; then
+            printf '  [indykite-audit-logs/audit-logs.sh] --print: ok\n'
+            dry_pass=$((dry_pass + 1))
+        else
+            printf '  [indykite-audit-logs/audit-logs.sh] --print: FAIL\n    output: %s\n' "${printed}"
+            dry_fail=$((dry_fail + 1))
+        fi
+        # jwks is public: the printed curl must not carry the credential header.
+        printed="$(PROJECT_GID="gid:AAAAAdummyProject" bash indykite-audit-logs/scripts/audit-logs.sh --print jwks 2>/dev/null || true)"
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"audit/.well-known/jwks.json"* ]] && [[ "${printed}" != *"X-IK-ClientKey"* ]]; then
+            printf '  [indykite-audit-logs/audit-logs.sh jwks] --print: ok\n'
+            dry_pass=$((dry_pass + 1))
+        else
+            printf '  [indykite-audit-logs/audit-logs.sh jwks] --print: FAIL\n    output: %s\n' "${printed}"
             dry_fail=$((dry_fail + 1))
         fi
     fi

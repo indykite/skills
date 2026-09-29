@@ -80,7 +80,7 @@ MATCH (subject:Person {external_id: $token.sub})-[r:OWNS]->(car:Car)
 WHERE (car)-[:MADE_BY]->(maker)
 ```
 
-Server-populated in-cypher parameters make this safe without extra caller input: `$token.<claim>` (e.g. `$token.sub`) carries the Bearer token's claims for user subjects, and `$_appId` carries the application id for `_Application` subjects. Any other `$param` in the cypher must be supplied by the caller via `input_params`.
+Server-populated in-cypher parameters make this safe without extra caller input: `$token.<claim>` (e.g. `$token.sub`) carries the Bearer token's claims for user subjects, `$ik_token.<claim>` (e.g. `$ik_token.act.sub`) the claims of the delegation token sent in `X-IK-Token`, and `$_appId` carries the application id for `_Application` subjects. `token` and `ik_token` are reserved names: the platform binds both claim sets, ignores caller values sent under either name in `input_params`, and binds an empty set for a token that did not arrive, so a comparison against it is `null` and the query returns no rows rather than an error. Any other `$param` in the cypher must be supplied by the caller via `input_params`.
 
 If the chain cannot be restructured, the fallback is a planning barrier: pin the subject with an in-cypher `WHERE` and `WITH subject LIMIT 1`, then continue the chain from the bound subject (safe because `(type, external_id)` is unique in the IKG). Three rules make the barrier correct: the pinning equality must be an in-cypher `WHERE` placed *before* the `LIMIT 1` — `condition.filter` is applied after the whole pattern, so a `LIMIT 1` after an unpinned `MATCH` grabs an arbitrary node and silently returns zero rows; every `WITH` must keep carrying `subject` (the validator rejects one that drops it: `missing required variables in WITH statement`); and a plain `WITH` without `LIMIT` is flattened by the planner and changes nothing. `USING INDEX` planner hints are rejected by the policy parser, and extra Knowledge Query filter values narrow the result without changing which end the planner anchors on.
 
@@ -123,6 +123,8 @@ Optional array of filters that constrain the match. Each filter is an object wit
 
 `<var>` is the variable from `cypher`. Typos here silently match nothing.
 
+`token` and `ik_token` are reserved parameter names. A policy or Knowledge Query that references them does not require them in `input_params`, and a value the caller sends under either name is ignored: the platform always binds the introspected claims. Both references also work as a filter `value` (for example `{"attribute": "ln.property.value", "operator": "=", "value": "$ik_token.act.sub"}`) and inside the condition Cypher (`WHERE subject.external_id = $token.sub`). A token that did not arrive binds an empty claim set, so a reference to it resolves to `null`: the filter fails closed and the query returns no rows rather than an error. A misspelt prefix such as `$iktoken.act.sub` is an ordinary input parameter, refused with `422` and `missing or wrong input params, 'iktoken'`.
+
 ### Static vs. partial filters
 
 - **Static filter** — `value` is hard-coded (e.g. `"value": "active"`). Burned into the policy.
@@ -130,7 +132,7 @@ Optional array of filters that constrain the match. Each filter is an object wit
 
 ## `condition.token_filter`
 
-Same shape as `filter` but only references `$token.*` and `$ik_token.*` attributes - for example `{"attribute": "$ik_token.act.act.sub", "operator": "=", "value": "orchestrator"}` requires the delegation chain to start at a given agent. The name `ik_token` is reserved: a value sent under `input_params.ik_token` is ignored. When a `token_filter` does not match, the response includes a `WWW-Authenticate: insufficient_user_authentication` header carrying the `advice.error` and `advice.error_description` you set on the failing leaf — useful for OAuth step-up flows.
+Same shape as `filter` but only references `$token.*` and `$ik_token.*` attributes - for example `{"attribute": "$ik_token.act.act.sub", "operator": "=", "value": "orchestrator"}` requires the delegation chain to start at a given agent. The names `token` and `ik_token` are reserved: a value sent under `input_params.token` or `input_params.ik_token` is ignored. When a `token_filter` does not match, the response includes a `WWW-Authenticate: insufficient_user_authentication` header carrying the `advice.error` and `advice.error_description` you set on the failing leaf — useful for OAuth step-up flows.
 
 Omit `token_filter` if you have no token-related conditions.
 
