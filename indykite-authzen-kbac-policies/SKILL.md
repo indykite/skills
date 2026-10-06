@@ -138,7 +138,7 @@ A `201 Created` returns the policy's `id` (a `gid:…`), audit fields (`create_t
 The same `/configs/v1/authorization-policies` path manages the policy lifecycle (all with the Service Account token):
 
 - **Read by id**: `GET /configs/v1/authorization-policies/{id}` - returns the full record, including the stringified `policy`, `status`, `tags`, audit fields, and the current ETag.
-- **Read by name**: `GET /configs/v1/authorization-policies/{name}?location={PROJECT_GID}`.
+- **Read by name**: `GET /configs/v1/authorization-policies/{name}?project_id={PROJECT_GID}` (`?location=` is the deprecated spelling of the same parameter; without it the API answers `422`, `project_id is required when querying by name`).
 - **List KBAC policies**: `GET /configs/v1/authorization-policies?project_id={PROJECT_GID}&type=kbac` - `type=kbac` returns only KBAC policies (use `type=ciq` for ContX IQ). List responses carry an empty `policy` string per item; read by id to get the body. To read the **ACTIVE** policies with their bodies from an **application** at runtime (AppAgent credential with the `ReadAuthZConfigs` permission, no IDs or ETags), use `GET /access/v1/policies` instead - [`indykite-authzen-list-policies`](../indykite-authzen-list-policies/SKILL.md).
 - **Update**: `PUT /configs/v1/authorization-policies/{id}` with header `If-Match: <etag>` and a body of the fields to change (`display_name`, `description`, `policy`, `status`, `tags`). Use this to publish (`status: "ACTIVE"`), deactivate (`status: "INACTIVE"`), or hold as `DRAFT`, or to revise the condition. A new ETag comes back.
 - **Delete**: `DELETE /configs/v1/authorization-policies/{id}` with header `If-Match: <etag>`.
