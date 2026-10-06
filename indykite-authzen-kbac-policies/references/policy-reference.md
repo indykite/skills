@@ -287,8 +287,10 @@ Body: the envelope above. A `201 Created` returns the stored record - `id` (a `g
 
 ```text
 GET /configs/v1/authorization-policies/{id}
-GET /configs/v1/authorization-policies/{name}?location={project_id}
+GET /configs/v1/authorization-policies/{name}?project_id={project_id}
 ```
+
+Reading by name needs the parent project: omit `project_id` and the API answers `422` with `project_id is required when querying by name`. The older `?location=` query parameter still works but is deprecated - send one or the other, never both.
 
 Returns the full record: `id`, `name`, `display_name`, `description`, `create_time`, `created_by`, `update_time`, `updated_by`, `organization_id`, `project_id`, `policy` (the stringified policy JSON - parse it to inspect), `status`, `tags`, plus the current ETag header.
 

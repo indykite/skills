@@ -120,7 +120,7 @@ Verify that each IAG can reach the IdP, AuthZEN, ContX IQ, the Token Service (if
 Send a request through the gateway and confirm the [nine-step path](references/architecture.md) executes end-to-end. The expected HTTP responses are:
 
 - `200` - request was authorized and forwarded.
-- `400` - bad request. In `mcp` mode a JSON-RPC error body: `-32020` (`Mcp-Protocol-Version` header missing), `-32022` (unsupported revision, `error.data.supported` lists the three revisions), `-32600` (JSON-RPC batch), or `-32700` (body could not be read).
+- `400` - bad request. In `mcp` mode a JSON-RPC error body: `-32020` (`Mcp-Protocol-Version` header missing, or on `2026-07-28` an `Mcp-Method` / `Mcp-Name` header that differs from the body), `-32022` (unsupported revision, `error.data.supported` lists the three revisions), `-32600` (JSON-RPC batch, not a JSON-RPC 2.0 message, an ambiguous key, or a method / tool name / URI with control characters), `-32602` (`tools/call` or `resources/*` that names no tool or resource), or `-32700` (body could not be read, is not valid UTF-8, or is not exactly one JSON value). The gateway reads the tool or resource every request names and refuses what it cannot read unambiguously - [MCP request classification](references/architecture.md#mcp-request-classification).
 - `401` - caller token missing or inactive (`Missing bearer token`, `Invalid token, missing subject`), or an incoming `X-IK-Token` that cannot be used (`Invalid delegated token, subject mismatch` / `missing subject`).
 - `403` - caller authenticated but not allowed (subject, chain, or both) - `Authorization check failed`.
 - `413` / `415` - `mcp` mode only: body over 4 MiB, or a `Content-Encoding` other than `identity`; JSON-RPC error `-32600`.
@@ -150,8 +150,9 @@ To gain confidence that IAG is enforcing as expected, deliberately force `NOT_AU
 - **Use a subject whose type is not in `JARVIS_AUTHZEN_SUBJECT_TYPES`** - no policy matches.
 - **With the Token Service: replay an `X-IK-Token` with a different user's access token** - `401 Invalid delegated token, subject mismatch`.
 - **On an `mcp` instance: send `tools/list` without the `Mcp-Protocol-Version` header** - `400` with JSON-RPC error `-32020`, audited as `NOT_AUTHORIZED` with reason `MCP request refused: Header mismatch: Mcp-Protocol-Version header is missing`.
+- **On an `mcp` instance: send a `tools/call` whose `params` has no `name`** - `400` with JSON-RPC error `-32602`, audited as `NOT_AUTHORIZED` with reason `MCP request refused: Invalid params: tools/call names no tool`; the server never sees it.
 
-Each should return `403 Forbidden` (or `401` for the token pairing, `400` for the MCP revision check) and produce a `NOT_AUTHORIZED` audit record with a useful `reason`.
+Each should return `403 Forbidden` (or `401` for the token pairing, `400` for the MCP revision and classification checks) and produce a `NOT_AUTHORIZED` audit record with a useful `reason`.
 
 ## Outcome
 
