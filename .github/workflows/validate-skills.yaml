@@ -51,7 +51,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0 - https://github.com/actions/setup-python/releases
         with:
-          python-version: '3.14'
+          python-version: '3.15'
 
       # pipx 1.5+ uses the XDG-compliant ~/.local/share/pipx tree (PIPX_HOME),
       # not the older ~/.local/pipx. We cache that whole tree; the install
@@ -83,7 +83,7 @@ jobs:
           "${skills_ref_bin}/skills-ref" --version
 
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0 - https://github.com/actions/setup-node/releases
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 - https://github.com/actions/setup-node/releases
         with:
           node-version: lts/*
 
