@@ -94,6 +94,7 @@ What is (and is not) listed:
 
 - KBAC policies (`2.0-kbac` and `3.0-kbac`) with status **ACTIVE** only - the same set the decision endpoints evaluate.
 - Only the **calling agent's project**; there is no project parameter.
+- Each call emits one `indykite.audit.config.list` event (type `CONFIG_TYPE_AUTHORIZATION_POLICY`, with the returned policy IDs) to the project's Outbound Events sinks. It lands on the tamper-proof audit trail only when the project has an Audit Signing configuration and a sink route delivered it.
 - **No** ContX IQ (`1.0-ciq`) policies, **no** policy `id` / `name` / timestamps / ETag - those live on the Config API.
 
 The full field reference, error table, and `jq` recipes are in [`references/list-policies-reference.md`](references/list-policies-reference.md).

@@ -7,9 +7,9 @@ compatibility: Requires curl, bash 4+, and jq. Network access to the regional In
 
 # IndyKite Audit Logs - read and export the tamper-proof audit trail
 
-Every audit event the platform records for a project - Capture ingests and deletes, configuration changes, token introspections, AuthZEN decisions and searches, ContX IQ executes, CDC changes - is appended to that project's **chain**. Events are collected into **batches**; each batch is hashed and signed, a signed **manifest** links it to the previous batch, and a **checkpoint** periodically fixes the chain's head under a signature. The **Audit Log API** pages through those artefacts and publishes the signing keys, so an export can be kept and checked independently of the API that served it.
+Every audit event of a project that reached one of its Outbound Events sinks - Capture ingests and deletes, configuration changes, token introspections, AuthZEN decisions and searches, ContX IQ executes, CDC changes - is appended to that project's **chain**, provided the project has an Audit Signing configuration. Events are collected into **batches**; each batch is hashed and signed, a signed **manifest** links it to the previous batch, and a **checkpoint** periodically fixes the chain's head under a signature. The **Audit Log API** pages through those artefacts and publishes the signing keys, so an export can be kept and checked independently of the API that served it.
 
-This skill covers reading and exporting the trail; the [Audit Log guide](https://developer.indykite.com/guides/guide-audit-log) is the full reference for the API, including how an export is checked against the published keys. Choosing the signing key (platform-managed or your own KMS key) is a Config API object, `POST /configs/v1/audit-signings`, documented in the [Audit Signing guide](https://developer.indykite.com/guides/guide-audit-signing).
+This skill covers reading and exporting the trail; the [Audit Log guide](https://developer.indykite.com/guides/guide-audit-log) is the full reference for the API, including how an export is checked against the published keys. Choosing the signing key (platform-managed or your own KMS key) is a Config API object, `POST /configs/v1/audit-signings`, documented in the [Audit Signing guide](https://developer.indykite.com/guides/guide-audit-signing); today the platform-managed key signs every record, and a customer-managed configuration is stored for the upcoming support without changing which key signs.
 
 ## When to use
 
@@ -32,8 +32,9 @@ Do **not** activate this skill when the user wants to:
 - An IndyKite **project** whose GID you know (`gid:…`, the `project_id` of every call), with an **AppAgent** and AppAgent **credentials** (the token that goes into `X-IK-ClientKey`) - see the [Credentials guide](https://developer.indykite.com/guides/guide-credentials).
 - The AppAgent holds the **`Audit` API permission**. It is a separate permission, not granted to existing agents automatically: add `"Audit"` to the agent's `api_permissions` (`POST` / `PUT /configs/v1/application-agents`, Service Account token, or the Hub UI). Without it every `/audit/v1/*` call is `401` `insufficient API access level for appAgent`. The grant is applied asynchronously, so a just-updated agent can keep answering `401` for a short while.
 - `jq` for paging. Nothing beyond `curl` is needed to fetch a single page.
+- For anything to be on the chain, the project needs an **Audit Signing configuration** (`/configs/v1/audit-signings`, Service Account token - it switches the chain on) and an **Event Sink** (`/configs/v1/event-sinks`) with a route that matches the events: an event is chained only after a sink of the project delivered it to at least one destination. Events produced before both existed, events no route matched or a destination rejected, and organization-level configuration events (Service Accounts, credentials, projects) are never chained.
 
-If the chain is empty (`items: []` on every endpoint), no audit event has been recorded for the project yet, or tamper-proof recording is not yet enabled for it - that is a `200`, not a failure of this skill.
+If the chain is empty (`items: []` on every endpoint), the project has no Audit Signing configuration, no sink has delivered an event yet, or nothing has happened - that is a `200`, not a failure of this skill.
 
 ## Steps
 
@@ -95,9 +96,10 @@ One limit to state plainly: that check reads each page as the API served it, and
 
 ### 7. Read the results
 
-- **`items: []` everywhere** - nothing recorded yet (or recording not enabled for the project). Not an error.
+- **`items: []` everywhere** - no Audit Signing configuration, no Event Sink delivery yet, or nothing happened. Not an error.
 - **A `kid` missing from the JWKS** - the key that signed those entries was rotated out; the set only lists the keys currently in use, so use the JWKS archived when those entries were exported. Refetch the JWKS after a rotation for subsequent exports.
-- **Two identical events in one chain** - delivery to the trail is at-least-once; a duplicate is a redelivery, not an insertion, and it can land in a later batch. A redelivered event is identical in every field, `time` and `requestId` included, so deduplicate on the whole event object and never strip those two fields first.
+- **Two identical events in one chain** - an accepted event is written once; a duplicate is possible only when a delivery was replayed long after the original, and it then lands in a later batch. It is a redelivery, not an insertion: identical in every field, `time` and `requestId` included, so deduplicate on the whole event object and never strip those two fields first.
+- **A `config.list` event you did not expect** - reading the trail is not audited, but `GET /access/v1/policies` and every Config API list call are: each adds one `indykite.audit.config.list` event.
 - **Checkpoints behind the newest manifest** - normal: the chain has grown since the last checkpoint was written.
 
 ## Outcome

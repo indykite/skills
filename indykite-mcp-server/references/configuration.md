@@ -52,8 +52,11 @@ curl -X POST "$API_URL/configs/v1/mcp-servers" \
 
 - **`scopes_supported` mirrors into `.well-known/oauth-protected-resource`.** An MCP client that sees a `401` and parses the metadata only sees the scopes you list here. If you forget a scope, clients will request the wrong set.
 - **Adding new IdPs to the metadata is a separate IndyKite-side action** — the IndyKite team must register your IdPs against the project so they appear in the `.well-known` document. `scopes_supported` does not control IdP listing.
-- **`enabled: false`** is the supported way to take an MCP server offline without deleting the configuration. Useful while rotating credentials or migrating between AppAgents.
-- **`name` is immutable.** Choose carefully; renaming requires creating a new configuration.
+- **`enabled: false`** is the supported way to take an MCP server offline without deleting the configuration. Useful while rotating credentials or migrating between AppAgents. While disabled (or after a delete), a request that carries a Bearer token is answered `403` with `{"error": "forbidden", "error_description": "MCP server is not enabled for this project"}`; a request without one is still `401`.
+- **One configuration per project.** A second `POST` is refused with `409` `mcp server already exists in project`.
+- **Updates are full replacements.** `PUT /configs/v1/mcp-servers/{id}` has no PATCH form: `app_agent_id`, `token_introspect_id`, `enabled`, and `scopes_supported` are all required again on every update (an unknown agent or introspect ID is `422`); `If-Match: <etag>` is optional, a stale value is `412`. A list (`GET /configs/v1/mcp-servers?project_id=<gid>`) returns those four fields empty unless `full_fetch=true` is added.
+- **The referenced AppAgent cannot be deleted** while a configuration names it: `412` `cannot be deleted because an app agent is still referenced by one or more MCP server configs`.
+- **`name` is immutable.** Choose carefully. Because a project holds only one configuration, a rename means deleting the current one first and then creating its replacement; the project has no MCP server configuration between the two calls, so every request with a Bearer token is answered `403` until the new one exists.
 
 ## Related setup
 

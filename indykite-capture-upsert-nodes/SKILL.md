@@ -58,7 +58,7 @@ For each entity decide:
 Each property is `{ "type": ..., "value": ... }`; `value` is a string, integer, float, boolean, or an array of those. Two optional extensions:
 
 - **`metadata`** - provenance for the single property: `source` (string), `assurance_level` (1, 2, or 3), `verified_time` (RFC 3339 timestamp), `custom_metadata` (object). Used e.g. by [trust scoring](https://developer.indykite.com/guides/guide-trust-score).
-- **`external_value`** - instead of `value`, a data reference resolved at query time by an [External Data Resolver](https://developer.indykite.com/guides/guide-external-data-resolver), so the actual data never lives in the IKG.
+- **`external_value`** - instead of `value`, a string naming the [External Data Resolver](https://developer.indykite.com/guides/guide-external-data-resolver), so the actual data never lives in the IKG.
 
 ### 3. Assemble the request body
 

@@ -281,7 +281,7 @@ jq --arg pid "$PROJECT_GID" '.project_id = $pid | .policy |= tojson'
 POST /configs/v1/authorization-policies
 ```
 
-Body: the envelope above. A `201 Created` returns the stored record - `id` (a `gid:…`), `create_time`, `created_by`, `update_time`, `updated_by` - and an **ETag** response header. Keep the `id` and ETag: update and delete need them.
+Body: the envelope above. A `201 Created` returns the stored record - `id` (a `gid:…`), `create_time`, `created_by`, `update_time`, `updated_by` - and an **ETag** response header. Keep the `id` - update and delete address the policy by it - and the ETag for the optional, recommended `If-Match` on those writes.
 
 ### Read
 
@@ -300,7 +300,7 @@ Returns the full record: `id`, `name`, `display_name`, `description`, `create_ti
 GET /configs/v1/authorization-policies?project_id={project_id}&type=kbac
 ```
 
-Returns `{ "data": [ … ] }`, one record per policy. **In list responses the `policy` field is an empty string** - read a policy by `id` to get its body. List responses carry no ETag. Use `type=kbac` to exclude CIQ policies.
+Returns `{ "data": [ … ] }`, one record per policy. **In list responses the `policy` field is an empty string** unless `full_fetch=true` is added - otherwise read a policy by `id` to get its body. `search=<text>` narrows the list to policies whose name, display name, or description contains the text. List responses carry no ETag and are not paged. Use `type=kbac` to exclude CIQ policies.
 
 ### Update
 
@@ -309,7 +309,7 @@ PUT /configs/v1/authorization-policies/{id}
 If-Match: <current-etag>
 ```
 
-Body carries the fields to change - `display_name`, `description`, `policy` (stringified), `status`, `tags`. This is how you **publish** (`status: "ACTIVE"`), **deactivate** (`status: "INACTIVE"`), or hold a policy as `DRAFT`, or revise its condition. The update uses optimistic concurrency: a missing or stale `If-Match` ETag is rejected. A successful `200` returns a **new** ETag - keep it for the next write.
+PUT is a **full replacement** - there is no PATCH. The body always carries `policy` (stringified) and `status`, and `tags` when the policy should keep any (an omitted `tags` leaves the policy without tags); `display_name` and `description` are the exception: omitted or `null` keeps the stored value, `""` clears it. A body that changes nothing is refused with `422` `nothing to change`. This is how you **publish** (`status: "ACTIVE"`), **deactivate** (`status: "INACTIVE"`), or hold a policy as `DRAFT`, or revise its condition. `If-Match` is optional: when sent, a stale ETag is refused with `412 Precondition Failed` and nothing is written, and a value that is not an ETag (fewer than 8 or more than 18 characters) with `400`. Send it whenever two writers could touch the same policy. A successful `200` returns a **new** ETag - keep it for the next write.
 
 ### Delete
 
@@ -318,6 +318,6 @@ DELETE /configs/v1/authorization-policies/{id}
 If-Match: <current-etag>
 ```
 
-Also ETag-guarded. The response echoes the deleted policy's `id`.
+`If-Match` is optional here too, with the same `412` on a stale value. The response is `{"id": "<deleted policy GID>"}`; a later read is `404`.
 
 The IndyKite Terraform provider's `indykite_authorization_policy` resource manages the same entity declaratively (it handles the envelope, stringification, and ETag for you).

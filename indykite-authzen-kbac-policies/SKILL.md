@@ -1,6 +1,6 @@
 ---
 name: indykite-authzen-kbac-policies
-description: Author and manage an IndyKite KBAC (Knowledge-Based Access Control) authorization policy - a single subject type, an actions list, a single resource type, and a Cypher condition over the IKG - through the Config API (`/configs/v1/authorization-policies` - create / read / list `?type=kbac` / update / delete, ETag-guarded). Covers `2.0-kbac` and `3.0-kbac` (raw Cypher, optional location routing for composite / data-residency IKGs). Use to write, publish, inspect, update, or delete a KBAC policy - e.g. "write a policy letting a Person PROVISION a Server within budget", "author a location-routed policy for our composite IKG". This authors the rule; it does NOT make decisions - for "can X do Y on Z?" use indykite-authzen-evaluation (single) or indykite-authzen-evaluations (batch), and to enumerate allowed actions/resources/subjects use indykite-authzen-search-action / -search-resource / -search-subject. This is KBAC, not ContX IQ - for CIQ read/write data policies use the indykite-ciq-* skills.
+description: Author and manage an IndyKite KBAC (Knowledge-Based Access Control) authorization policy - a single subject type, an actions list, a single resource type, and a Cypher condition over the IKG - through the Config API (`/configs/v1/authorization-policies` - create / read / list `?type=kbac` / update / delete, optional ETag). Covers `2.0-kbac` and `3.0-kbac` (raw Cypher, optional location routing for composite / data-residency IKGs). Use to write, publish, inspect, update, or delete a KBAC policy - e.g. "write a policy letting a Person PROVISION a Server within budget", "author a location-routed policy for our composite IKG". This authors the rule; it does NOT make decisions - for "can X do Y on Z?" use indykite-authzen-evaluation (single) or indykite-authzen-evaluations (batch), and to enumerate allowed actions/resources/subjects use indykite-authzen-search-action / -search-resource / -search-subject. This is KBAC, not ContX IQ - for CIQ read/write data policies use the indykite-ciq-* skills.
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
@@ -12,7 +12,7 @@ KBAC (Knowledge-Based Access Control) is IndyKite's graph-driven authorization m
 This skill is the home of the KBAC **policy lifecycle**: writing the policy JSON and managing it through the Config API.
 
 - A **policy** with `meta.policy_version` `"2.0-kbac"` (the default, platform-rewritten Cypher) or `"3.0-kbac"` (raw Cypher, usable on any IKG, with optional location routing for composite IKGs - see [Location-aware policies](#location-aware-policies-for-data-residency-30-kbac)), a single `subject.type`, an `actions` list, a single `resource.type`, and a `condition.cypher` that binds the reserved variables `subject` and `resource`.
-- The **Config API** operations on `/configs/v1/authorization-policies`: create (`POST`), read (`GET /{id}` or by name), list (`GET ?project_id=…&type=kbac`), update (`PUT /{id}` with an `If-Match` ETag), and delete (`DELETE /{id}`).
+- The **Config API** operations on `/configs/v1/authorization-policies`: create (`POST`), read (`GET /{id}` or by name), list (`GET ?project_id=…&type=kbac`), update (`PUT /{id}`, a full replacement, with an optional `If-Match` ETag), and delete (`DELETE /{id}`, same optional header).
 - Publishing: a policy must be **ACTIVE** to participate in decisions; an `INACTIVE` or `DRAFT` policy is stored but ignored (`DRAFT` may even be invalid).
 
 Once a policy is ACTIVE, the runtime AuthZEN skills evaluate it:
@@ -131,7 +131,7 @@ jq --arg pid "$PROJECT_GID" '.project_id = $pid | .policy |= tojson' assets/poli
 
 Or use the helper [`scripts/create-policy.sh`](scripts/create-policy.sh), which sets `project_id`, stringifies the `policy` field, pins the IndyKite host, and redacts the token under `--print`.
 
-A `201 Created` returns the policy's `id` (a `gid:…`), audit fields (`create_time`, `created_by`, …), and an **ETag** header. Keep the `id` and ETag - update and delete need them. The policy participates in decisions only when its `status` is **ACTIVE**.
+A `201 Created` returns the policy's `id` (a `gid:…`), audit fields (`create_time`, `created_by`, …), and an **ETag** header. Keep the `id` - update and delete address the policy by it - and the ETag for the optional `If-Match` on those writes. The policy participates in decisions only when its `status` is **ACTIVE**.
 
 ### 5. Read, list, update, and delete
 
@@ -139,9 +139,9 @@ The same `/configs/v1/authorization-policies` path manages the policy lifecycle 
 
 - **Read by id**: `GET /configs/v1/authorization-policies/{id}` - returns the full record, including the stringified `policy`, `status`, `tags`, audit fields, and the current ETag.
 - **Read by name**: `GET /configs/v1/authorization-policies/{name}?project_id={PROJECT_GID}` (`?location=` is the deprecated spelling of the same parameter; without it the API answers `422`, `project_id is required when querying by name`).
-- **List KBAC policies**: `GET /configs/v1/authorization-policies?project_id={PROJECT_GID}&type=kbac` - `type=kbac` returns only KBAC policies (use `type=ciq` for ContX IQ). List responses carry an empty `policy` string per item; read by id to get the body. To read the **ACTIVE** policies with their bodies from an **application** at runtime (AppAgent credential with the `ReadAuthZConfigs` permission, no IDs or ETags), use `GET /access/v1/policies` instead - [`indykite-authzen-list-policies`](../indykite-authzen-list-policies/SKILL.md).
-- **Update**: `PUT /configs/v1/authorization-policies/{id}` with header `If-Match: <etag>` and a body of the fields to change (`display_name`, `description`, `policy`, `status`, `tags`). Use this to publish (`status: "ACTIVE"`), deactivate (`status: "INACTIVE"`), or hold as `DRAFT`, or to revise the condition. A new ETag comes back.
-- **Delete**: `DELETE /configs/v1/authorization-policies/{id}` with header `If-Match: <etag>`.
+- **List KBAC policies**: `GET /configs/v1/authorization-policies?project_id={PROJECT_GID}&type=kbac` - `type=kbac` returns only KBAC policies (use `type=ciq` for ContX IQ). List responses carry an empty `policy` string per item unless `full_fetch=true` is added; otherwise read by id to get the body. To read the **ACTIVE** policies with their bodies from an **application** at runtime (AppAgent credential with the `ReadAuthZConfigs` permission, no IDs or ETags), use `GET /access/v1/policies` instead - [`indykite-authzen-list-policies`](../indykite-authzen-list-policies/SKILL.md).
+- **Update**: `PUT /configs/v1/authorization-policies/{id}` is a full replacement, not a patch: the body always carries `policy` (stringified) and `status`, plus `tags` when the policy has any, and optionally `display_name` / `description` (omitted or `null` keeps the stored value, `""` clears it). Use this to publish (`status: "ACTIVE"`), deactivate (`status: "INACTIVE"`), or hold as `DRAFT`, or to revise the condition. The `If-Match: <etag>` header is optional but recommended: a stale value is refused with `412`. A new ETag comes back.
+- **Delete**: `DELETE /configs/v1/authorization-policies/{id}`, with the same optional `If-Match: <etag>`.
 
 Full request/response shapes, response fields, and the ETag concurrency rules are in [`references/policy-reference.md`](references/policy-reference.md).
 

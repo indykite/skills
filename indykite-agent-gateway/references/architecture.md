@@ -95,6 +95,14 @@ The same nine-step authorization path runs regardless of what IAG protects - onl
 
 Steps 1–7 and 9 (introspect, exchange, ContX IQ, AuthZEN `CAN_TRIGGER`, chain check, audit) are identical for both protocols. An MCP server is gated exactly like an A2A agent. In `mcp` mode two extra checks run between step 2 and step 5, in this order: the protocol revision check and the request classification, both below.
 
+The two protocols differ in where their link can sit in a chain. An A2A agent can be any hop; an MCP server never calls another agent, so it is **always the last link** - a workflow that includes an MCP server lists it last (`[retriever, mcp-agent]`), and a direct call from a user to the gateway in front of it needs its own one-agent workflow (`[mcp-agent]`). What the MCP server receives follows the delivery table above: with a Token Service the IndyKite MCP server validates the forwarded `X-IK-Token` itself and its policies read `$ik_token`; without one it receives the delegation token in `Authorization` and policies read `$token`.
+
+Three chain refusals all answer `403` `{"message": "Authorization check failed"}`; only the audit record's `reason` tells them apart:
+
+- **A skipped hop** (the chain does not match any workflow the subject can trigger) - `no workflow matches the actors chain`.
+- **A token reused across workflows** (a delegation token minted for `[orchestrator, notifier, retriever]` presented on a different chain) - the same reason, since the `act` chain matches no workflow of this gateway.
+- **The wrong user** (the chain matches a workflow, but the subject holds no `CAN_TRIGGER` on it) - `subject is not authorized to trigger any of the workflows <workflow ids>`.
+
 ## MCP protocol revisions
 
 In front of an MCP server the gateway forwards only the MCP protocol revisions **`2025-06-18`**, **`2025-11-25`**, and **`2026-07-28`**. The check runs after token introspection (step 2) and before authorization (steps 5-7), so an invalid token still gets `401` first, and a refused request never costs a ContX IQ or AuthZEN call. It reads the body only far enough to enforce these rules; it does not authorize by MCP payload or per tool. The rules are those the `2026-07-28` revision defines for the `Mcp-Protocol-Version` header:

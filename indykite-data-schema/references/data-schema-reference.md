@@ -8,7 +8,7 @@ GET https://us.api.indykite.com/data-schema/v1/
 ```
 
 - **Auth**: the AppAgent credential in the `X-IK-ClientKey` header, passed as is, without any prefix. No user bearer token is involved.
-- **Parameters**: none - the project is derived from the credential.
+- **Parameters**: none - the project is derived from the credential. The trailing slash is part of the path.
 - **Response**: `200 OK` with an `application/json` body in JSON Graph Format (JGF) v2.
 
 ## Response fields
@@ -28,8 +28,8 @@ Top level is a single `graph` object.
 |-----------------------|-------|--------------------------------------------------------------------------|
 | `node_count`          | int   | How many nodes of this type exist.                                        |
 | `properties`          | map   | Keyed by **property name**; each value is a property entry (below).       |
-| `system_labels`       | array | Platform-assigned labels, each `{ name, count }` (e.g. `DigitalTwin` on identity nodes). |
-| `user_defined_labels` | array | Labels from the `labels` field at ingest, each `{ name, count }`.         |
+| `system_labels`       | array | Platform-assigned labels, each `{ name, count }`: `Resource` on every node type, plus `DigitalTwin` on identity nodes. |
+| `user_defined_labels` | array \| null | Labels from the `labels` field at ingest, each `{ name, count }`; `null` (not `[]`) when the type carries none. |
 
 ### `graph.edges[]`
 
@@ -48,8 +48,8 @@ Each value in a `properties` map (node or edge) describes one property:
 | Field      | Type  | Meaning                                                                      |
 |------------|-------|-------------------------------------------------------------------------------|
 | `count`    | int   | How many times the property occurs across instances.                          |
-| `types`    | array | Observed value types with per-type tallies: `{ "type": "string", "count": 4980 }`. |
-| `metadata` | map   | **Node properties only.** Keyed by provenance field (`source`, `assurance_level`, `verified_time`, custom keys); each value has the same `count` + `types` statistics. |
+| `types`    | array | Observed value types with per-type tallies: `{ "type": "STRING NOT NULL", "count": 4980 }`. The names are the graph store's; the common scalar ones are `STRING NOT NULL`, `INTEGER NOT NULL`, `FLOAT NOT NULL`, `BOOLEAN NOT NULL`, and `ZONED DATETIME NOT NULL`, and an array-valued property (Capture accepts arrays of those scalars) reports a list type, so other names can appear. |
+| `metadata` | map   | **Node properties only** - relationship properties carry no provenance. Keyed by provenance field (`source`, `assurance_level`, `verified_time`, custom keys); each value has the same `count` + `types` statistics. |
 
 More than one entry in `types` means instances of the property were ingested with different value types - usually a data-quality problem upstream, not an intended union type.
 
@@ -70,25 +70,29 @@ After ingesting a minimal vehicle-rental graph (`Person(millicent) -[CAN_DRIVE]-
         "metadata": {
           "node_count": 1,
           "properties": {
-            "email": { "count": 1, "types": [ { "type": "string", "count": 1 } ] },
+            "email": { "count": 1, "types": [ { "type": "STRING NOT NULL", "count": 1 } ] },
             "name": {
               "count": 1,
-              "types": [ { "type": "string", "count": 1 } ],
+              "types": [ { "type": "STRING NOT NULL", "count": 1 } ],
               "metadata": {
-                "source":        { "count": 1, "types": [ { "type": "string", "count": 1 } ] },
-                "assurance_level": { "count": 1, "types": [ { "type": "integer", "count": 1 } ] }
+                "source":        { "count": 1, "types": [ { "type": "STRING NOT NULL", "count": 1 } ] },
+                "assurance_level": { "count": 1, "types": [ { "type": "INTEGER NOT NULL", "count": 1 } ] }
               }
             }
-          }
+          },
+          "system_labels": [ { "name": "DigitalTwin", "count": 1 }, { "name": "Resource", "count": 1 } ],
+          "user_defined_labels": null
         }
       },
       "Car": {
         "metadata": {
           "node_count": 1,
           "properties": {
-            "manufacturer": { "count": 1, "types": [ { "type": "string", "count": 1 } ] },
-            "seats":        { "count": 1, "types": [ { "type": "integer", "count": 1 } ] }
-          }
+            "manufacturer": { "count": 1, "types": [ { "type": "STRING NOT NULL", "count": 1 } ] },
+            "seats":        { "count": 1, "types": [ { "type": "INTEGER NOT NULL", "count": 1 } ] }
+          },
+          "system_labels": [ { "name": "Resource", "count": 1 } ],
+          "user_defined_labels": null
         }
       }
     },
@@ -101,7 +105,7 @@ After ingesting a minimal vehicle-rental graph (`Person(millicent) -[CAN_DRIVE]-
         "metadata": {
           "count": 1,
           "properties": {
-            "valid_until": { "count": 1, "types": [ { "type": "string", "count": 1 } ] }
+            "valid_until": { "count": 1, "types": [ { "type": "STRING NOT NULL", "count": 1 } ] }
           }
         }
       }
@@ -137,7 +141,7 @@ jq -r '.graph.nodes | to_entries[]
 | HTTP code                   | When                                                                                              |
 |-----------------------------|---------------------------------------------------------------------------------------------------|
 | `400 Bad Request`           | Malformed request; the body carries a `message`.                                                   |
-| `404 Not Found`             | No data schema for the project - typically nothing has been ingested yet. Body carries `message` and `errors[]`. Not a failure: it correctly describes an empty project. |
+| `404 Not Found`             | No data schema for the project - typically nothing has been ingested yet. Body: `{"message": "Not Found", "errors": ["data schema not found for the specified project"]}`. Not a failure: it correctly describes an empty project. |
 | `503 Service Unavailable`   | `{"message": "Unable to verify the AppAgent credential token, retry the request"}`: the credential could not be checked right now (transient) and was not judged. Retry the same request with the same credential, with backoff; do not mint new credentials. |
 | `500 Internal Server Error` | With `{"message": "Unable to verify the AppAgent credential token"}`: non-transient failure of the credential check, the credential was not judged - do not rotate it, report the request's trace to IndyKite support. Otherwise a server-side issue; retry with backoff. |
 

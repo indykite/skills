@@ -153,10 +153,12 @@ scripts/mcp-call.sh tools/call authzen_evaluate \
 
 ### 5. Call CIQ tools
 
-`ciq_execute` runs a Knowledge Query against the IndyKite Graph (read or write). Two arguments:
+`ciq_execute` runs a Knowledge Query against the IndyKite Graph (read or write). Two main arguments, plus two optional paging ones:
 
 - `id` - GID **or** name of the Knowledge Query to run.
 - `input_params` - the partial parameters from the Knowledge Query **and its policy**; the exact set is documented in the query's description.
+- `page_size` - optional, rows per page, default `100`, at most `1000` (a larger value is a validation error, `page_size exceeds maximum of 1000`).
+- `page_token` - optional, a 1-based page number (`1` or omitted is the first page, `2` the next); the result carries no token, so increment it and stop at the first page shorter than `page_size`.
 
 Always discover queries first via `resources/read` on `indykite://knowledge-queries/` so the agent passes the right parameters.
 

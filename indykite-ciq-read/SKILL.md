@@ -147,7 +147,9 @@ Request:
 
 A runnable shell helper: [`scripts/execute.sh`](scripts/execute.sh).
 
-The full execute reference (auth combinations, response shape, error semantics) lives in [`references/execution-reference.md`](references/execution-reference.md).
+Large result sets page with two optional body fields: `page_size` (rows per page, default `100`) and `page_token`, a 1-based page number (`1` or omitted is the first page, `2` the next). The response carries no token, so increment the number yourself and stop at the first page shorter than `page_size`. The helper sends the first page; add the two fields to the raw body for the others. The MCP `ciq_execute` tool takes the same two optional arguments ([`indykite-mcp-server`](../indykite-mcp-server/SKILL.md)).
+
+The full execute reference (auth combinations, response shape, paging, error semantics) lives in [`references/execution-reference.md`](references/execution-reference.md).
 
 ### 5. Read the response and verify
 

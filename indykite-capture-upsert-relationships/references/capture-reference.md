@@ -25,7 +25,7 @@ POST <API_URL>/capture/v1/relationships
 | `source`     | yes      | Node reference - below. |
 | `target`     | yes      | Node reference - below. |
 | `type`       | yes      | Relationship type (max 128 chars), conventionally an uppercase verb (`OWNS`, `ACCEPTED`, `COVERS`, `HAS`). |
-| `properties` | no       | Array of properties: `type` (max 128 chars) plus `value` (string / integer / float / boolean, or an array of those) or `external_value` (a data reference). |
+| `properties` | no       | Array of properties: `type` (max 128 chars) plus `value` (string / integer / float / boolean, or an array of those) or `external_value` (a string naming an External Data Resolver configuration). Relationship properties take no `metadata`; provenance is a node-property feature. |
 
 ### Node reference (`source` / `target`)
 

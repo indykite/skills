@@ -9,7 +9,7 @@ A symptom-first map. Walk it top-down.
 | KQ's entry not in policy's `allowed_deletes` (literally or via a wildcard)                             | Add the entry to `allowed_deletes.nodes` or `.relationships` and republish.                  |
 | Entry uses the wrong path syntax — node properties are `<var>.property.<name>`; relationship properties are `<var>.<name>` (no `.property.`) | Use the right syntax for the element type.                            |
 | Target is a protected property (`_service`, `create_time`, `external_id`, `id`, `type`, `update_time`) | Remove the target. These cannot be deleted.                                                  |
-| Policy is in `INACTIVE` status                                                                         | Patch to `ACTIVE`.                                                                            |
+| Policy is in `INACTIVE` status                                                                         | `GET /configs/v1/authorization-policies/<gid>` and check `status`; set it back to `ACTIVE` with a `PUT` that carries the stored `policy` and `tags` again with `"status": "ACTIVE"` - there is no PATCH (`If-Match` optional). |
 | Policy filter rejects the subject                                                                      | For Person: confirm Bearer's `sub` matches a seeded `Person.external_id`.                    |
 
 ## Symptom: `200` with empty `data` (delete didn't happen?)

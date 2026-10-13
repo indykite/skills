@@ -19,7 +19,7 @@ The MCP server checks the token's `iss`/`aud` against the project's bound Token 
 |-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
 | Bearer token's `iss`/`aud` does not match the project's bound Token Introspect | Decode `iss`/`aud`; compare with the project's Token Introspect config. | Re-mint the user token with the right issuer/audience, or point the config at the right Token Introspect. |
 | AppAgent named by `app_agent_id` lacks the `Authorization` (for `authzen_*`) or `ContXIQ` (for `ciq_execute`) API permission - the tool result carries `insufficient API access level for appAgent` | Hub UI, or `GET /configs/v1/application-agents/{id}` and check `api_permissions` on the AppAgent referenced by the MCP server config. | Add the missing value to `api_permissions` (`PUT /configs/v1/application-agents/{id}` with the full list). |
-| `app_agent_id` on the MCP server config is wrong or the AppAgent was deleted | `GET /configs/v1/mcp-servers` for the project; check `app_agent_id`.      | Point the config at a valid AppAgent.                                |
+| `app_agent_id` on the MCP server config names the wrong AppAgent (it cannot name a deleted one: deleting a referenced agent is refused with `412`) | `GET /configs/v1/mcp-servers?project_id=<gid>&full_fetch=true`; check `app_agent_id`. | Point the config at the intended AppAgent with a PUT (all four fields). |
 
 ## Symptom: `400 Bad Request` with `{"error": "invalid_request", "error_description": "Token in X-IK-Token header …"}`
 
@@ -89,8 +89,9 @@ Only applies to session-based clients (protocol revisions before `2026-07-28`). 
 
 | Likely cause                                          | How to verify                                                                  | Fix                                                                  |
 |-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
-| No MCP server configuration exists for the project    | `GET /configs/v1/mcp-servers` filtered by project, or check the Hub.            | Create one (`POST /configs/v1/mcp-servers`); see `configuration.md`.  |
-| Configuration exists but `enabled: false`             | Same place.                                                                     | Patch the configuration to `enabled: true`.                          |
+| No MCP server configuration exists for the project, or it was deleted | A request with a Bearer token gets `403` `{"error": "forbidden", "error_description": "MCP server is not enabled for this project"}` (without a Bearer token it is still `401`). `GET /configs/v1/mcp-servers?project_id=<gid>&full_fetch=true`, or check the Hub. | Create one (`POST /configs/v1/mcp-servers`); see `configuration.md`. A project holds at most one: a second `POST` is `409` `mcp server already exists in project`. |
+| Configuration exists but `enabled: false`             | Same `403` body; the list shows `enabled: false` (only with `full_fetch=true` - without it `enabled`, `app_agent_id`, `token_introspect_id` and `scopes_supported` come back empty). | `PUT /configs/v1/mcp-servers/{id}` with `enabled: true` **and** the other three fields - there is no PATCH, a PUT replaces the configuration, so `app_agent_id`, `token_introspect_id` and `scopes_supported` are required again (an unknown agent or introspect ID is `422`). |
+| Deleting the AppAgent the configuration references fails | `DELETE /configs/v1/application-agents/{id}` answers `412` `cannot be deleted because an app agent is still referenced by one or more MCP server configs`. | Point the configuration at another agent (PUT) or delete the configuration first. |
 
 ## Useful one-liners
 

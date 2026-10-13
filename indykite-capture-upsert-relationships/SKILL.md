@@ -47,7 +47,7 @@ For each connection decide:
 | `source`     | yes      | `{ "external_id": …, "type": … }` of the outgoing node.            |
 | `target`     | yes      | `{ "external_id": …, "type": … }` of the incoming node.            |
 | `type`       | yes      | Relationship type, conventionally an uppercase verb (max 128 chars). |
-| `properties` | no       | Array of `{ "type": …, "value": … }` (string / integer / float / boolean or arrays of those); `external_value` data references are also accepted. |
+| `properties` | no       | Array of `{ "type": …, "value": … }` (string / integer / float / boolean or arrays of those); `external_value` (a resolver name string) is accepted instead of `value`. No `metadata` on relationship properties. |
 
 ### 2. Assemble the request body
 

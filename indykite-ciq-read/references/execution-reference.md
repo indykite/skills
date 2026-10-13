@@ -40,8 +40,21 @@ Field rules:
 
 - `id` — either the GID returned when you created the Knowledge Query, or its `name`.
 - `input_params` — key/value map covering **every partial filter** in the policy and Knowledge Query. Keys are written **without** the leading `$` (so policy filter `$person_external_id` becomes `"person_external_id"`).
+- `page_size` — optional, rows per page; the default is `100`.
+- `page_token` — optional, a **1-based page number**, not an offset and not a value copied from a response: `1` (or omitted, `0`, a negative number) is the first page, `2` the second, and so on, each call asking for `page_size` more rows.
 
 Values are typed: strings stay strings; numbers and booleans pass through.
+
+Paging example - the second page of fifty rows:
+
+```json
+{
+  "id": "<knowledge_query_gid_or_name>",
+  "input_params": { "person_external_id": "alice" },
+  "page_size": 50,
+  "page_token": 2
+}
+```
 
 ## Response
 
@@ -66,6 +79,8 @@ Values are typed: strings stay strings; numbers and booleans pass through.
 Each row is keyed `<var>.<attr>` matching the variables you listed in the Knowledge Query's `nodes` / `relationships` / `aggregate_values`. The shape of values depends on what the policy's `allowed_reads` permitted.
 
 An empty `data` array means the policy ran without error but matched no rows. That is **not** an error response — verify the IKG actually contains data for the supplied parameters.
+
+The response carries no page token and no total: to page, increment `page_token` yourself and stop when a page comes back with fewer than `page_size` rows (or empty).
 
 ## Error semantics
 
