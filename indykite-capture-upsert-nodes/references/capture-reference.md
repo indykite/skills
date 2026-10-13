@@ -35,7 +35,7 @@ POST <API_URL>/capture/v1/nodes
 |------------------|----------|---------|
 | `type`           | yes      | Property name (max 128 chars), e.g. `email`. |
 | `value`          | no*      | String, integer, float, boolean, or an array of any of those. |
-| `external_value` | no*      | Data reference resolved at query time by an [External Data Resolver](https://developer.indykite.com/guides/guide-external-data-resolver) instead of a stored value. |
+| `external_value` | no*      | A string: the `name` of an [External Data Resolver](https://developer.indykite.com/guides/guide-external-data-resolver) configuration that fetches the value at query time instead of a stored value, e.g. `"external_value": "vehicle-pricing-resolver"`. |
 | `metadata`       | no       | Per-property provenance - below. |
 
 \* a property carries `value` or `external_value`.

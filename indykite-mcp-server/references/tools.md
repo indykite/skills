@@ -168,6 +168,8 @@ Useful for permissions inspectors and "show me everything I'm allowed to do here
 |-----------------|-----------------------------------------------------------------------------------|
 | `id`            | The GID **or** name of the Knowledge Query to execute.                            |
 | `input_params`  | The partial parameters from the Knowledge Query **and its policy**. The exact set for each query is documented in that query's description — discover it via `resources/read indykite://knowledge-queries/`. |
+| `page_size`     | Optional. Rows per page, default `100`, maximum `1000`; a larger value fails validation with `page_size exceeds maximum of 1000`. |
+| `page_token`    | Optional. A 1-based page number, not a token copied from a result: `1` or omitted is the first page, `2` the next. The result carries no page token, so increment the number and stop at the first page shorter than `page_size`. |
 
 **Always discover the query before calling it**. The MCP server exposes (headers: `Mcp-Method: resources/read`, `Mcp-Name: indykite://knowledge-queries/`):
 

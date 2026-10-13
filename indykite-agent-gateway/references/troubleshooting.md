@@ -40,7 +40,9 @@ A symptom-first map from observable failure to most likely cause. Walk it top-to
 |-------------------------------------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
 | Subject type not allowed                              | Audit `reason` mentions subject type / no policy match.                            | Add the type to `JARVIS_AUTHZEN_SUBJECT_TYPES`.                     |
 | `CAN_TRIGGER` edge missing                            | Inspect the IKG: `(:User {external_id:"…"})-[:CAN_TRIGGER]->(:Workflow)`.          | Capture the missing edge.                                           |
-| ContX IQ returns nothing                              | Audit `reason` says "no workflow matches" or chain list empty.                     | Confirm `workflow_name` on every `INVOKES` matches `Workflow.external_id`. |
+| ContX IQ returns nothing                              | Audit `reason` is `no workflow matches the actors chain` or the chain list is empty. | Confirm `workflow_name` on every `INVOKES` matches `Workflow.external_id`. |
+| Subject holds no `CAN_TRIGGER` on the matched workflow | Audit `reason` is `subject is not authorized to trigger any of the workflows <ids>`. | Capture the `CAN_TRIGGER` edge from that user to the workflow. |
+| Delegation token reused on another chain              | Audit `reason` is `no workflow matches the actors chain` and `actorsChain` shows agents of a different workflow. | Mint a token per chain; do not forward one obtained for another workflow. |
 | Wrong `query_id`                                      | Hub UI vs. `JARVIS_CONTX_IQ_QUERY_ID`.                                              | Set the correct `query_id`.                                         |
 | Policy reads a token that is not sent                 | Policy condition references `$token` but the gateway uses the Token Service (or `$ik_token` without one). | Reference `$ik_token` with a Token Service, `$token` without. |
 
@@ -50,7 +52,8 @@ A symptom-first map from observable failure to most likely cause. Walk it top-to
 |-------------------------------------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
 | `Agent.external_id` does not match the IdP client / `act` chain entry | Compare the three values side-by-side.                            | Make all three identical.                                           |
 | `INVOKES` relationship missing                        | Query the IKG for the relationship.                                                | Capture the missing relationship.                                   |
-| Chain skips a required intermediate agent             | Audit `reason` shows the requested chain (`actorsChain`).                          | Route through the orchestrator (or whichever agent the workflow demands). |
+| Chain skips a required intermediate agent             | Audit `reason` is `no workflow matches the actors chain`; `actorsChain` shows the requested chain. | Route through the orchestrator (or whichever agent the workflow demands). |
+| An MCP server sits in the middle of a workflow        | The workflow lists the MCP agent before another agent.                             | An MCP server is always the last link; list it last, and model direct calls as a one-agent workflow (`[mcp-agent]`). |
 
 ## Symptom: `401` / `403` on MCP calls (`protocol: mcp` instance)
 

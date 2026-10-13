@@ -1,6 +1,6 @@
 # Audit Log API Reference
 
-The Audit Log API is the read side of IndyKite's **tamper-proof audit trail**. Every audit event the platform emits for a project (the same `indykite.audit.*` events [Outbound Events](https://developer.indykite.com/guides/guide-outbound-events) can deliver to a sink) is appended to that project's **chain**: events are collected into **batches**, each batch is hashed and signed, and a signed **manifest** links it to the previous one. Periodically a signed **checkpoint** fixes the chain's current head. The API pages through those three artefacts and publishes the keys that signed them.
+The Audit Log API is the read side of IndyKite's **tamper-proof audit trail**. Every audit event of a project that an [Outbound Events](https://developer.indykite.com/guides/guide-outbound-events) sink delivered (the same `indykite.audit.*` events) is appended to that project's **chain**, once the project has an Audit Signing configuration (which switches the chain on) and an Event Sink whose route matched the event. Organization-level configuration events are never chained. On the chain, events are collected into **batches**, each batch is hashed and signed, and a signed **manifest** links it to the previous one. Periodically a signed **checkpoint** fixes the chain's current head. The API pages through those three artefacts and publishes the keys that signed them.
 
 ## Base path and endpoints
 
@@ -64,18 +64,18 @@ Ordering differs by resource: **logs and manifests page in sequence order, from 
 
 Batches are cut by size or by time, so a batch can hold one event or many, and the events in it are the ones of that project that arrived together. Within a batch the events are in the order the platform received them, which is not always the order in which they happened: sort on `time` when the order matters.
 
-Events are recorded at least once: a redelivery on the platform side appends the event again rather than dropping it, possibly in a later batch, so two identical events in a chain are a duplicate delivery, not an insertion. A redelivered event is identical in every field, including `time` and `requestId`, while two separate actions always differ in at least `time`. Deduplicate on the whole event object; never strip `time` or `requestId` first, and never rely on adjacency.
+An accepted event is written to the chain once. A duplicate is possible only when a delivery was replayed long after the original; it then lands in a later batch, and it is a redelivery, not an insertion. A redelivered event is identical in every field, including `time` and `requestId`, while two separate actions always differ in at least `time`. Deduplicate on the whole event object; never strip `time` or `requestId` first, and never rely on adjacency.
 
 Every event in `data` has the same top-level shape, whatever its type:
 
 | Event field                 | Meaning                                                                                                                 |
 |-----------------------------|-------------------------------------------------------------------------------------------------------------------------|
-| `eventType`                 | One of the `indykite.audit.*` names listed in the [Outbound Events guide](https://developer.indykite.com/guides/guide-outbound-events): `indykite.audit.capture.upsert.node`, `indykite.audit.config.update`, `indykite.audit.authorization.evaluation`, `indykite.audit.ciq.execute`, `indykite.audit.cdc.node.update`, and so on. |
+| `eventType`                 | One of the `indykite.audit.*` names listed in the [Outbound Events guide](https://developer.indykite.com/guides/guide-outbound-events): `indykite.audit.capture.upsert.node`, `indykite.audit.config.update`, `indykite.audit.config.list`, `indykite.audit.authorization.evaluation`, `indykite.audit.ciq.execute`, `indykite.audit.cdc.node.update`, and so on. Reading the trail is not audited; `GET /access/v1/policies` and every Config API list call are, as one `config.list` event each. |
 | `time`                      | When the event happened, RFC 3339 with nanoseconds, UTC.                                                                |
 | `customerId`, `appSpaceId`  | The customer and the project the event happened in; `appSpaceId` equals the request's `project_id`.                     |
 | `initiator`                 | Who made the request, as a flat object of identifiers whose keys tell the kind of caller apart: an Application Agent (`applicationId`, `appAgentId`, `appAgentCredentialsId`), a Service Account (`serviceAccountId`, `serviceAccountCredentialsId`), or an end user (`digitalTwinId`, `viaApplicationId`, `sessionId`), each also repeating `customerId` and `appSpaceId`. Keys without a value are left out; the object is absent when the caller is not known. |
 | `requestId`                 | The request that caused the event, the same value the API returned to the caller. Always present, empty when there was none. |
-| `data`                      | The event payload, typed by its `@type` member (for example `type.googleapis.com/indykite.auditsink.v1beta1.UpsertData` for a Capture upsert). Fields are camelCase; a Capture property value is a typed object such as `{"stringValue": "…"}`. |
+| `data`                      | The event payload, typed by its `@type` member (for example `type.googleapis.com/indykite.auditsink.v1beta1.UpsertData` for a Capture upsert; `…CreatedConfig`, `…UpdatedConfig` with `before` and `after`, `…DeletedConfig` with `before` - the deleted object's last state, empty when it could not be read - and `…ListConfig` with the listed `type` and `ids` for configuration events). Fields are camelCase; a Capture property value is a typed object such as `{"stringValue": "…"}`; credentials inside configuration payloads appear only as `kid` and `expireTime`. |
 | `context`                   | String key-value pairs attached to some events (for example `soft_delete` on a configuration delete). Present only when there is at least one pair. |
 | `eventSource`               | Which part of the platform recorded the event. Informational.                                                           |
 
@@ -119,13 +119,13 @@ A standard JWK Set with one or more EC keys:
 { "keys": [ { "kty": "EC", "crv": "P-256", "x": "…", "y": "…", "use": "sig", "kid": "<key-id>" } ] }
 ```
 
-The keys carry no `alg`; the algorithm label travels with each signed item instead. Responses are cacheable for 5 minutes. The set only ever lists the keys currently in use: when a signature's `kid` is not in it, the key was rotated out, so keep the JWKS that was current when each export was taken alongside that export.
+Today every record carries the platform-managed key's `kid`: a customer-managed Audit Signing configuration is stored for the upcoming support and does not change which key signs yet. The keys carry no `alg`; the algorithm label travels with each signed item instead. Responses are cacheable for 5 minutes. The set only ever lists the keys currently in use: when a signature's `kid` is not in it, the key was rotated out, so keep the JWKS that was current when each export was taken alongside that export.
 
 ## Errors
 
 | HTTP | Message                                                                       | Cause / fix                                                                                         |
 |------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| `200` + `items: []` | -                                                                 | Empty chain: no audit event has been recorded for the project yet, or tamper-proof recording is not enabled for it. Not an error. A new project also has no checkpoints until its chain has grown. |
+| `200` + `items: []` | -                                                                 | Empty chain: the project has no Audit Signing configuration (it switches the chain on), no Event Sink of the project has delivered an event yet, or nothing has happened. Not an error. A new project also has no checkpoints until its chain has grown. |
 | `400` | `project_id is required`                                                      | Add `?project_id=<gid>`. Applies to the JWKS endpoint too.                                          |
 | `400` | `project_id is not a valid project identifier`                                | Not an application space GID (`gid:…`).                                                              |
 | `400` | `invalid cursor: …` / `invalid cursor`                                        | The cursor was edited, truncated, taken from another endpoint family, or from another project's checkpoints. Copy `next_cursor` verbatim. |
