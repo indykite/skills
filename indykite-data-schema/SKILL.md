@@ -30,6 +30,9 @@ Do **not** activate this skill when the user:
 
 - An IndyKite **project** with an **AppAgent** holding the **`ReadDataSchema` API permission** and AppAgent **credentials** (the token that goes into `X-IK-ClientKey`) - see the [Credentials guide](https://developer.indykite.com/guides/guide-credentials). Without the permission the call fails with `401` and the message `insufficient API access level for appAgent`; add it to the agent's `api_permissions` (see the [Environment guide](https://developer.indykite.com/guides/guide-environment)).
 - **Data already ingested.** A project with an empty IKG returns `404 Not Found` with `errors: ["data schema not found for the specified project"]` - that is the normal "nothing ingested yet" answer, not a failure of this skill.
+- **A minute of patience after a write.** The schema is maintained from the graph's change stream and persisted at most once a minute, and only when something changed, so a Capture call is reflected within about a minute rather than instantly. Right after a large batch, read again a minute later before concluding that a type is missing or a count is short.
+
+This endpoint is the only way to read the schema. The platform keeps it as nodes of its own in the graph, and a ContX IQ policy condition that tries to match them is refused when the policy is saved (see the [`indykite-ciq-read`](../indykite-ciq-read/SKILL.md) policy reference for the blocked labels).
 
 ## Steps
 
@@ -87,7 +90,7 @@ The full field reference, a complete example response, and `jq` recipes for comm
 - **Copy spellings, don't retype them.** Take node types, relationship types, and property names verbatim from the response into Cypher patterns, KBAC conditions, Capture payloads, and AuthZEN `subject.type` / `resource.type` fields.
 - **Check the edge direction.** `graph.edges` records the stored `source` → `target` direction; a Cypher pattern drawn in the opposite direction matches nothing.
 - **Treat mixed type tallies as a red flag.** More than one entry in a property's `types` list usually means an upstream source changed what it sends.
-- **Diff over time.** `graph.metadata.updated_at` tells you when the schema last changed; polling and diffing the response is a cheap monitor for upstream changes.
+- **Diff over time.** `graph.metadata.updated_at` tells you when the schema was last persisted; it moves about once a minute while data flows (counts change even when the shape does not) and stays put while the graph is idle. Polling and diffing the response is a cheap monitor for upstream changes.
 - **Count before you delete.** The per-property and per-edge counts show how much data a cleanup would touch before you call the Capture delete endpoints.
 
 ## Outcome
