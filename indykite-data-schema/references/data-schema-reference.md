@@ -18,7 +18,7 @@ Top level is a single `graph` object.
 | Field            | Type    | Meaning                                                              |
 |------------------|---------|----------------------------------------------------------------------|
 | `graph.directed` | boolean | Always `true` - the IKG is a directed graph.                          |
-| `graph.metadata` | object  | `created_at` and `updated_at` timestamps (RFC 3339) of the schema.    |
+| `graph.metadata` | object  | `created_at` and `updated_at` timestamps (RFC 3339) of the schema. `updated_at` advances with each persist, at most once a minute and only when the shape or the counts changed. |
 | `graph.nodes`    | map     | Keyed by **node type** (e.g. `"Person"`). Values below.               |
 | `graph.edges`    | array   | One entry per **(source type, relation, target type)** combination.   |
 
@@ -147,6 +147,7 @@ jq -r '.graph.nodes | to_entries[]
 
 ## Troubleshooting
 
-- **`404` but you just ingested data**: confirm the ingest hit the same project as the AppAgent credential you are reading with, and the same region (`eu` vs `us`).
+- **`404` but you just ingested data**: the schema is persisted at most once a minute, so wait a minute and read again; then confirm the ingest hit the same project as the AppAgent credential you are reading with, and the same region (`eu` vs `us`).
+- **A count is short, or a new type is missing, right after a large batch**: same cause - the persist runs at most once a minute and only when something changed. `graph.metadata.updated_at` tells you whether a persist has happened since the batch.
 - **A type you expect is missing**: the schema only reflects what was actually ingested - check the Capture response for per-item errors, and check for a misspelled variant of the type in `graph.nodes` (e.g. `Perosn`).
 - **A relationship you expect is missing**: `graph.edges` is keyed by the (source type, relation, target type) combination - if the edge was ingested with source and target swapped, it appears under the reversed combination.
