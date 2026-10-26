@@ -35,7 +35,7 @@ When the caller is an agent acting on a user's behalf through the [Agent Gateway
 
 - **Header**: `X-IK-Token: <delegation-token>`, sent as is with no prefix, beside the untouched `Authorization: Bearer` header. It never replaces the Bearer token.
 - **Validation**: introspected through the project's Token Introspect configurations like the Bearer token; its `sub` must equal the Bearer token's `sub`.
-- **Purpose**: forwarded with every `ciq_execute` and `authzen_*` call, where ContX IQ and KBAC policies read its claims as `$ik_token`, including the nested `act` delegation chain (`$ik_token.act.sub` = the calling agent, `$ik_token.act.act.sub` = the one before it).
+- **Purpose**: forwarded with every `ciq_execute` and `authzen_*` call, where ContX IQ and KBAC policies read its claims as `$ik_token`, including the nested `act` delegation chain (`$ik_token.act.sub` = the calling agent, `$ik_token.act.act.sub` = the one before it), plus the derived `$ik_token.act_chain` / `$ik_token.act_chain_types` lists (each hop's `sub` and `type`, oldest first) for comparing the whole chain with a graph path in a Cypher condition.
 
 A delegation token that does not hold up is refused **before anything is forwarded**, with `400 Bad Request` and no `WWW-Authenticate` challenge - the Bearer token itself is fine, so re-authenticating would not help:
 
