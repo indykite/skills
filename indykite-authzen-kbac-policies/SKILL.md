@@ -89,7 +89,7 @@ For relationship-based rules, match the relationship instead of (or in addition 
 MATCH (subject:Person)-[:CAN_AFFORD]->(resource:Server)
 ```
 
-Token claims can be read directly in the `WHERE` clause without any caller input: `$token.<claim>` (the user token) and `$ik_token.<claim>` (the delegation token in `X-IK-Token`, e.g. `$ik_token.act.sub` for the calling agent). Both names are reserved - never required in `context.input_params`, ignored if sent there, and an absent token makes the comparison `null` so the decision is a plain denial.
+Token claims can be read directly in the `WHERE` clause without any caller input: `$token.<claim>` (the user token) and `$ik_token.<claim>` (the delegation token in `X-IK-Token`, e.g. `$ik_token.act.sub` for the calling agent). To compare the whole delegation chain with a graph path, use the derived lists `$ik_token.act_chain` (each hop's `sub`, oldest first) and `$ik_token.act_chain_types` (each hop's `type`), e.g. `[r IN rels | endNode(r).external_id] = $ik_token.act_chain AND [r IN rels | endNode(r).type] = $ik_token.act_chain_types` - see [`references/policy-reference.md`](references/policy-reference.md#token-claims-in-the-condition-token-and-ik_token). Both names are reserved - never required in `context.input_params`, ignored if sent there, and an absent token makes the comparison `null` so the decision is a plain denial.
 
 For the full condition grammar (attribute references, multi-hop patterns, partial parameters, the token claim parameters, and the reserved `$subject_id` parameter that `2.0-kbac` binds to the user token's identity) see [`references/policy-reference.md`](references/policy-reference.md).
 

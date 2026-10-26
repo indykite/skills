@@ -132,9 +132,19 @@ MATCH (subject:Person)-[:OWNS]->(resource:Car)
 WHERE resource.delegated_to = $ik_token.act.sub AND resource.driver = $token.sub
 ```
 
+To check the **whole** delegation chain rather than one hop, the platform also derives two lists from the nested `act` claims, oldest hop first: `$ik_token.act_chain` (the `sub` of every hop) and `$ik_token.act_chain_types` (the `type` of every hop, `null` for a hop without one). Compared with a variable-length path, they allow exactly the chain the graph permits:
+
+```cypher
+MATCH (subject:Person)-[rels:INVOKES*]->(resource:Agent)
+WHERE [r IN rels | endNode(r).external_id] = $ik_token.act_chain
+  AND [r IN rels | endNode(r).type] = $ik_token.act_chain_types
+```
+
+With the graph path `karel INVOKES orchestrator INVOKES retriever` and a token whose chain is `[orchestrator, retriever]` of types `[Agent, Agent]`, karel `CAN_INVOKE` retriever is `true`. The same token asking about orchestrator is `false` (the chain is longer than the path), a token with the hops reversed is `false`, and a token whose hops carry no `type` derives `[null, null]`, which never equals the path's types. A resource search for that token returns retriever only.
+
 `token` and `ik_token` are **reserved parameter names**, which changes the partial-parameter rules for them:
 
-- **They are never input parameters.** A policy that references them does not require `context.input_params.token` or `.ik_token` on the request, and a value the caller sends under either name is ignored - the platform always binds the introspected claims. A caller cannot feed a policy a delegation chain of its own making.
+- **They are never input parameters.** A policy that references them does not require `context.input_params.token` or `.ik_token` on the request, and a value the caller sends under either name is ignored - the platform always binds the introspected claims. A caller cannot feed a policy a delegation chain of its own making. The derived lists sit under `ik_token` too, so they always come from the token: an `input_params.act_chain` never changes `$ik_token.act_chain`.
 - **An absent token fails closed.** A request without a user token binds `token` to an empty claim set; one without `X-IK-Token` binds `ik_token` empty. `$ik_token.act.sub` then resolves to `null`, the comparison is false, and the decision is `false`. It is a denial, not an error.
 - **Subject search binds both sets empty.** `POST /access/v1/search/subject` carries no user token, so a condition that reads a claim matches no subject there.
 - **Only the exact names are reserved.** A typo such as `$iktoken.act.sub` is an ordinary partial parameter, so the request fails with `422` and `missing or wrong input params, 'iktoken'`. The named parameter points at the typo.
@@ -164,7 +174,7 @@ Each node of the tree is either a **branch** or a **leaf**:
 How `attribute` and `value` entries resolve:
 
 - `"$token.<claim>"` - a claim from the user (OAuth bearer) token, e.g. `"$token.email"`.
-- `"$ik_token.<claim>"` - a claim from the optional **delegation token** sent in the `X-IK-Token` header (minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service) and forwarded by the Agent Gateway). Dot paths walk the RFC 8693 `act` chain: `$ik_token.sub` is the user (always equal to `$token.sub`), `$ik_token.act.sub` the agent making this call, `$ik_token.act.act.sub` the one before it, down to the first agent the user delegated to; each link also carries a `type` (`Agent` by default). A reference to a token that was not sent **fails the filter closed**. The names `token` and `ik_token` are reserved: a value sent under `context.input_params.token` or `.ik_token` is ignored, so a caller cannot feed the policy a chain of its own making. The same two references work inside `condition.cypher` - see [Token claims in the condition](#token-claims-in-the-condition-token-and-ik_token).
+- `"$ik_token.<claim>"` - a claim from the optional **delegation token** sent in the `X-IK-Token` header (minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service) and forwarded by the Agent Gateway). Dot paths walk the RFC 8693 `act` chain: `$ik_token.sub` is the user (always equal to `$token.sub`), `$ik_token.act.sub` the agent making this call, `$ik_token.act.act.sub` the one before it, down to the first agent the user delegated to; each link also carries a `type` (`Agent` by default). A reference to a token that was not sent **fails the filter closed**. The names `token` and `ik_token` are reserved: a value sent under `context.input_params.token` or `.ik_token` is ignored, so a caller cannot feed the policy a chain of its own making. The same two references work inside `condition.cypher` - see [Token claims in the condition](#token-claims-in-the-condition-token-and-ik_token), which also covers the derived `$ik_token.act_chain` / `$ik_token.act_chain_types` lists for comparing the whole chain with a graph path.
 - `"$<name>"` - a value from `context.input_params` (key without the `$`); dot paths reach into object params, e.g. `"$order.total"`.
 - Any other JSON value is a literal. `attribute` must be a string (in practice a `$…` reference); `value` can be a scalar or an array.
 - For date/time comparisons, wrap the side in `{ "type": "datetime", "value": "<RFC3339 timestamp or $param>" }`. Plain values need no wrapper.
