@@ -1,13 +1,13 @@
 ---
 name: indykite-ciq-add-relationship-property
-description: Author an IndyKite ContX IQ (CIQ) policy plus its Knowledge Query that sets one or more properties on an existing relationship in the IndyKite Graph (IKG), then run it via `POST /contx-iq/v1/execute`. Use when adding a brand-new property, overwriting an existing one, or attaching property metadata on a relationship that's already in the IKG - no relationship creation, no node writes, no deletes.
+description: Author an IndyKite ContX IQ (CIQ) policy plus its Knowledge Query that sets one or more properties on an existing relationship in the IndyKite Graph (IKG), then run it via `POST /contx-iq/v1/execute`. Use when adding a brand-new property or overwriting an existing one on a relationship that's already in the IKG - no relationship creation, no node writes, no deletes, and no property metadata (relationship properties take none; metadata on node properties is indykite-ciq-add-property).
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
 
 # IndyKite ContX IQ - add a property to an existing relationship
 
-Set or overwrite one or more properties on a relationship that already exists in the IndyKite Graph (IKG), driven by a ContX IQ policy + Knowledge Query and run via `POST /contx-iq/v1/execute`. The policy whitelists which `cypher`-matched relationships may be modified (`allowed_upserts.relationships.existing_relationships`); the Knowledge Query's `upsert_relationships` references those variables (no `source`/`target`/`type`, since the relationship already exists) and lists the properties to set, optionally with metadata. Adding a brand-new property and overwriting an existing one are the **same operation** - the platform doesn't distinguish.
+Set or overwrite one or more properties on a relationship that already exists in the IndyKite Graph (IKG), driven by a ContX IQ policy + Knowledge Query and run via `POST /contx-iq/v1/execute`. The policy whitelists which `cypher`-matched relationships may be modified (`allowed_upserts.relationships.existing_relationships`); the Knowledge Query's `upsert_relationships` references those variables (no `source`/`target`/`type`, since the relationship already exists) and lists the properties to set. Adding a brand-new property and overwriting an existing one are the **same operation** - the platform doesn't distinguish.
 
 This skill is the relationship counterpart to [`indykite-ciq-add-property`](../indykite-ciq-add-property/SKILL.md), which sets properties on existing **nodes**. The structure is symmetric; the field names are different.
 
@@ -23,14 +23,15 @@ For reads, see [`indykite-ciq-read`](../indykite-ciq-read/SKILL.md).
 
 Activate this skill when the user:
 
-- wants to **set a property** on a relationship that already exists in the IKG (e.g. add `verified: true` to an existing `:PLAYED_AT`, set `weight` on an existing `:LIKES`, attach `confidence` metadata to an existing `:OWNS` edge);
-- is annotating an existing relationship with provenance, trust score, or audit fields after the fact;
+- wants to **set a property** on a relationship that already exists in the IKG (e.g. add `verified: true` to an existing `:PLAYED_AT`, set `weight` on an existing `:LIKES`, set `confidence` on an existing `:OWNS` edge);
+- is annotating an existing relationship with provenance, trust score, or audit fields after the fact, as plain properties;
 - is debugging a `403` / `422` from a relationship-property-write execute that should have succeeded.
 
 Do **not** activate this skill when the user:
 
 - wants to **create a new relationship** between two existing nodes - use [`indykite-ciq-create-relationship`](../indykite-ciq-create-relationship/SKILL.md);
 - wants to **set properties on a node** - use [`indykite-ciq-add-property`](../indykite-ciq-add-property/SKILL.md);
+- wants to attach **property metadata** (`source`, `assurance_level`, …) - relationship properties take none; put it on a node property with [`indykite-ciq-add-property`](../indykite-ciq-add-property/SKILL.md);
 - wants to **delete** a property - use [`indykite-ciq-delete`](../indykite-ciq-delete/SKILL.md);
 - wants to **read** data - use [`indykite-ciq-read`](../indykite-ciq-read/SKILL.md);
 - is using the Capture API to ingest data - different ingestion path.
@@ -40,7 +41,7 @@ Do **not** activate this skill when the user:
 - An IndyKite **project**, **AppAgent**, and AppAgent **credentials** (the AppAgent token goes into `X-IK-ClientKey` at execute time).
 - A **Service Account token** with Config API access, and the project's GID in `PROJECT_GID` - both used to *create* the policy and Knowledge Query.
 - The **target relationship already in the IKG**, plus both endpoint nodes.
-- A clear **list of property names** the policy/KQ will write. Property names must be hardcoded in the KQ; only values and metadata may be `$param`.
+- A clear **list of property names** the policy/KQ will write. Property names must be hardcoded in the KQ; only values may be `$param`.
 - For non-`_Application` subjects, the **subject's** node also already in the IKG.
 
 If any of these are missing, stop and tell the user - fixing them first is much cheaper than debugging a vague `403` or empty result.
@@ -105,7 +106,7 @@ The Knowledge Query references the policy. Each entry in `upsert_relationships` 
 
 - `name` - **must** match a relationship variable from the policy's `cypher` (e.g. `r`). This is what differs structurally from the create-relationship skill; using a fresh name here would imply create.
 - `source` / `target` / `type` - *omit* when updating an existing relationship. The endpoints and label come from the matched edge; specifying them is unnecessary and can confuse the platform.
-- `properties` - array of `{type, value, metadata?}` items. Same shape as for nodes.
+- `properties` - array of `{type, value}` items. Unlike node properties, relationship properties take no `metadata`: a `metadata` key is refused as an unknown field when the Knowledge Query is saved.
 
 Echo the result back in the response by listing properties to project in the top-level `relationships` and/or `nodes` arrays.
 
@@ -124,7 +125,7 @@ jq --arg pid "$PROJECT_GID" --arg polid "$POLICY_ID" '.project_id = $pid | .poli
 
 A `201 Created` returns the Knowledge Query's `id` (GID).
 
-Schema details - including the protected property names you cannot set (`_service`, `create_time`, `id`, `type`, `update_time`) and the metadata sub-array - live in [`references/knowledge-query-reference.md`](references/knowledge-query-reference.md).
+Schema details - including the protected property names you cannot set (`_service`, `create_time`, `id`, `type`, `update_time`) and why relationship properties carry no metadata - live in [`references/knowledge-query-reference.md`](references/knowledge-query-reference.md).
 
 ### 4. Authenticate and execute
 
@@ -203,7 +204,7 @@ When this skill has been applied successfully:
 ## Files in this skill
 
 - [`references/policy-reference.md`](references/policy-reference.md) - policy schema, `existing_relationships` deep-dive, why other blocks are omitted.
-- [`references/knowledge-query-reference.md`](references/knowledge-query-reference.md) - `upsert_relationships` for updates (variable from cypher, no `source`/`target`/`type`), properties + metadata, protected names.
+- [`references/knowledge-query-reference.md`](references/knowledge-query-reference.md) - `upsert_relationships` for updates (variable from cypher, no `source`/`target`/`type`), properties (no metadata), protected names.
 - [`references/execution-reference.md`](references/execution-reference.md) - `POST /contx-iq/v1/execute` for relationship-property writes, response shape with the relationship's `Props` block.
 - [`references/troubleshooting.md`](references/troubleshooting.md) - symptom → fix tables.
 - [`assets/policy-annotate-played-at.json`](assets/policy-annotate-played-at.json) - runnable `_Application` annotates `:PLAYED_AT` policy.

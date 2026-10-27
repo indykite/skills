@@ -52,11 +52,12 @@ The relationship label. **Must** equal one of the `type` values in the policy's 
 
 ### `properties` (optional)
 
-Array of property entries on the new relationship. Same shape as node properties:
+Array of property entries on the new relationship:
 
 - `type` — property name. **Must be hardcoded** (no `$param`).
 - `value` — property value. May be hardcoded or `$param`.
-- `metadata` — optional. Array of `{type, value}` items for property metadata. Same rules.
+
+Relationship properties carry **no `metadata`** — property metadata exists only on node properties. A relationship property with a `metadata` key is refused as an unknown field when the Knowledge Query is saved.
 
 Example with two properties on the new relationship:
 
@@ -122,7 +123,7 @@ A relationship-create Knowledge Query succeeds only when **all** of these are tr
 3. Every `upsert_relationships[]` triple `(source-label, type, target-label)` is in the policy's `allowed_upserts.relationships.relationship_types`.
 4. `source` and `target` in the KQ are **variable names** that exist in the policy's cypher.
 5. `name` does not collide with an existing cypher variable.
-6. No property in `upsert_relationships[].properties` is a protected name.
-7. Every `$param` referenced in property values or metadata is present in the execute call's `input_params`.
+6. No property in `upsert_relationships[].properties` is a protected name or carries `metadata`.
+7. Every `$param` referenced in property values is present in the execute call's `input_params`.
 
 If you are getting `403` or `422`, walk this list — items 3 and 4 cover the majority of cases.

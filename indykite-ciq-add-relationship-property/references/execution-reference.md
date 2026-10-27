@@ -17,7 +17,7 @@ POST <API_URL>/contx-iq/v1/execute
 | `_Application`           | AppAgent credentials token (required)  | **Omit.** The reserved `$_appId` is auto-filled.             |
 | `Person` / `User` / etc. | AppAgent credentials token (required)  | User OAuth access token (required). `$token.sub` substituted. |
 
-For non-`_Application` subjects, the Bearer token's `sub` claim drives `$token.sub` in the policy filter. Other token claims like `$token.iss` (issuer) can be used as values inside metadata.
+For non-`_Application` subjects, the Bearer token's `sub` claim drives `$token.sub` in the policy filter. Other token claims like `$token.iss` (issuer) can be used as property values.
 
 ## Request
 
@@ -35,7 +35,7 @@ For non-`_Application` subjects, the Bearer token's `sub` claim drives `$token.s
 Field rules:
 
 - `id` — either the GID returned when you created the Knowledge Query, or its `name`.
-- `input_params` — key/value map covering **every** `$param` referenced in the policy filter, the KQ's `properties[].value`, and any `metadata[].value`. Keys without the leading `$`.
+- `input_params` — key/value map covering **every** `$param` referenced in the policy filter and the KQ's `properties[].value`. Keys without the leading `$`.
 
 ## Response (successful relationship-property write)
 

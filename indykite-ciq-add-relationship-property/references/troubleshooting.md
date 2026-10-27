@@ -25,7 +25,7 @@ A symptom-first map. Walk it top-down — earlier rows are cheaper to verify.
 | Likely cause                                                              | Fix                                                                                          |
 |---------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
 | A `$param` in the policy filter is not in `input_params`                   | Add the missing key (no `$` prefix).                                                          |
-| A `$param` in `properties[].value` or metadata is not in `input_params`    | Add the missing key.                                                                         |
+| A `$param` in `properties[].value` is not in `input_params`                | Add the missing key.                                                                         |
 | You passed `_appId` (or `$_appId`) explicitly                              | Remove it. `$_appId` is reserved.                                                            |
 
 ## Symptom: Property write returns `200` but value isn't visible in subsequent reads

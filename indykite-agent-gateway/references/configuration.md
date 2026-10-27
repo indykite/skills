@@ -12,7 +12,7 @@ The iag-mcp-demo uses the env-var form so a single shared base service (`iag-bas
 | `identity_provider` | IdP `base_url` and endpoints (`introspect_endpoint`, `client_credential_endpoint`, `exchange_endpoint`). Always required. |
 | `token_service`     | Optional. The self-hosted IndyKite Token Service that mints the delegation token instead of the IdP: `base_url`, `exchange_endpoint`, `introspect_endpoint`, `client_auth.{type,client_id,client_secret}`. |
 | `protected_agent`   | Target `base_url`, downstream `protocol` (`a2a` default, or `mcp`), client credentials (`authentication.type=credentials`, `authentication.client_id`, `authentication.client_secret`), and with the Token Service the `authentication.audiences` to request. |
-| `authzen`           | `base_url`, `action` (typically `CAN_TRIGGER`), `subject_types`, cache tuning.                        |
+| `authzen`           | `base_url`, `action` (typically `CAN_TRIGGER`), cache tuning. `subject_types` is read only before 2.82.0 (required there); from 2.82.0 the subject type comes from ContX IQ whoami. |
 | `contx_iq`          | `base_url`, `query_id`, `app_agent_credentials_token`, optional `allowed_workflow_id`, cache tuning.   |
 | `audit`             | Optional. `delivery: webhook` (`http.url`, `http.method`, `http.auth`) or `delivery: file` (`file.storage_path`, `file.format`, `file.rotation_strategy`), plus optional `async.buffer_size`. |
 
@@ -59,7 +59,7 @@ The audiences the gateway requests come from `protected_agent.authentication.aud
 ## Defaults and validation rules worth knowing
 
 - `protected_agent.protocol` defaults to `a2a`; set it to `mcp` to put IAG in front of an MCP server. As an env var this is `JARVIS_PROTECTED_AGENT_PROTOCOL`.
-- Cache tuning on `authzen` and `contx_iq`: `cache_ttl` defaults to `5m`; `cache_update_after` (background refresh interval) defaults to `cache_ttl`; `cache_update_after_error` (retry interval after a failed refresh) defaults to the smaller of `10s` and `cache_update_after`. The gateway refuses to start when any of the three is negative, when `cache_update_after` exceeds `cache_ttl`, or when `cache_update_after_error` exceeds `cache_update_after`. The background refresh runs off the request context, so a client disconnect no longer kills a refresh or poisons the cache for a full TTL.
+- Cache tuning on `authzen` and `contx_iq`: `cache_ttl` defaults to `5m`; `cache_update_after` (background refresh interval) defaults to `cache_ttl`; `cache_update_after_error` (retry interval after a failed refresh) defaults to the smaller of `10s` and `cache_update_after`. The gateway refuses to start when any of the three is negative, when `cache_update_after` exceeds `cache_ttl`, or when `cache_update_after_error` exceeds `cache_update_after`. The background refresh runs off the request context, so a client disconnect no longer kills a refresh or poisons the cache for a full TTL. Since 2.82.0, `contx_iq.cache_ttl` is also how long a whoami answer is kept (`0` keeps none).
 - Audit file rotation defaults: `rotation_interval=24h`, `rotation_max_bytes=100MiB`.
 - Webhook API-key auth defaults `api_key_header` to `X-API-Key`.
 - `audit.async.buffer_size` defaults to `512` when `async` is present.
@@ -104,7 +104,8 @@ services:
       JARVIS_CONTX_IQ_ALLOWED_WORKFLOW_ID: ${WORKFLOW_ID}
       JARVIS_AUTHZEN_BASE_URL: ${INDYKITE_BASE_URL}/access/v1
       JARVIS_AUTHZEN_ACTION: CAN_TRIGGER
-      JARVIS_AUTHZEN_SUBJECT_TYPES: User
+      # Before 2.82.0 only (the type comes from whoami afterwards):
+      # JARVIS_AUTHZEN_SUBJECT_TYPES: User
       # Optional: mint the delegation token at a self-hosted Token Service instead of the IdP.
       # JARVIS_TOKEN_SERVICE_BASE_URL: ${TOKEN_SERVICE_BASE_URL}
       # JARVIS_TOKEN_SERVICE_EXCHANGE_ENDPOINT: /oauth2/token
@@ -177,4 +178,4 @@ The `iag-mcp-demo` reference app adds one MCP-mode instance, `mcp-iag` (port `88
 | `MCP_SERVER_URL` | Direct URL (`<ORIGIN><PATH>`). Agents call `http://mcp-iag:8886${MCP_SERVER_PATH}` through the gateway; set this back to the direct URL to bypass `mcp-iag`. |
 | `MCP_IDP_CLIENT_ID` / `MCP_IDP_CLIENT_SECRET` | IdP client (e.g. `indykiteagent-mcp`) the gateway uses to authenticate to the MCP server. |
 
-The MCP agents authenticate with an **App Agent token** (`IK_APP_AGENT_KEY`), not the chatbot user token used by the A2A flows. For `mcp-iag` to accept those calls, that token must be introspectable **and** pass the inherited AuthZEN check. If the App Agent is not modeled as a `User` subject, override `JARVIS_AUTHZEN_ACTION` / `JARVIS_AUTHZEN_SUBJECT_TYPES` on `mcp-iag` to match your graph.
+The MCP agents authenticate with their own token (`IK_APP_AGENT_KEY`), not the chatbot user token used by the A2A flows. For `mcp-iag` to accept those calls, that token must be introspectable **and** pass the inherited AuthZEN check. On gateway 2.82.0+ it must also match a Token Introspect configuration of the project: the subject type is that configuration's `ikg_node_type`, and the trigger policy must name it. Before 2.82.0, override `JARVIS_AUTHZEN_SUBJECT_TYPES` on `mcp-iag` instead; `JARVIS_AUTHZEN_ACTION` can be overridden on either.

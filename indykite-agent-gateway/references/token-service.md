@@ -42,8 +42,24 @@ The gateway performs this call on every request; it is listed here so a policy a
 | `requested_token_type`                   | Optional: `urn:ietf:params:oauth:token-type:access_token` or `urn:ietf:params:oauth:token-type:jwt`.      |
 | `audience`, `resource`                   | Optional, repeatable; every value must be in `idp.audiences` / `idp.resources`, else `invalid_target`.     |
 | `scope`                                  | Accepted and ignored: the claims of an issued token are fixed.                                            |
+| `intent`                                 | Optional, platform release 2.84.0 and later. The intent of this hop: a JSON list of evaluations in the shape of an AuthZEN evaluation, at most `idp.max_intent_evaluations` (default 10). The gateway's own exchanges send none; a caller exchanging directly may. |
 
 The `200` response (`Cache-Control: no-store`) carries `access_token`, `issued_token_type`, `token_type: Bearer`, and `expires_in`. The token's claims are exactly `iss`, `sub`, `aud`, `iat`, `exp`, `jti`, and `act` (`sub` + `type` of the actor, nesting the subject token's own `act`, so the oldest agent ends up innermost).
+
+With `intent`, the service checks only that the value is a non-empty JSON list of JSON objects within the limit - it does **not** evaluate it - and writes it as received, compacted, into this hop's `act` element as `"intent": {"evaluations": [...]}`. Without the parameter the hop carries no intent. The intents of earlier hops stay in their nested `act` elements with their values, except that an integer larger than 2^53 can lose precision. Every issued token, with or without an intent, must stay within `idp.max_token_bytes` (default 8000) as a signed compact JWT, because the next hop sends it in a header and it carries the intents of earlier hops. The `1.0.0` image on Docker Hub predates the parameter.
+
+```json
+"act": {
+  "sub": "indykiteagent-2",
+  "type": "Agent",
+  "intent": {
+    "evaluations": [
+      { "subject": { "type": "User", "id": "millicent" }, "action": { "name": "CAN_READ" }, "resource": { "type": "Document", "id": "doc-1" } }
+    ]
+  },
+  "act": { "sub": "indykiteagent", "type": "Agent" }
+}
+```
 
 ### Exchange errors
 
@@ -53,7 +69,7 @@ RFC 6749 shape: a JSON body with `error` and `error_description`.
 |------------------------------|------------------------------------------------------------------------------------------------------------------|
 | `401 invalid_client`         | Client credentials missing or wrong; comes with a `WWW-Authenticate: Basic` challenge.                            |
 | `400 unsupported_grant_type` | `grant_type` is not the token-exchange grant.                                                                    |
-| `400 invalid_request`        | A required parameter is missing (`subject_token is required`, `actor_token is required, this service only issues delegated tokens`), a token type is not the access-token URN, or `requested_token_type` is unsupported. |
+| `400 invalid_request`        | A required parameter is missing (`subject_token is required`, `actor_token is required, this service only issues delegated tokens`), a token type is not the access-token URN, or `requested_token_type` is unsupported. For an intent: `intent must be a JSON list of evaluations`, `intent must contain at least one evaluation`, `intent[<n>] must be a JSON object`, `the intent has <n> evaluations, more than the limit of <max> evaluations per intent`. For any issued token: `the token would be <n> bytes, more than the limit of <max> bytes per token`. |
 | `400 invalid_grant`          | `the subject_token is not valid` / `the actor_token is not valid` (no configuration matches, expired, badly signed, inactive), `the <name> has no subject`, or `the subject_token has a malformed act claim`. |
 | `400 invalid_target`         | `this service does not issue tokens for the audience "<value>"` (or `resource`): the value is not configured.    |
 | `500 server_error`           | `the tokens could not be validated` (a provider could not be reached) or `the token could not be issued` (signing failed). Audited as `ERROR`, not as a refusal. |
@@ -64,7 +80,7 @@ Introspection: `POST /oauth2/introspect` with `token=<jwt>` (same client authent
 
 1. Both tokens are introspected: a token whose `iss` equals `service.base_url` is verified against `idp.signing_keys`; any other token is matched to a `token_introspection.configurations` entry (below) and validated there.
 2. The `aud` of the issued token is decided in order: the request's `audience` parameters; else the `aud` of the subject token (the exchange inherits what the delegation was for rather than widening it); else every value in `idp.audiences` (the case of an opaque subject token). A `resource` parameter is added to `aud` as well. Every value must be listed in `idp.audiences` / `idp.resources`, otherwise the exchange is refused with `invalid_target`.
-3. The token is signed with the first key in `idp.signing_keys`, carries `sub` (the subject), `act` (`sub` of the actor plus `actor_type`, nesting the previous `act` on later hops), `jti`, and expires after `idp.token_ttl`.
+3. The token is signed with the first key in `idp.signing_keys`, carries `sub` (the subject), `act` (`sub` of the actor plus `actor_type` and this hop's `intent` if one was sent, nesting the previous `act` on later hops), `jti`, and expires after `idp.token_ttl`.
 
 The service keeps no record of issued tokens: introspection re-validates the presented token against its own keys, and it speaks for nothing it did not sign.
 
@@ -89,6 +105,8 @@ Pass `--config=/app/config.yaml` for a single file or, in production, `--config-
 | `resources`                  | no       | Allow-list for the RFC 8693 `resource` parameter; without it no request may name a resource.                         |
 | `token_ttl`                  | yes      | Lifetime of an exchanged token, positive. Keep it as short as the workflow allows - nothing can revoke a delegation token before it expires. |
 | `actor_type`                 | no       | Written into `act` beside the actor `sub`; defaults to `Agent`. The IndyKite backend uses it to resolve the actor in the graph. |
+| `max_intent_evaluations`     | no       | The most evaluations one `intent` may carry, positive; defaults to `10`. A negative value stops the service at startup. |
+| `max_token_bytes`            | no       | Size limit of an issued token as a signed compact JWT, positive; defaults to `8000`. A negative value stops the service at startup. |
 | `client_auth.type`           | yes      | `client_secret_basic` (the only implemented method); published in the discovery document.                             |
 | `client_auth.client_id` / `client_secret` | yes | What callers (the gateways' `token_service.client_auth`) present as HTTP Basic on the token and introspection endpoints. |
 | `signing_keys`               | yes (≥1) | JSON JWK strings **including the private part**. Each must set `alg` (RS256/384/512, PS256/384/512, ES256/384/512, EdDSA; symmetric algorithms are rejected); `kid` derives from the thumbprint when unset and must be unique. The **first** key signs new tokens; the rest stay published on `jwks_uri` so earlier tokens still verify. To rotate, add the new key at the top and keep the old one until the last token signed with it has expired. |

@@ -55,11 +55,15 @@ The new node's stable identifier in the IKG.
 
 If the same `external_id` is supplied a second time, the request is treated as an **upsert** (update) on the existing node — not a duplicate-create error.
 
+### `is_identity`
+
+Optional boolean. `true` creates the node as an **identity node** — the same flag as in the Capture API. It adds the `DigitalTwin` label, which is how the IKG marks identity nodes. `"labels": ["DigitalTwin"]` gives the same result; prefer the flag, because a misspelt key is refused when the Knowledge Query is saved, while a misspelt label is silently stored as just another label.
+
 ### `labels`
 
 Optional array of additional labels attached to the node alongside `type`.
 
-- **Identity nodes:** `"labels": ["DigitalTwin"]` creates the node as an identity node — the same result as `is_identity: true` in the Capture API, which is shorthand for adding this label at ingest. Required whenever the node will act as a `2.0-kbac` authorization subject; a non-identity subject makes every `2.0-kbac` decision silently `false` (`3.0-kbac` matches by type and `external_id` and does not need it).
+- **Identity nodes:** `"is_identity": true` (or `"labels": ["DigitalTwin"]`) is required whenever the node will act as a `2.0-kbac` authorization subject; a non-identity subject makes every `2.0-kbac` decision silently `false` (`3.0-kbac` matches by type and `external_id` and does not need it).
 - Labels are **not** checked against the policy's `allowed_upserts.nodes.node_types` whitelist — only `type` is.
 
 ### `properties`
@@ -69,6 +73,8 @@ Array of property entries. Each:
 - `type` — property name. **Must be hardcoded** (no `$param`). Example: `"title"`, `"loudness"`.
 - `value` — property value. May be hardcoded or `$param`. Type matches the IKG schema for that property (string, number, boolean, etc.).
 - `metadata` — optional. Array of `{type, value}` items for property metadata (e.g. source, confidence, timestamp). Same rules: `type` hardcoded, `value` may be `$param`.
+
+**Checked metadata values.** Three metadata types have a fixed value shape: `assurance_level` must be `1`, `2` or `3`; `verified_time` must be an RFC 3339 timestamp string; `source` must be a string. Other metadata types are not checked. A hardcoded value of the wrong shape is refused when the Knowledge Query is saved (`invalid <type> for node <name>`). A `$param` value is checked on execute, before anything is written: a wrong value writes nothing and answers `422` with `invalid_argument: invalid <type> metadata value in input params, '$<param>'`. (Since platform release 2.86.2; before, such a value failed with `500` or was stored unchecked.)
 
 Example:
 

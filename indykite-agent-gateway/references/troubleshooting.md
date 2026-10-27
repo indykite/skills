@@ -11,6 +11,7 @@ A symptom-first map from observable failure to most likely cause. Walk it top-to
 | IdP introspect endpoint wrong or credentials refused  | Service log shows the failed call with endpoint, status, and a sanitized preview of the IdP's response body. | Correct `JARVIS_IDENTITY_PROVIDER_INTROSPECT_ENDPOINT` or the client secret and restart IAG. |
 | Token has no `sub` / no `act`                         | Body says `Invalid token, missing subject` or `Invalid token, missing act claim`. | Make the IdP issue a subject. On later hops without a Token Service, `Authorization` must carry the delegated token from the previous hop, not a bare user token; with a Token Service, keep the user token in `Authorization` and forward the delegated token in `X-IK-Token`. |
 | IdP unreachable from IAG                              | `docker compose logs orchestrator-iag` shows DNS / TCP errors (response is `502`, not `401`). | Fix network path; ensure `extra_hosts` if using Docker Compose.    |
+| No Token Introspect configuration matches the token (2.82.0+) | Body is `{"message":"Unauthorized","errors":["ContX IQ whoami failed"]}`, audit reason `cannot resolve the subject of the access token`. Check the caller with the [`indykite-ciq-whoami`](../../indykite-ciq-whoami/SKILL.md) skill. | Add or fix a Token Introspect configuration that validates the token (issuer / audience for a JWT, or an opaque-token configuration). Without a Token Service, later hops send the previous hop's delegation token, so it needs a matching configuration too. |
 
 ## Symptom: `401 Invalid delegated token, …` (Token Service deployments)
 
@@ -38,10 +39,10 @@ A symptom-first map from observable failure to most likely cause. Walk it top-to
 
 | Likely cause                                          | How to verify                                                                     | Fix                                                                 |
 |-------------------------------------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
-| Subject type not allowed                              | Audit `reason` mentions subject type / no policy match.                            | Add the type to `JARVIS_AUTHZEN_SUBJECT_TYPES`.                     |
+| Subject type has no trigger policy                    | Audit `reason` is `subject <type>/<id> is not authorized ...`; `<type>` is the `ikg_node_type` of the Token Introspect configuration (2.82.0+). | Make the trigger policy name that type, or change the configuration's `ikg_node_type`. Before 2.82.0: add the type to `JARVIS_AUTHZEN_SUBJECT_TYPES`. |
 | `CAN_TRIGGER` edge missing                            | Inspect the IKG: `(:User {external_id:"…"})-[:CAN_TRIGGER]->(:Workflow)`.          | Capture the missing edge.                                           |
 | ContX IQ returns nothing                              | Audit `reason` is `no workflow matches the actors chain` or the chain list is empty. | Confirm `workflow_name` on every `INVOKES` matches `Workflow.external_id`. |
-| Subject holds no `CAN_TRIGGER` on the matched workflow | Audit `reason` is `subject is not authorized to trigger any of the workflows <ids>`. | Capture the `CAN_TRIGGER` edge from that user to the workflow. |
+| Subject holds no `CAN_TRIGGER` on the matched workflow | Audit `reason` is `subject <type>/<id> is not authorized to trigger any of the workflows <ids>` (before 2.82.0 without `<type>/<id>`). | Capture the `CAN_TRIGGER` edge from that user to the workflow. |
 | Delegation token reused on another chain              | Audit `reason` is `no workflow matches the actors chain` and `actorsChain` shows agents of a different workflow. | Mint a token per chain; do not forward one obtained for another workflow. |
 | Wrong `query_id`                                      | Hub UI vs. `JARVIS_CONTX_IQ_QUERY_ID`.                                              | Set the correct `query_id`.                                         |
 | Policy reads a token that is not sent                 | Policy condition references `$token` but the gateway uses the Token Service (or `$ik_token` without one). | Reference `$ik_token` with a Token Service, `$token` without. |
@@ -59,8 +60,9 @@ A symptom-first map from observable failure to most likely cause. Walk it top-to
 
 | Likely cause                                          | How to verify                                                                     | Fix                                                                 |
 |-------------------------------------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
-| App Agent token (`IK_APP_AGENT_KEY`) not introspectable | Decode it; confirm the Token Introspect config points at the right issuer.       | Use an introspectable App Agent token.                              |
-| App Agent not modeled as an allowed subject           | Audit `reason` shows subject type / no policy match - MCP agents call as the App Agent, not the chatbot user. | Override `JARVIS_AUTHZEN_ACTION` / `JARVIS_AUTHZEN_SUBJECT_TYPES` on the MCP instance to match how the App Agent is modeled. |
+| MCP agents' token (`IK_APP_AGENT_KEY`) not introspectable | Decode it; confirm the Token Introspect config points at the right issuer.     | Use an introspectable token.                                        |
+| MCP agents' token not matched by a Token Introspect configuration (2.82.0+) | `401` with `ContX IQ whoami failed`; check the caller with the [`indykite-ciq-whoami`](../../indykite-ciq-whoami/SKILL.md) skill. | Add a configuration that validates it (issuer / audience for a JWT, or an opaque-token configuration). |
+| MCP caller not modeled as an allowed subject          | Audit `reason` shows `subject <type>/<id> is not authorized ...` - MCP agents call with their own token, not the chatbot user's. | Make the trigger policy name that configuration's `ikg_node_type` (before 2.82.0: override `JARVIS_AUTHZEN_SUBJECT_TYPES` on the MCP instance); override `JARVIS_AUTHZEN_ACTION` if the MCP instance uses another action. |
 | Image too old for MCP proxying                        | Gateway behaves as A2A proxy / ignores `JARVIS_PROTECTED_AGENT_PROTOCOL`.          | Pin `indykite/agent-gateway` ≥ `2.0.1`.                            |
 | To isolate the gateway                                | Point the agent's `MCP_SERVER_URL` back at the direct MCP server URL.             | If it works direct, the failure is auth/config on the MCP instance. |
 
@@ -115,6 +117,7 @@ The gateway forwards only MCP protocol revisions `2025-06-18`, `2025-11-25`, and
 |-------------------------------------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
 | Audit file path not writable                          | Service log shows `permission denied`.                                             | Fix `audit.file.storage_path` permissions or volume mount.          |
 | Unexpected internal failure                           | Service log stack trace; raise `service.log_level` to `debug`.                     | Capture `traceID` and escalate.                                     |
+| Long answer or stream cut after about one minute (or, in `mcp` mode, response headers slower than 30 s) | Image tag older than 2.82.4. The answer is a `500`, or a stream that stops early. | Pin an image at or above 2.82.4: it sets no time limit on answers; only connecting downstream is bounded (10 s). |
 
 ## Symptom: audit records never reach the configured destination
 

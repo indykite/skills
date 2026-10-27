@@ -12,8 +12,7 @@ A Knowledge Query references a CIQ policy and declares what to do at runtime. Th
       "properties": [
         {
           "type":  "<property_name>",
-          "value": "$<param-or-hardcoded-or-$token.claim>",
-          "metadata": [ { "type": "<meta_name>", "value": "<value>" } ]
+          "value": "$<param-or-hardcoded-or-$token.claim>"
         }
       ]
     }
@@ -40,11 +39,12 @@ When updating an existing relationship, the endpoints and label are whatever the
 
 ### `properties`
 
-Array of property entries on the matched relationship. Same shape as for nodes:
+Array of property entries on the matched relationship:
 
 - `type` — property name. **Must be hardcoded** (no `$param`).
 - `value` — property value. May be hardcoded, `$param`, or a `$token.<claim>` reference.
-- `metadata` — *optional*. Array of `{type, value}` items for property-level metadata. Same rules.
+
+Relationship properties carry **no `metadata`** — property metadata exists only on node properties. A relationship property with a `metadata` key is refused as an unknown field when the Knowledge Query is saved. To record provenance (`source`, `assurance_level`, …), put it on a node property instead (see [`indykite-ciq-add-property`](../../indykite-ciq-add-property/SKILL.md)).
 
 Example with two properties:
 
@@ -54,12 +54,7 @@ Example with two properties:
     "name": "r",
     "properties": [
       { "type": "verified",        "value": true },
-      { "type": "first_played_at", "value": "$first_played_at",
-        "metadata": [
-          { "type": "source", "value": "$token.iss" },
-          { "type": "assurance_level", "value": 2 }
-        ]
-      }
+      { "type": "first_played_at", "value": "$first_played_at" }
     ]
   }
 ]
@@ -71,7 +66,6 @@ Setting a property is **upsert**:
 
 - If the property doesn't exist on the relationship yet, it is added.
 - If it exists, the value is overwritten.
-- Metadata follows the same rule.
 
 There is no separate "create property" vs "update property" call.
 
@@ -118,7 +112,7 @@ A relationship-property-write Knowledge Query succeeds only when **all** of thes
 1. The policy's `condition.cypher` matches at least one relationship.
 2. The policy's `condition.filter` (and `token_filter` if any) match.
 3. Every `upsert_relationships[].name` is in the policy's `allowed_upserts.relationships.existing_relationships`.
-4. No property in `upsert_relationships[].properties` is a protected name.
-5. Every `$param` referenced in property values, metadata, or KQ-level filters is present in the execute call's `input_params`.
+4. No property in `upsert_relationships[].properties` is a protected name or carries `metadata`.
+5. Every `$param` referenced in property values or KQ-level filters is present in the execute call's `input_params`.
 
 If you are getting `403`, walk items 3 and 4. If you are getting `200` with empty `data`, walk item 1.

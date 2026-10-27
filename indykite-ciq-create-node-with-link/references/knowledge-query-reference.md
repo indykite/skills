@@ -36,10 +36,13 @@ Same shape as in the create-node skill. Each entry creates one node:
 - `name` — fresh variable name (not in cypher, not used elsewhere in `upsert_nodes`).
 - `type` — new node label, in the policy's `allowed_upserts.nodes.node_types`.
 - `external_id` — required for new nodes; usually `$param`.
+- `is_identity` — optional boolean. `true` creates the node as an **identity node** — the same flag as in the Capture API; it adds the `DigitalTwin` label. Prefer it over `"labels": ["DigitalTwin"]`, which gives the same result but stores a misspelt label silently, while a misspelt key is refused when the Knowledge Query is saved.
 - `labels` — optional array of additional labels attached alongside `type`.
-  - **Identity nodes:** `"labels": ["DigitalTwin"]` creates the node as an **identity node** — the same result as `is_identity: true` in the Capture API, which is shorthand for adding this label at ingest. Required whenever the node will act as a `2.0-kbac` authorization subject; a non-identity subject makes every `2.0-kbac` decision silently `false` (`3.0-kbac` matches by type and `external_id` and does not need it).
+  - **Identity nodes:** `"is_identity": true` (or `"labels": ["DigitalTwin"]`) is required whenever the node will act as a `2.0-kbac` authorization subject; a non-identity subject makes every `2.0-kbac` decision silently `false` (`3.0-kbac` matches by type and `external_id` and does not need it).
   - Labels are **not** checked against the policy's `node_types` whitelist — only `type` is.
 - `properties` — array of `{type, value, metadata?}` items. `type` (property name) hardcoded; `value` may be `$param`.
+
+**Checked metadata values.** Three metadata types have a fixed value shape: `assurance_level` must be `1`, `2` or `3`; `verified_time` must be an RFC 3339 timestamp string; `source` must be a string. Other metadata types are not checked. A hardcoded value of the wrong shape is refused when the Knowledge Query is saved (`invalid <type> for node <name>`). A `$param` value is checked on execute, before anything is written: a wrong value writes nothing and answers `422` with `invalid_argument: invalid <type> metadata value in input params, '$<param>'`. (Since platform release 2.86.2; before, such a value failed with `500` or was stored unchecked.)
 
 ## `upsert_relationships`
 

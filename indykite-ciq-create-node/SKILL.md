@@ -104,12 +104,13 @@ The Knowledge Query references the policy and lists what to write. Each entry in
 - `name` - a **distinct** variable name not used in the policy's `cypher`. This is the variable other arrays (`nodes`, `relationships`) reference.
 - `type` - the node label. Must be in the policy's `allowed_upserts.nodes.node_types`.
 - `external_id` - **required for new nodes**. Hardcode for one-off writes, or use `$param` (the common case) so the caller supplies it at execute time.
-- `labels` - optional array of extra labels attached alongside `type`. Chiefly used to create **identity nodes** - see the note below.
+- `is_identity` - optional boolean. `true` creates the node as an **identity node** - see the note below.
+- `labels` - optional array of extra labels attached alongside `type`.
 - `properties` - array of `{type, value, metadata?}` items. The `type` (property name) must be hardcoded; the `value` may be hardcoded or `$param`.
 
 Echo the new node back in the response by listing its variable name in the top-level `nodes` array.
 
-> **Identity nodes.** The Knowledge Query has no `is_identity` field - that flag belongs to the Capture API. In the IKG, identity status is carried by the `DigitalTwin` label; Capture's `is_identity: true` is shorthand for adding it at ingest. The CIQ equivalent is `"labels": ["DigitalTwin"]` on the `upsert_nodes` entry. The label goes in `labels` only - the policy's `node_types` whitelist checks `type`, so `DigitalTwin` is never listed there. Create the node as an identity node whenever it must act as a `2.0-kbac` subject: a non-identity subject makes every `2.0-kbac` decision silently `false` (`3.0-kbac` does not require it). To confirm the label landed, run a `2.0-kbac` evaluation with the new node as subject.
+> **Identity nodes.** Set `"is_identity": true` on the `upsert_nodes` entry - the same flag as in the Capture API. It adds the `DigitalTwin` label, which is how the IKG marks identity nodes. `"labels": ["DigitalTwin"]` gives the same result, but prefer the flag: a misspelt key is refused when the Knowledge Query is saved, while a misspelt label is silently stored as just another label. Neither goes in the policy's `node_types` whitelist, which checks `type` only. Create the node as an identity node whenever it must act as a `2.0-kbac` subject: a non-identity subject makes every `2.0-kbac` decision silently `false` (`3.0-kbac` does not require it). To confirm the label landed, run a `2.0-kbac` evaluation with the new node as subject.
 
 A complete Knowledge Query for the running example: see [`assets/knowledge-query-create-track.json`](assets/knowledge-query-create-track.json).
 

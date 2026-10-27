@@ -32,6 +32,10 @@ idp:
   # Written into the `act` claim beside the actor sub; the backend resolves the
   # actor in the graph by it. Defaults to Agent.
   actor_type: Agent
+  # Optional limits (platform release 2.84.0+): the most evaluations one `intent`
+  # exchange parameter may carry, and the size of an issued token as a signed JWT.
+  # max_intent_evaluations: 10
+  # max_token_bytes: 8000
   # What the gateways present (HTTP Basic) on /oauth2/token and /oauth2/introspect.
   # Matches token_service.client_auth in every gateway config.
   client_auth:

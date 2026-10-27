@@ -20,7 +20,7 @@ The Audit Log API is the read side of IndyKite's **tamper-proof audit trail**. E
 | `/audit/v1/*`                 | The AppAgent credential, as is, in `X-IK-ClientKey` (see the [Credentials guide](https://developer.indykite.com/guides/guide-credentials)). The AppAgent must hold the **`Audit`** API permission. |
 | `/audit/.well-known/jwks.json` | None. The signing keys are public by design, so an export stays checkable without an IndyKite account. |
 
-Every endpoint takes **`project_id`** (the project / application space GID, `gid:…`) as a query parameter, and it is **not** a free choice: an AppAgent credential is minted for exactly one project, and the listing endpoints refuse any `project_id` other than that one with `403`. In practice `project_id` is the project the credential belongs to, spelled out so the request is explicit. The JWKS endpoint validates `project_id` too, for forward compatibility with per-project keys, but today returns the platform key whatever project is named.
+Every endpoint takes **`project_id`** (the project / application space GID, `gid:…`) as a query parameter, and it is **not** a free choice: an AppAgent credential is minted for exactly one project, and the listing endpoints refuse any `project_id` other than that one with `403`. In practice `project_id` is the project the credential belongs to, spelled out so the request is explicit. The JWKS endpoint validates `project_id` too and returns the keys that have signed for that project, so fetch it with the same `project_id` as the export it goes with.
 
 No user token, no Service Account token, no request body. The three listing endpoints require an `Accept` header that allows `application/json` or `*/*`; a request without one, or with any other value, is refused with `406`. `curl` sends `Accept: */*` by default, and the helper sends `Accept: application/json` on every call.
 
@@ -113,13 +113,13 @@ A checkpoint is a signed statement, made at a point in time, that the chain reac
 
 ### `/audit/.well-known/jwks.json`
 
-A standard JWK Set with one or more EC keys:
+A standard JWK Set of EC keys - the ones that have signed for this project, so an empty `keys` array for a project with no signed data yet:
 
 ```json
 { "keys": [ { "kty": "EC", "crv": "P-256", "x": "…", "y": "…", "use": "sig", "kid": "<key-id>" } ] }
 ```
 
-Today every record carries the platform-managed key's `kid`: a customer-managed Audit Signing configuration is stored for the upcoming support and does not change which key signs yet. The keys carry no `alg`; the algorithm label travels with each signed item instead. Responses are cacheable for 5 minutes. The set only ever lists the keys currently in use: when a signature's `kid` is not in it, the key was rotated out, so keep the JWKS that was current when each export was taken alongside that export.
+Today every record carries the platform-managed key's `kid`: a customer-managed Audit Signing configuration is stored for the upcoming support and does not change which key signs yet. The keys carry no `alg`; the algorithm label travels with each signed item instead. Responses are cacheable for 60 seconds (`Cache-Control: public, max-age=60`). The set holds every key that has ever signed for the project, current and retired, so the `kid` of an older record stays listed after a rotation. A project with no signed data yet gets an empty set, and the first key of a project, or a key added by a rotation, can take up to 2 minutes to be listed - a `kid` missing from a fresh fetch is usually that delay. Still keep the JWKS next to each export, so the export verifies without the API.
 
 ## Errors
 
@@ -135,6 +135,7 @@ Today every record carries the platform-managed key's `kid`: a customer-managed 
 | `403` | `the authenticated credential does not have access to this project`           | `project_id` is a different project than the credential's - even another project of the same customer. Use that project's own AppAgent. |
 | `406` | `Accept must be application/json or */*`                                      | The `Accept` header is absent or allows neither. Send `Accept: application/json`. The body of this one error uses `error` instead of `message`. |
 | `500` | `Internal Server Error`                                                       | A platform-side failure. Retry; if persistent, report with the time and project.                    |
+| `503` | `Service Unavailable`                                                         | JWKS endpoint only: too many key sets are being loaded at once. Retry after the number of seconds in the `Retry-After` header. |
 
 ## `jq` recipes
 

@@ -56,6 +56,10 @@ A symptom-first map. Walk it top-down — earlier rows are cheaper to verify.
 | Metadata `type` was supplied as `$param` (only `value` may be `$param`)    | Inspect each metadata entry.                                                                     | Hardcode the metadata `type`.                                                                 |
 | `$token.iss` doesn't appear in the metadata you wrote                       | Decode the Bearer token; check it has a `iss` claim.                                             | Ensure the token issuer is set correctly at the IdP.                                          |
 
+## Symptom: `422 invalid_argument: invalid <type> metadata value in input params`
+
+A `$param` used as the value of an `assurance_level`, `verified_time` or `source` metadata entry received a value of the wrong shape: `assurance_level` must be `1`, `2` or `3`, `verified_time` an RFC 3339 timestamp string, `source` a string. Nothing was written. Fix the value in `input_params`. The same rule on a hardcoded value refuses the Knowledge Query when it is saved, with `invalid <type> for node <name>`.
+
 ## Symptom: `401 Unauthorized` on a Person-subject write
 
 | Likely cause                                                              | Fix                                                                                          |
