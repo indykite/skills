@@ -42,6 +42,10 @@ A symptom-first map. Walk it top-down — earlier rows are cheaper to verify.
 | You sent a string for a numeric property (e.g. `"-7.5"` instead of `-7.5`) | Inspect the JSON in `input_params`.                                                              | Send a JSON number, not a string. JSON's type is significant.                                |
 | The IKG already has a different type recorded for that property            | Look at an existing node of the same type.                                                       | Decide which type wins; if you're correct, delete the old node first or rename the property. |
 
+## Symptom: `422 invalid_argument: invalid <type> metadata value in input params`
+
+A `$param` used as the value of an `assurance_level`, `verified_time` or `source` metadata entry received a value of the wrong shape: `assurance_level` must be `1`, `2` or `3`, `verified_time` an RFC 3339 timestamp string, `source` a string. Nothing was written. Fix the value in `input_params`. The same rule on a hardcoded value refuses the Knowledge Query when it is saved, with `invalid <type> for node <name>`.
+
 ## Symptom: `401 Unauthorized` on a Person-subject create
 
 | Likely cause                                                              | Fix                                                                                          |

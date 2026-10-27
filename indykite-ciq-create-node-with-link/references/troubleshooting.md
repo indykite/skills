@@ -56,6 +56,10 @@ The platform's combined-create is transactional. If you observe partial success,
 - Are you actually running one execute, or two? Two separate `POST /contx-iq/v1/execute` calls (one create-node, one create-relationship) are not atomic. Use this skill's combined Knowledge Query.
 - Did you accidentally retry just one half?
 
+## Symptom: `422 invalid_argument: invalid <type> metadata value in input params`
+
+A `$param` used as the value of an `assurance_level`, `verified_time` or `source` metadata entry received a value of the wrong shape: `assurance_level` must be `1`, `2` or `3`, `verified_time` an RFC 3339 timestamp string, `source` a string. Nothing was written. Fix the value in `input_params`. The same rule on a hardcoded value refuses the Knowledge Query when it is saved, with `invalid <type> for node <name>`.
+
 ## Symptom: `401 Unauthorized` on a Person-subject combined-create
 
 | Likely cause                                                              | Fix                                                                                          |

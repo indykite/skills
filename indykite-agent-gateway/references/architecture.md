@@ -41,12 +41,21 @@ For each incoming request, an IAG instance runs the same nine steps. The example
 | 3  | Client credentials  | Can IAG authenticate as the protected agent?                                      | IdP (`oauth-token`)                        |
 | 4  | Token exchange      | Can the caller (or the incoming chain) delegate to the protected agent?           | IdP (`oauth-token`) or Token Service (`/oauth2/token`) |
 | 5  | ContX IQ query      | Which workflows is this agent part of, and what chains are allowed?               | ContX IQ (IKG)                             |
-| 6  | AuthZEN             | Can the subject `CAN_TRIGGER` at least one candidate workflow?                    | AuthZEN / KBAC                             |
+| 6  | AuthZEN             | Who is the subject (since 2.82.0: `GET /contx-iq/v1/whoami` on the caller's token), and can it `CAN_TRIGGER` at least one candidate workflow? | ContX IQ whoami; AuthZEN / KBAC |
 | 7  | Chain check         | Does the requested `act` chain match an allowed agent chain?                      | IAG (in-process)                           |
 | 8  | Forward             | (forward the request to the protected agent with the delegation token)            | Protected agent                            |
 | 9  | Return + audit      | (return the response to the caller and write an audit record)                     | IAG itself                                 |
 
 The gateway reads the claims of the delegation token it just minted rather than introspecting it a second time: the issuer handed it over TLS in answer to the gateway's own exchange call, so only `exp`, `nbf`, and `iat` are checked. A deployment on an IdP alone therefore also saves one round trip per request; a delegation token that is not a JWT is introspected at the IdP, while with the Token Service one that cannot be read is refused.
+
+**The subject (step 6).** Since 2.82.0 the gateway asks ContX IQ `GET /contx-iq/v1/whoami` who the caller is. The subject type is the `ikg_node_type` of the project's Token Introspect configuration that validates the token, the id is the token's subject (the `sub` claim, or the claim named by that configuration's `sub_claim`); the gateway then runs one AuthZEN resource search with that subject. Consequences:
+
+- Every token that reaches a gateway in `Authorization` needs a Token Introspect configuration that validates it (`jwt_matcher` issuer / audience matching for a JWT, or an opaque-token configuration); otherwise whoami refuses it and the gateway answers `401` `{"message":"Unauthorized","errors":["ContX IQ whoami failed"]}`, audit reason `cannot resolve the subject of the access token`. Without a Token Service, a later hop carries the previous hop's delegation token in `Authorization`, so that delegation token needs a matching configuration too; with one, `Authorization` carries the user's own token on every hop.
+- The trigger policy's subject type must equal that `ikg_node_type`; a policy for another type never matches. The graph must hold a node of that type whose `external_id` equals the `id` whoami returns (`sub` by default, or the `sub_claim` claim), and it must be an identity node for a `2.0-kbac` policy.
+- The whoami answer is kept per issuer, audience and subject of the token for `contx_iq.cache_ttl` (`0` keeps none); a failed whoami is not kept. A change to the Token Introspect configuration, such as its `ikg_node_type`, reaches the gateway after up to `contx_iq.cache_ttl`.
+- Older images have no whoami step: they make one resource search per type in `authzen.subject_types`, with the delegation token's `sub` as the id. From 2.82.0 that key is not read.
+
+**Long answers.** Since 2.82.4 the gateway sets no time limit on an answer, in either mode, so a long stream or a slow agent reaches the caller; older images cut an answer after one minute, and in `mcp` mode also gave up when the server's response headers took more than 30 seconds. Only connecting to the agent or the MCP server is still bounded, to 10 seconds. The caller decides how long it waits: when it closes the connection, the gateway stops its call downstream.
 
 Where the gateway does introspect (the caller's access token, an incoming `X-IK-Token`), it reads the RFC 7662 `active` field. Only `active: false` refuses the request as `401`; an answer that cannot be read, or that never says whether the token is active, is reported as a fault of that provider (`502`), so an outage is not recorded as a wave of denials.
 
@@ -101,7 +110,7 @@ Three chain refusals all answer `403` `{"message": "Authorization check failed"}
 
 - **A skipped hop** (the chain does not match any workflow the subject can trigger) - `no workflow matches the actors chain`.
 - **A token reused across workflows** (a delegation token minted for `[orchestrator, notifier, retriever]` presented on a different chain) - the same reason, since the `act` chain matches no workflow of this gateway.
-- **The wrong user** (the chain matches a workflow, but the subject holds no `CAN_TRIGGER` on it) - `subject is not authorized to trigger any of the workflows <workflow ids>`.
+- **The wrong user** (the chain matches a workflow, but the subject holds no `CAN_TRIGGER` on it) - `subject <type>/<id> is not authorized to trigger any of the workflows <workflow ids>` (before 2.82.0 without `<type>/<id>`).
 
 ## MCP protocol revisions
 
@@ -170,7 +179,8 @@ Any chain that skips the orchestrator (e.g. `chatbot -> retriever`) or adds an a
 - **Missing `workflow_name`** - the ContX IQ query returns nothing and every request is denied.
 - **Identifier mismatch** - the `external_id` on each `Agent` must match the identifier carried in the `act` chain *and* the IdP client identifier.
 - **No subject↔workflow link** - even with a correct chain, the request is denied at the AuthZEN step if the subject cannot `CAN_TRIGGER` the workflow.
-- **`subject_types` mismatch** - if the caller's type is not listed in `JARVIS_AUTHZEN_SUBJECT_TYPES`, no policy matches and the call is denied.
+- **Subject type mismatch** - the subject type is the `ikg_node_type` of the Token Introspect configuration that validates the caller's token (2.82.0+); a trigger policy for any other type never matches and the call is denied. Before 2.82.0 the type had to be listed in `JARVIS_AUTHZEN_SUBJECT_TYPES`.
+- **No Token Introspect configuration for a caller's token** (2.82.0+) - whoami refuses it and every request answers `401` with `ContX IQ whoami failed`.
 - **Policy reads the wrong token** - `$token` with a Token Service, or `$ik_token` without one, resolves to nothing and denies.
 - **Second hop refused with no Token Service** - on an IdP alone the chain restarts from the user's access token on every hop; configure `token_service` on every gateway of the workflow.
 - **MCP client omits `Mcp-Protocol-Version` after `initialize`** - every request after the handshake is refused with `400` / `-32020` before authorization runs; send the negotiated revision on every call.

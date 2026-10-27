@@ -59,9 +59,11 @@ protected_agent:
 authzen:
   base_url: <INDYKITE_BASE_URL>/access/v1
   action: CAN_TRIGGER
-  subject_types:
-    - User
-    # add Person, Agent, etc. as needed
+  # Required before 2.82.0 only; from 2.82.0 the subject type is the
+  # ikg_node_type of the Token Introspect configuration that validates the
+  # caller's token (ContX IQ whoami) and this key is not read.
+  # subject_types:
+  #   - User
   # cache_update_after defaults to cache_ttl; cache_update_after_error to
   # min(10s, cache_update_after). Startup fails if any is negative, if
   # cache_update_after > cache_ttl, or if cache_update_after_error >

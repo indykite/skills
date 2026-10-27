@@ -12,7 +12,7 @@ The Indykite Agent Gateway (IAG) is a standalone service that protects exactly o
 For each request IAG validates three things:
 
 1. The **caller** (token introspection at the IdP).
-2. The **workflow** (subject `CAN_TRIGGER` check via AuthZEN/KBAC).
+2. The **workflow** (subject `CAN_TRIGGER` check via AuthZEN/KBAC). Since gateway 2.82.0 the subject comes from ContX IQ `GET /contx-iq/v1/whoami` on the caller's token: its type is the `ikg_node_type` of the project's Token Introspect configuration that validates the token, its id the token's subject (`sub`, or the claim named by that configuration's `sub_claim`).
 3. The **delegation chain** (the request's `act` chain matches a chain modeled in the IKG).
 
 The delegation token that carries the `act` chain is minted either by the **IdP** (RFC 8693 token exchange) or, when the optional `token_service` section is configured, by the self-hosted **IndyKite Token Service (ITS)**. With ITS the caller's own access token travels untouched in `Authorization` and the delegation token beside it in `X-IK-Token`, and a request that arrives with an `X-IK-Token` is a later hop whose chain is nested into the next token - which is what makes workflows longer than one hop work.
@@ -33,7 +33,7 @@ Activate this skill when the user:
 Do **not** activate this skill when the user:
 
 - wants a generic HTTP reverse proxy or service mesh - IAG only speaks A2A or MCP, not arbitrary HTTP;
-- is asking about IndyKite features unrelated to agent gating (Token Introspect configurations of the platform, plain AuthZEN policies, ContX IQ queries outside of agent gating);
+- is asking about IndyKite features unrelated to agent gating (Token Introspect configurations beyond the ones the gateway's callers need, plain AuthZEN policies, ContX IQ queries outside of agent gating);
 - is debugging the protected agent itself rather than the gateway in front of it.
 
 ## Prerequisites
@@ -44,7 +44,8 @@ Before any of the steps below will succeed, the user needs:
 - An **OAuth2-compliant IdP** with introspect, client-credentials, and token-exchange endpoints. Set `IDP_BASE_URL` to the IdP base for the target environment. The IdP stays required even with the Token Service: it introspects the caller's access token and authenticates the protected agent.
 - One **client_id / client_secret pair per protected downstream** (A2A agent or MCP server), registered with the IdP.
 - A **ContX IQ query** that returns `(workflow, agent_list)` pairs for each protected downstream - its `query_id` goes into IAG configuration.
-- For an **MCP downstream** (`protocol: mcp`): the MCP server's origin and endpoint path, and the gateway image `indykite/agent-gateway` **≥ 2.0.1** (older images ignore the protocol and behave as an A2A proxy). MCP clients typically authenticate with an App Agent token, which must be introspectable and pass the AuthZEN check.
+- For an **MCP downstream** (`protocol: mcp`): the MCP server's origin and endpoint path, and the gateway image `indykite/agent-gateway` **≥ 2.0.1** (older images ignore the protocol and behave as an A2A proxy). MCP clients must be introspectable callers covered by a Token Introspect configuration (gateway 2.82.0+, next bullet) and pass the AuthZEN check.
+- Since gateway 2.82.0, a **Token Introspect configuration** for every caller of a gateway; its `ikg_node_type` is the subject type the trigger policy must name - see [the subject step](references/architecture.md) (before 2.82.0, `authzen.subject_types`).
 - For **workflows longer than one hop** (agent → agent → agent), or whenever the protected agent must see the caller's original access token: a running **IndyKite Token Service** (`indykite/token-service`) with an `https` issuer `base_url`, at least one signing key, the audiences of every protected agent, and a `client_auth` client for the gateways - see [`references/token-service.md`](references/token-service.md). Without it the gateway exchanges tokens at the IdP on every hop and the chain never grows past one hop.
 - Docker (and Docker Compose) to run the iag-mcp-demo reference app.
 
@@ -121,8 +122,8 @@ Send a request through the gateway and confirm the [nine-step path](references/a
 
 - `200` - request was authorized and forwarded.
 - `400` - bad request. In `mcp` mode a JSON-RPC error body: `-32020` (`Mcp-Protocol-Version` header missing, or on `2026-07-28` an `Mcp-Method` / `Mcp-Name` header that differs from the body), `-32022` (unsupported revision, `error.data.supported` lists the three revisions), `-32600` (JSON-RPC batch, not a JSON-RPC 2.0 message, an ambiguous key, or a method / tool name / URI with control characters), `-32602` (a `tools/call` that names no tool, or a `resources/read`, `resources/subscribe` or `resources/unsubscribe` that names no resource URI), or `-32700` (body could not be read, is not valid UTF-8, or is not exactly one JSON value). The gateway reads the tool or resource every request names and refuses what it cannot read unambiguously - [MCP request classification](references/architecture.md#mcp-request-classification).
-- `401` - caller token missing or inactive (`Missing bearer token`, `Invalid token, missing subject`), or an incoming `X-IK-Token` that cannot be used (`Invalid delegated token, subject mismatch` / `missing subject`).
-- `403` - caller authenticated but not allowed (subject, chain, or both) - `Authorization check failed`. The reason is only in the audit record: `no workflow matches the actors chain` (a skipped hop, or a delegation token reused on another chain) or `subject is not authorized to trigger any of the workflows <ids>` (the chain matches, the user holds no `CAN_TRIGGER`) - [chain refusals](references/architecture.md#protocol-a2a-or-mcp).
+- `401` - caller token missing or inactive (`Missing bearer token`, `Invalid token, missing subject`), since 2.82.0 a token no Token Introspect configuration of the project accepts (`{"message":"Unauthorized","errors":["ContX IQ whoami failed"]}`, audit reason `cannot resolve the subject of the access token`), or an incoming `X-IK-Token` that cannot be used (`Invalid delegated token, subject mismatch` / `missing subject`).
+- `403` - caller authenticated but not allowed (subject, chain, or both) - `Authorization check failed`. The reason is only in the audit record: `no workflow matches the actors chain` (a skipped hop, or a delegation token reused on another chain) or `subject <type>/<id> is not authorized to trigger any of the workflows <ids>` (the chain matches, the user holds no `CAN_TRIGGER`; before 2.82.0 without `<type>/<id>`) - [chain refusals](references/architecture.md#protocol-a2a-or-mcp).
 - `413` / `415` - `mcp` mode only: body over 4 MiB, or a `Content-Encoding` other than `identity`; JSON-RPC error `-32600`.
 - `500` - internal error.
 - `502` - upstream / gateway-side processing error, including an IdP or Token Service that cannot be reached or answers unreadably. A provider outage is reported as a fault, never counted as a denial.
@@ -147,7 +148,7 @@ To gain confidence that IAG is enforcing as expected, deliberately force `NOT_AU
 - **Skip an agent in the chain** (e.g. call `retriever-iag` directly without the orchestrator in `act`).
 - **Remove `workflow_name`** from one `INVOKES` relationship - ContX IQ stops returning that chain.
 - **Delete the `CAN_TRIGGER` edge** between the subject and the workflow - AuthZEN says no.
-- **Use a subject whose type is not in `JARVIS_AUTHZEN_SUBJECT_TYPES`** - no policy matches.
+- **Call with a token whose Token Introspect configuration has an `ikg_node_type` no trigger policy names** - no policy matches, `403` (before 2.82.0: a subject type missing from `JARVIS_AUTHZEN_SUBJECT_TYPES`).
 - **With the Token Service: replay an `X-IK-Token` with a different user's access token** - `401 Invalid delegated token, subject mismatch`.
 - **On an `mcp` instance: send `tools/list` without the `Mcp-Protocol-Version` header** - `400` with JSON-RPC error `-32020`, audited as `NOT_AUTHORIZED` with reason `MCP request refused: Header mismatch: Mcp-Protocol-Version header is missing`.
 - **On an `mcp` instance: send a `tools/call` whose `params` has no `name`** - `400` with JSON-RPC error `-32602`, audited as `NOT_AUTHORIZED` with reason `MCP request refused: Invalid params: tools/call names no tool`; the server never sees it.
@@ -161,6 +162,7 @@ When this skill has been applied successfully:
 - A `Workflow` node, the relevant `Agent` nodes, and `INVOKES` edges (with `workflow_name`) exist in the IKG.
 - A ContX IQ query returns the right `(workflow, agent_list)` pairs for each protected agent.
 - One IAG instance runs in front of each protected agent with the right per-instance config, reporting healthy on `/healthz`.
+- On gateway 2.82.0+, the [`indykite-ciq-whoami`](../indykite-ciq-whoami/SKILL.md) skill resolves every caller of a gateway to the subject type the trigger policy names.
 - If the workflow has more than one hop, the Token Service runs, every gateway points at it, the project holds a Token Introspect configuration for each audience ITS issues for, and the forwarded request carries `Authorization` plus `X-IK-Token` with a chain that grows on every hop.
 - A canonical successful prompt flows through the gateway chain and produces `AUTHORIZED` audit records on every IAG it touches (and `TOKEN_EXCHANGED` records at the Token Service).
 - A canonical denial path produces `403 Forbidden` plus a `NOT_AUTHORIZED` audit record with a human-readable `reason`.

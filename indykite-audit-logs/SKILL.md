@@ -97,7 +97,7 @@ One limit to state plainly: that check reads each page as the API served it, and
 ### 7. Read the results
 
 - **`items: []` everywhere** - no Audit Signing configuration, no Event Sink delivery yet, or nothing happened. Not an error.
-- **A `kid` missing from the JWKS** - the key that signed those entries was rotated out; the set only lists the keys currently in use, so use the JWKS archived when those entries were exported. Refetch the JWKS after a rotation for subsequent exports.
+- **A `kid` missing from the JWKS** - the set lists every key that has ever signed for the project, retired ones included, but a project's first key or a key added by a rotation can take up to 2 minutes to appear. Refetch the JWKS after that delay and archive the new copy with the export.
 - **Two identical events in one chain** - an accepted event is written once; a duplicate is possible only when a delivery was replayed long after the original, and it then lands in a later batch. It is a redelivery, not an insertion: identical in every field, `time` and `requestId` included, so deduplicate on the whole event object and never strip those two fields first.
 - **A `config.list` event you did not expect** - reading the trail is not audited, but `GET /access/v1/policies` and every Config API list call are: each adds one `indykite.audit.config.list` event.
 - **Checkpoints behind the newest manifest** - normal: the chain has grown since the last checkpoint was written.

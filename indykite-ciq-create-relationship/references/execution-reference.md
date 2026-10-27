@@ -40,8 +40,7 @@ Field rules:
 - `id` — either the GID returned when you created the Knowledge Query, or its `name`.
 - `input_params` — key/value map covering **every** `$param` referenced in:
   - the policy's `condition.filter` (most importantly the source/target `external_id`s),
-  - any `upsert_relationships[].properties[].value` declared as `$param`,
-  - any property `metadata[].value` declared as `$param`.
+  - any `upsert_relationships[].properties[].value` declared as `$param`.
 
 Keys are written **without** the leading `$`.
 

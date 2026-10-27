@@ -110,7 +110,7 @@ The Knowledge Query references the policy and lists what to write. Each entry in
 - `source` - the variable name of the **source endpoint** from the policy's cypher. Must match what `relationship_types[].source_node_label` declares.
 - `target` - the variable name of the **target endpoint** from the policy's cypher. Must match `target_node_label`.
 - `type` - the relationship label. Must equal the `relationship_types[].type` in the policy.
-- `properties` - *optional*. Same `{type, value, metadata?}` shape as node properties - see [`references/knowledge-query-reference.md`](references/knowledge-query-reference.md).
+- `properties` - *optional*. Array of `{type, value}` items; unlike node properties, relationship properties take no `metadata` (a `metadata` key is refused as an unknown field when the Knowledge Query is saved) - see [`references/knowledge-query-reference.md`](references/knowledge-query-reference.md).
 
 Echo the new relationship back in the response by listing its variable name in the top-level `relationships` array.
 
