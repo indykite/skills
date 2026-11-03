@@ -27,7 +27,8 @@ Acronyms used throughout the skills, defined once here.
 - **CIQ** — ContX IQ; an IndyKite context authorization policy plus its Knowledge Query, executed via `POST /contx-iq/v1/execute`.
 - **Knowledge Query** — the parameterised read/write definition CIQ runs against the IKG.
 - **AuthZEN** — IndyKite's policy-decision endpoint (`authzen_evaluate`).
-- **IAG** — IndyKite Agent Gateway; enforces caller, workflow, and delegation-chain checks in front of A2A agents or MCP servers.
+- **IAG** — IndyKite Agent Gateway; authenticates the caller and admits each request through one AuthZEN decision over the delegation chain, in front of A2A agents or MCP servers.
+- **Intent Agent** — self-hosted A2A service that turns a natural-language prompt into AuthZEN evaluations in the project's vocabulary; called by IAG when `ibac.enabled` is on. It phrases the question, AuthZEN decides.
 - **A2A** — agent-to-agent; one autonomous agent calling another.
 - **MCP** — Model Context Protocol; the IndyKite MCP server exposes AuthZEN and CIQ tools to MCP-aware agents.
 
@@ -37,7 +38,8 @@ Each row is one skill — what it does and a representative prompt it's *designe
 
 | Skill | What it does | Example prompt |
 |:------|:-------------|:---------------|
-| [`indykite-agent-gateway`](indykite-agent-gateway/SKILL.md) | Deploy and configure IAG in front of an A2A agent or MCP server to enforce caller, workflow, and delegation-chain checks — with the optional IndyKite Token Service for multi-hop delegation (`X-IK-Token`). | "Put IAG in front of my MCP server so every call is authorized before it reaches it, and wire up the workflow in the IKG." |
+| [`indykite-agent-gateway`](indykite-agent-gateway/SKILL.md) | Deploy and configure IAG in front of an A2A agent or MCP server: the caller is resolved through ContX IQ whoami and admitted by one AuthZEN decision against a KBAC admission policy over the delegation chain — with the optional IndyKite Token Service for multi-hop delegation (`X-IK-Token`) and the Intent Agent. | "Put IAG in front of my MCP server so every call is authorized before it reaches it, and wire up the workflow and the admission policy in the IKG." |
+| [`indykite-intent-agent`](indykite-intent-agent/SKILL.md) | Call, run, or wire up the self-hosted Intent Agent: one A2A `SendMessage` with a prompt and the user's `subject_type` / `subject_id` returns `{prompt, evaluations}` in the vocabulary of the data schema and ACTIVE KBAC policies (or a refusal), ready for the AuthZEN endpoints. | "What does 'which of my unpaid invoices are over 500?' ask, as AuthZEN evaluations for customer alison?" |
 | [`indykite-mcp-server`](indykite-mcp-server/SKILL.md) | Make AuthZEN/KBAC authorization decisions and run ContX IQ Knowledge Queries from an AI agent over the Model Context Protocol — initialize a session, list tools, call the AuthZEN and CIQ tools — and configure the MCP endpoint for a project. | "How do I initialise an MCP session against `eu.mcp.indykite.com` and call `authzen_evaluate`?" |
 | [`indykite-capture-upsert-nodes`](indykite-capture-upsert-nodes/SKILL.md) | Build the request body for the Capture API batch node upsert (`POST /capture/v1/nodes`) — entities with properties, metadata, and external-data references. | "Add these people and cars to the IKG, with verified email metadata." |
 | [`indykite-capture-upsert-relationships`](indykite-capture-upsert-relationships/SKILL.md) | Build the request body for the Capture API batch relationship upsert (`POST /capture/v1/relationships`) — typed connections between existing nodes. | "Link `millicent` `OWNS` `kitt` and `ryan` `CAN_DRIVE` `kitt`." |

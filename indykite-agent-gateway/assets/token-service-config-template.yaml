@@ -18,10 +18,11 @@ service:
   base_url: <TOKEN_SERVICE_BASE_URL> # e.g. https://eu.token-service.indykite.com
 idp:
   # Allow-list of `aud` values this service may issue tokens for. List the
-  # audience of every protected agent / MCP server the gateways request in
+  # shared token_service.audience of the gateways (one per path), or the
+  # audience of every protected agent / MCP server they request in
   # protected_agent.authentication.audiences. Anything else -> invalid_target.
   audiences:
-    - <AUDIENCE_1> # e.g. agent.orchestrator
+    - <AUDIENCE_1> # e.g. agent-gateway (the shared token_service.audience)
     - <AUDIENCE_2> # e.g. agent.retriever
     # - api.mcp
   # Optional allow-list for the RFC 8693 `resource` parameter.

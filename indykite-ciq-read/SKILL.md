@@ -22,7 +22,6 @@ This skill covers the **read-only** path:
 Activate this skill when the user:
 
 - wants to **read** data from the IKG and shape the result through a CIQ policy + Knowledge Query;
-- is building the `(workflow, agent_list)` query the [`indykite-agent-gateway`](../indykite-agent-gateway/SKILL.md) skill consumes from ContX IQ;
 - is preparing a Knowledge Query that the [`indykite-mcp-server`](../indykite-mcp-server/SKILL.md) skill will run via `ciq_execute`;
 - is debugging a read CIQ that returns nothing or `403`s for a subject that should have access.
 

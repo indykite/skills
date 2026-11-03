@@ -1,11 +1,5 @@
 # lychee ignore patterns (regex)
 #
-# Skip the repo's own GitHub URL while the repo is still private — anonymous
-# GitHub requests return 404 for private repos and lychee would flag every
-# self-reference as broken. Remove or comment out this line once the repo
-# is public.
-^https://github\.com/indykite/skills.*$
-
 # IndyKite API and MCP server base URLs. The bare root `/` of each is
 # documented in manifests/descriptions as the per-region base URL, but the
 # actual API only serves sub-paths (e.g. /configs/v1/..., /contx-iq/v1/...).
@@ -15,8 +9,12 @@
 ^https://(eu|us)\.mcp\.indykite\.com/?$
 ^https://(eu|us)\.token-service\.indykite\.com/?$
 
-# Docker-internal hostname placeholder used as an example in
-# indykite-agent-gateway/assets/config-template.yaml. It's documentation,
-# not a real link — lychee can't resolve service names from outside the
-# IAG deployment's network.
-^http://orchestrator(:[0-9]+)?(/.*)?$
+# Docker-internal hostname placeholders used as examples in the gateway and
+# Intent Agent templates, scripts and manifests (lychee checks YAML, shell
+# and JSON files as plain text, unlike markdown code spans). They are
+# documentation, not real links — lychee can't resolve service names from
+# outside the deployment's network, and localhost is the documented default
+# of a self-hosted service.
+^http://(orchestrator|retriever|weather|chatbot|intent|mcp-server|token-service)(:[0-9]+)?(/.*)?$
+^http://localhost(:[0-9]+)?(/.*)?$
+^http://127\.0\.0\.1(:[0-9]+)?(/.*)?$
