@@ -60,7 +60,7 @@ If any of these are missing, stop and tell the user - IAG cannot run without the
 
 ### 1. Model the workflow in the IKG
 
-Create the subject as an identity node (`is_identity: true`) whose `external_id` is the `sub` of its token, one `Workflow` node identified by `external_id`, one `Agent` node per protected agent or MCP server whose `external_id` is the `sub` of its client-credentials token, `INVOKES` relationships from the workflow through the agents in call order, and a `CAN_TRIGGER` relationship from the subject to the workflow. Every `INVOKES` relationship **must** carry a `workflow_name` property equal to the `Workflow.external_id`; it is what keeps two workflows apart when they share agents.
+Create the subject as an identity node (`is_identity: true`) whose type and `external_id` are the `type` and `id` whoami returns for the user's token (the `ikg_node_type` of the Token Introspect configuration, and the `sub` claim or the claim its `sub_claim` names), one `Workflow` node identified by `external_id`, one `Agent` node per protected agent or MCP server whose `external_id` is the `sub` of its client-credentials token, `INVOKES` relationships from the workflow through the agents in call order, and a `CAN_TRIGGER` relationship from the subject to the workflow. Every `INVOKES` relationship **must** carry a `workflow_name` property equal to the `Workflow.external_id`; it is what keeps two workflows apart when they share agents.
 
 Example shape (the canonical `wf1` workflow, `user -> orchestrator -> retriever`):
 
@@ -173,7 +173,7 @@ Each refusal produces a `NOT_AUTHORIZED` audit record with a useful `reason`.
 
 When this skill has been applied successfully:
 
-- The subject (identity node), `Workflow`, and `Agent` nodes, the `INVOKES` edges (with `workflow_name`), and the `CAN_TRIGGER` edge exist in the IKG, with `external_id` values equal to the token `sub` claims.
+- The subject (identity node), `Workflow`, and `Agent` nodes, the `INVOKES` edges (with `workflow_name`), and the `CAN_TRIGGER` edge exist in the IKG - the subject's `external_id` equal to the `id` whoami returns, the agents' equal to their client-credentials tokens' `sub`.
 - Token Introspect configurations resolve the user tokens and the delegation tokens; the [`indykite-ciq-whoami`](../indykite-ciq-whoami/SKILL.md) skill resolves every caller to the subject type the admission policy names.
 - An ACTIVE admission policy answers `decision: true` for a valid chain when checked by hand with `X-IK-Token`.
 - One IAG instance runs in front of each protected downstream with the right per-instance config, reporting healthy on `/healthz`, serving its agent card (`a2a`) or its MCP endpoint and protected resource metadata (`mcp`).

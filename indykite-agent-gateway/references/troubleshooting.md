@@ -32,9 +32,8 @@ Always `{"message":"Authorization check failed"}`. The audit `reason` splits two
 |-------------------------------------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
 | Admission policy missing or not ACTIVE for this subject type and agent type | Reason `subject <type>/<id> may not reach <agent type>/<agent> through the delegation chain`; `<type>` is the Token Introspect configuration's `ikg_node_type`, `<agent type>` the token's `act.type` / `protected_agent.node_type` / `Agent`. List the project's active policies with [`indykite-authzen-list-policies`](../../indykite-authzen-list-policies/SKILL.md). | Create the admission policy for that subject type and resource type (`indykite-authzen-kbac-policies`), or change the configuration's `ikg_node_type`. |
 | The chain is the `INVOKES` path of no workflow        | Same reason; compare `actorsChain` in the record with the workflow's path in the graph: an `Agent.external_id` differs from the token `sub`, a `workflow_name` is missing, a hop is missing because the IdP does not nest `act`, or the shape is not ingested. | Make the `external_id` values equal to the agents' client-credentials `sub`, put `workflow_name` on every `INVOKES`, ingest the one-workflow-per-shape, or run the Token Service. |
-| Subject holds no `CAN_TRIGGER` on the matched workflow, or is missing / not an identity node | Same reason; inspect the IKG for `(:User {external_id:"<sub>"})-[:CAN_TRIGGER]->(:Workflow)` and `is_identity`. | Capture the missing edge or node.                                   |
+| Subject holds no `CAN_TRIGGER` on the matched workflow, or is missing / not an identity node | Same reason; inspect the IKG for `(:<whoami type> {external_id:"<whoami id>"})-[:CAN_TRIGGER]->(:Workflow)` and `is_identity`. | Capture the missing edge or node.                                   |
 | Delegation token reused on another chain              | Same reason; `actorsChain` shows agents of a different workflow.                   | Mint a token per chain; do not forward one obtained for another workflow. |
-| Policy reads an `input_params` value this gateway does not send | Same reason; the policy's Cypher names a `$param` not in `authzen.input_params`. | Send the value, or use `policy_tags` so the policy does not apply here. |
 | The chain cannot be read                              | Reason `the delegation chain cannot be read`: a hop has no usable `sub`, or a `type` that is not a non-empty string. | Inspect the delegation token the exchange returns; check the issuer's `act` nesting. |
 | To replay the decision                                | Run the admission evaluation by hand with [`indykite-authzen-evaluation`](../../indykite-authzen-evaluation/SKILL.md): same subject, agent, the user's token in `Authorization`, the delegation token in `X-IK-Token`. | The same `false` by hand confirms the graph or the policy, not the gateway, is the cause. |
 
@@ -45,6 +44,7 @@ Always `{"message":"Authorization check failed"}`. The audit `reason` splits two
 | `protected_agent.node_type` differs from the token's `act.type` | Reason `the delegated token names the protected agent <type>, protected_agent.node_type is <type>`. | Remove `protected_agent.node_type`, or make it equal to the issuer's actor type (`idp.actor_type` of the Token Service). |
 | IdP refused the client credentials grant              | Reason `cannot authenticate protected agent`.                                      | Check `protected_agent.authentication` and the client at the IdP.   |
 | AuthZEN could not evaluate the admission              | Reason `unable to evaluate the admission of subject <type>/<id>`; caller gets `401` / `403` with `["evaluating admission through AuthZEN failed"]` or `500`. The error is cached for `authzen.cache_update_after_error`. | Check `app_agent_credentials_token`, its `Authorization` API permission, the region base URL, and the Token Introspect configuration for the delegation tokens (issuer + audience), in both modes. |
+| An admission policy reads an `input_params` value this gateway does not send | Reason `unable to evaluate the admission of subject <type>/<id>`: AuthZEN refuses the evaluation with `422` (a required input parameter is missing), which the gateway reports as an error, not a denial. The policy's Cypher names a `$param` absent from `authzen.input_params`. | Send the value in `authzen.input_params`, or tag the policy and use `authzen.policy_tags` so it does not apply to this gateway. |
 | whoami failed with something other than `401`         | Reason `cannot resolve the subject of the access token` with decision `ERROR`.     | Check `contx_iq.base_url` and the `ContXIQ` API permission of the credential. |
 
 ## Symptom: second hop of a workflow is always refused
@@ -161,7 +161,7 @@ docker compose logs -f orchestrator-iag
 docker compose logs orchestrator-iag | grep -E '"decision":'
 
 # Tail a JSON audit file and show decision + reason
-tail -f /var/log/iag/audit-retriever-iag-*.json | jq -c '{decision, reason, actorsChain}'
+tail -q -f /var/log/iag/audit-retriever-iag-*.json | jq -c '{decision, reason, actorsChain}'
 
 # Count denials in the last 100 audit lines of a CSV file
 tail -n 100 /var/log/iag/audit.csv | grep -c NOT_AUTHORIZED
