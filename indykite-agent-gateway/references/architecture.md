@@ -45,7 +45,7 @@ For each incoming request, an IAG instance runs the same steps, in this order:
 
 The gateway compares the chain with nothing itself; the admission policy does, against the graph. Facts that follow and matter when something is refused:
 
-- **The subject is always the user.** On later hops the token's `sub` is still the user's; an agent is the subject only when it starts a workflow with its own token. The graph must hold a node of the subject type whose `external_id` equals the token's `sub` - an identity node for a `2.0-kbac` policy - or every call is `403`.
+- **The subject is always the user.** On later hops the token's `sub` is still the user's; an agent is the subject only when it starts a workflow with its own token. The graph must hold a node of the subject type whose `external_id` equals the `id` whoami returns (the token's `sub`, or the claim named by the Token Introspect configuration's `sub_claim`) - an identity node for a `2.0-kbac` policy - or every call is `403`.
 - **Every token in `Authorization` needs a Token Introspect configuration** whose `jwt_matcher` matches its `iss` and `aud`; otherwise whoami refuses it and the gateway answers `401` `{"message":"Unauthorized","errors":["ContX IQ whoami failed"]}`, audit reason `cannot resolve the subject of the access token`. Without a Token Service a later hop carries the previous hop's delegation token there, so the issuer and audience of those tokens need a configuration too.
 - **The delegation tokens need a Token Introspect configuration in both modes**, because the platform reads the token in `X-IK-Token` on the admission call only through a matching configuration: the IdP's exchanged tokens without a Token Service (often the same issuer + audience as the user tokens, then one configuration covers both), the Token Service issuer and `token_service.audience` with one. Without it the admission call fails as `["evaluating admission through AuthZEN failed"]`, audit `ERROR`.
 - **Agent names are the `sub` claims** the IdP writes into the agents' client-credentials tokens, as the exchange copies them into `act.sub`; the `Agent` nodes' `external_id` must equal those values.
@@ -157,7 +157,7 @@ Health: `GET /healthz`, `/readyz`, `/startupz` on `service.healthcheck_port` (de
 
 For the admission policy to admit a chain, the IKG must contain:
 
-- The **subject** node (type = the Token Introspect configuration's `ikg_node_type`, e.g. `User`), an identity node whose `external_id` is the `sub` of the user's token, linked to the workflow with the relationship the policy matches (`CAN_TRIGGER`).
+- The **subject** node (type = the Token Introspect configuration's `ikg_node_type`, e.g. `User`), an identity node whose `external_id` is the `id` whoami returns for the user's token (`sub`, or the claim named by `sub_claim`), linked to the workflow with the relationship the policy matches (`CAN_TRIGGER`).
 - A **`Workflow`** node with `external_id` matching the workflow identifier (e.g. `wf1`).
 - One **`Agent`** node per protected agent or MCP server, `external_id` = the `sub` of its client-credentials token (what the exchange writes into `act.sub`).
 - **`INVOKES`** relationships from the workflow through the agents in call order, each carrying a **`workflow_name`** property equal to the `Workflow.external_id`.
