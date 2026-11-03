@@ -189,6 +189,9 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
     export MCP_URL="https://us.mcp.indykite.com"
     export PROJECT_GID="DUMMY_PROJECT_GID"
     export SERVICE_ACCOUNT_TOKEN="DUMMY_SA_TOKEN"
+    export INTENT_AGENT_URL="http://localhost:6003"
+    export SUBJECT_TYPE="User"
+    export SUBJECT_ID="dummy-subject"
 
     # One fixture per skill that ships an execute.sh.
     # NB: array keys MUST be quoted so shfmt does not reformat the hyphens
@@ -320,6 +323,22 @@ if [[ "${mode}" == "dry-run" ]] || [[ "${mode}" == "live" ]]; then
             dry_pass=$((dry_pass + 1))
         else
             printf '  [indykite-ciq-whoami/whoami.sh] --print: FAIL\n    output: %s\n' "${printed}"
+            dry_fail=$((dry_fail + 1))
+        fi
+    fi
+
+    # Intent Agent intent.sh - A2A SendMessage (JSON-RPC) to a self-hosted agent, body built with jq.
+    if [[ -r "indykite-intent-agent/scripts/intent.sh" ]]; then
+        printed="$(bash indykite-intent-agent/scripts/intent.sh --print --request-id req-dry-1 "Can I retrieve the quote stock_quote?" 2>/dev/null || true)"
+        # NB: --print shell-quotes header values and the body (spaces become `\ `), so match
+        # the pieces without their spaces; the token must be redacted.
+        if [[ "${printed}" == curl\ * ]] && [[ "${printed}" == *"${INTENT_AGENT_URL}/"* ]] && [[ "${printed}" == *"A2A-Version"* ]] &&
+            [[ "${printed}" == *"SendMessage"* ]] && [[ "${printed}" == *"subject_type"* ]] && [[ "${printed}" == *"X-Request-ID"* ]] && [[ "${printed}" == *"req-dry-1"* ]] &&
+            [[ "${printed}" == *"BEARER_TOKEN"* ]] && [[ "${printed}" != *"DUMMY_"* ]]; then
+            printf '  [indykite-intent-agent/intent.sh] --print: ok\n'
+            dry_pass=$((dry_pass + 1))
+        else
+            printf '  [indykite-intent-agent/intent.sh] --print: FAIL\n    output: %s\n' "${printed}"
             dry_fail=$((dry_fail + 1))
         fi
     fi

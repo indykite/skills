@@ -9,11 +9,18 @@ Like the gateway, it is **not part of the IndyKite platform**: it is deployed an
 | Situation                                                                 | IdP alone | With Token Service |
 |---------------------------------------------------------------------------|-----------|--------------------|
 | One-hop workflow (user → gateway → agent)                                 | works     | works              |
-| Multi-hop workflow (user → gateway → agent → gateway → agent …)           | refused - each hop re-exchanges the user's access token, the chain never grows | works - each hop nests the incoming chain |
-| Protected agent must see the caller's original access token               | no - replaced by the delegation token | yes - `Authorization` untouched, delegation in `X-IK-Token` |
-| Policy reads the delegation chain                                         | `$token`  | `$ik_token`        |
+| Multi-hop workflow (user → gateway → agent → gateway → agent …)           | works only if the identity provider nests the previous `act` when it exchanges a delegation token (RFC 8693 allows it, does not require it); otherwise the second gateway sees a chain of one agent and the admission policy refuses | works - each hop nests the incoming chain |
+| Protected agent must see the caller's original access token               | no - replaced by the delegation token | yes - `Authorization` as it arrived, delegation in `X-IK-Token` |
+| Downstream's own policies read the delegation chain                       | `$token`  | `$ik_token`        |
+| Gateway's admission policy reads the chain                                | `$ik_token.act_chain` (the gateway sends the delegation token in `X-IK-Token` on its admission call in both modes) | `$ik_token.act_chain` |
 
 The IdP stays required in both cases: it introspects the caller's access token and authenticates the protected agent (client credentials). The Token Service only exchanges tokens and validates the ones it issued itself.
+
+With the gateway's `token_service` section in place, three rules apply that an IdP-only deployment does not have:
+
+- **Entry agent.** `protected_agent.authentication.audiences` becomes required on every gateway: the audiences of user tokens that may start a workflow there. A user token issued for none of them is refused with `401` `Access token not issued for this agent`, before any chain or policy check, so a workflow starts only at the agent the token was issued for.
+- **Later hops need only `X-IK-Token`.** The gateway validates it at the Token Service, requires an `act` claim in it (a user's access token cannot take its place), and exchanges it. When a bearer token travels beside it, its `sub` must match the delegation token's unless `authorization_header.same_user_check` is switched off.
+- **One audience per path.** A delegation token travels on to the next gateway, so every gateway on a path should ask for the same audience, with `token_service.audience` (or the same `authentication.audiences`), and `idp.audiences` must list it. Run every gateway of a path in the same mode: a gateway without the section ignores an incoming `X-IK-Token`, so a mixed path loses the chain at that hop.
 
 ## Endpoints
 
@@ -101,7 +108,7 @@ Pass `--config=/app/config.yaml` for a single file or, in production, `--config-
 
 | Field                        | Required | Notes                                                                                                                |
 |------------------------------|----------|----------------------------------------------------------------------------------------------------------------------|
-| `audiences`                  | yes (≥1) | Allow-list of what a token may be issued for; the `aud` values it may carry. List the audience of every protected agent and MCP server the gateways request. Not used to recognise a token as ours. |
+| `audiences`                  | yes (≥1) | Allow-list of what a token may be issued for; the `aud` values it may carry. List the shared `token_service.audience` of the gateways, or the audience of every protected agent and MCP server they request in `protected_agent.authentication.audiences`. Not used to recognise a token as ours. |
 | `resources`                  | no       | Allow-list for the RFC 8693 `resource` parameter; without it no request may name a resource.                         |
 | `token_ttl`                  | yes      | Lifetime of an exchanged token, positive. Keep it as short as the workflow allows - nothing can revoke a delegation token before it expires. |
 | `actor_type`                 | no       | Written into `act` beside the actor `sub`; defaults to `Agent`. The IndyKite backend uses it to resolve the actor in the graph. |
@@ -145,7 +152,7 @@ The CSV sink carries a `tokenID` column; files rotated before it was added keep 
 
 ## Making the platform trust ITS tokens
 
-The IndyKite platform validates an `X-IK-Token` through the project's [Token Introspect configurations](https://developer.indykite.com/guides/guide-token-introspect), exactly as it validates the user's Bearer token. Without a matching configuration every AuthZEN, ContX IQ, and MCP request that carries an `X-IK-Token` is refused (`401 Invalid token in X-IK-Token header` on REST, `400 invalid_request` on the MCP server). Create **one configuration per audience** ITS can issue for, once per project, with a Service Account token:
+The IndyKite platform validates an `X-IK-Token` through the project's [Token Introspect configurations](https://developer.indykite.com/guides/guide-token-introspect), exactly as it validates the user's Bearer token. Without a matching configuration every AuthZEN, ContX IQ, and MCP request that carries an `X-IK-Token` is refused (`401 Invalid token in X-IK-Token header` on REST, `400 invalid_request` on the MCP server) - the gateway's own admission call included, which then fails with `["evaluating admission through AuthZEN failed"]` and an `ERROR` audit record. The same holds without a Token Service: the gateway sends the IdP's exchanged token in `X-IK-Token` on its admission call, so the IdP's delegation tokens need a configuration too (often the same issuer + audience pair as the user tokens, and then one configuration covers both). Create **one configuration per issuer + audience pair** the delegation tokens carry - with a shared `token_service.audience`, one per path - once per project, with a Service Account token:
 
 ```bash
 curl -X POST "$API_URL/configs/v1/token-introspects" \
@@ -170,9 +177,10 @@ curl -X POST "$API_URL/configs/v1/token-introspects" \
 
 - `jwt_matcher.issuer` is the ITS `service.base_url`, and it must be `https`: the platform treats an `http` issuer as opaque and skips offline validation.
 - `offline_validation.public_jwks` holds the **public** JWK only (`kty`, `n`, `e`, `alg`, `kid`, `use`) as a JSON string, up to 10 keys - which is how a rotation is prepared ahead of time. Left empty, the platform fetches the keys from the issuer's discovery document instead, which requires ITS to be reachable from the platform.
-- One configuration per `audience` value the delegation token can carry on that path. Allow a few minutes for a new configuration to propagate.
+- One configuration per `audience` value the delegation token can carry on that path; a duplicate issuer + audience pair is refused with `409`. Allow a few minutes for a new configuration to propagate; the gateway keeps a whoami answer for `contx_iq.cache_ttl`.
+- `ikg_node_type` is the subject type a later hop gets when it arrives with `X-IK-Token` and no user token: the gateway then resolves the delegation token itself through this configuration.
 
-Once trusted, the delegation token is accepted on every AuthZEN and ContX IQ endpoint and by the MCP server, always beside the user's Bearer token and with the same `sub`. Policies read it as `$ik_token`; for example a KBAC filter `{"operator": "=", "attribute": "$ik_token.act.act.sub", "value": "orchestrator"}` allows the action only when the chain started at the orchestrator. To compare the whole chain with a path in the graph, a Cypher condition uses the derived lists `$ik_token.act_chain` and `$ik_token.act_chain_types` (each hop's `sub` and `type`, oldest first), e.g. `MATCH (subject:Person)-[rels:INVOKES*]->(resource:Agent) WHERE [r IN rels | endNode(r).external_id] = $ik_token.act_chain AND [r IN rels | endNode(r).type] = $ik_token.act_chain_types`. See the [AuthZEN guide](https://developer.indykite.com/guides/guide-authzen) and [ContX IQ guide](https://developer.indykite.com/guides/guide-contx-iq).
+Once trusted, the delegation token is accepted on every AuthZEN and ContX IQ endpoint and by the MCP server, beside the user's Bearer token (with the same `sub`) or alone. Policies read it as `$ik_token`; for example a KBAC filter `{"operator": "=", "attribute": "$ik_token.act.act.sub", "value": "orchestrator"}` allows the action only when the chain started at the orchestrator. To compare the whole chain with a path in the graph, a Cypher condition uses the derived lists `$ik_token.act_chain` and `$ik_token.act_chain_types` (each hop's `sub` and `type`, oldest first), e.g. `MATCH (subject:Person)-[rels:INVOKES*]->(resource:Agent) WHERE [r IN rels | endNode(r).external_id] = $ik_token.act_chain AND [r IN rels | endNode(r).type] = $ik_token.act_chain_types`. See the [AuthZEN guide](https://developer.indykite.com/guides/guide-authzen) and [ContX IQ guide](https://developer.indykite.com/guides/guide-contx-iq).
 
 ## Deployment notes
 

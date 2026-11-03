@@ -1,7 +1,7 @@
 {
   "name": "indykite-skills",
   "version": "1.0.0",
-  "description": "IndyKite skills for coding agents \u2014 Agent Gateway deployment, MCP server calls, KBAC authorization policy authoring and lifecycle, AuthZEN decisions and search (single evaluation, batch evaluations, action / resource / subject search), runtime listing of a project's active KBAC policies, Capture API ingests and deletes (nodes, relationships, properties, property metadata), IKG data-schema reads, ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete), ContX IQ whoami (resolve an end-user token to its IKG subject), and tamper-proof audit log reads and exports.",
+  "description": "IndyKite skills for coding agents \u2014 Agent Gateway deployment, Intent Agent calls (prompt to AuthZEN evaluations), MCP server calls, KBAC authorization policy authoring and lifecycle, AuthZEN decisions and search (single evaluation, batch evaluations, action / resource / subject search), runtime listing of a project's active KBAC policies, Capture API ingests and deletes (nodes, relationships, properties, property metadata), IKG data-schema reads, ContX IQ policies / Knowledge Queries / executes (read, create node, create relationship, combined create-with-link, add property, add relationship property, delete), ContX IQ whoami (resolve an end-user token to its IKG subject), and tamper-proof audit log reads and exports.",
   "contextFileName": "README.md",
   "settings": [
     {
@@ -33,6 +33,11 @@
       "name": "MCP server URL",
       "description": "IndyKite MCP server base URL for the project's region (e.g. https://us.mcp.indykite.com or https://eu.mcp.indykite.com). Required only when using the indykite-mcp-server skill.",
       "envVar": "MCP_URL"
+    },
+    {
+      "name": "Intent Agent URL",
+      "description": "Base URL of your self-hosted IndyKite Intent Agent (e.g. http://localhost:6003 or https://intent-agent.example.com). Required only when using the indykite-intent-agent skill.",
+      "envVar": "INTENT_AGENT_URL"
     },
     {
       "name": "Project GID",
