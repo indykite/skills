@@ -46,7 +46,7 @@ identity_provider:
 # Optional. Left out, the identity provider above mints the delegation token
 # and it replaces the caller's token in Authorization (the agent's own policies
 # read $token). Filled in, the IndyKite Token Service mints it: the caller's
-# token is forwarded as it arrived in Authorization with the delegation token
+# token is forwarded in Authorization (see authorization_header.forward) with the delegation token
 # beside it in X-IK-Token ($ik_token), a workflow starts only at the agent the
 # user's token was issued for (protected_agent.authentication.audiences), and a
 # later hop needs only its X-IK-Token. The admission call carries the
@@ -91,10 +91,13 @@ protected_agent:
 #   cache_ttl: 5m
 #   cache_update_after: 5m
 #   cache_update_after_error: 10s
-# Optional, with token_service: refuse a bearer token on a later hop whose sub
-# differs from the delegation token's (default true). Switch off when
-# Authorization carries the calling agent's own token instead of the user's.
+# Optional, with token_service. forward: what the agent gets in Authorization -
+# correct_audience (default: a bearer token only when issued for this agent),
+# none, or all (as the caller sent it). same_user_check: refuse a bearer token
+# on a later hop whose sub differs from the delegation token's (default true);
+# switch off when Authorization carries the calling agent's own token.
 # authorization_header:
+#   forward: correct_audience
 #   same_user_check: true
 # Optional, a2a: ask the Intent Agent about every message before forwarding.
 # ibac:
@@ -121,6 +124,19 @@ authzen:
   cache_ttl: 5m
   cache_update_after: 5m
   cache_update_after_error: 10s
+  # Capability checks, on by default: in front of an MCP server, filter the
+  # tools/resources/prompts lists and refuse calls outside the caller's
+  # permitted set (403, -31403); in front of an A2A agent, filter the skills of
+  # the extended card. Needs HAS edges and one CAN_USE policy per label, or
+  # every list is empty. enabled: false restores admission-only behaviour.
+  # capabilities:
+  #   enabled: true
+  #   action: CAN_USE
+  #   labels:
+  #     tools: Tool
+  #     resources: McpResource
+  #     prompts: Prompt
+  #     skills: Skill
 contx_iq:
   base_url: <INDYKITE_BASE_URL>/contx-iq/v1
   # AppAgent credential with the Authorization and ContXIQ API permissions;
@@ -129,6 +145,13 @@ contx_iq:
   # How long a whoami answer is kept (0 keeps none).
   cache_ttl: 5m
   # query_id is ignored; allowed_workflow_id stops the gateway - do not set them.
+# Optional: origins a browser may call the token-protected paths from
+# (scheme://host[:port], no path; "*" alone allows every origin). Empty by
+# default: no origin is allowed. The OAuth metadata paths and the public agent
+# card allow every origin regardless.
+# cors:
+#   allowed_origins:
+#     - <BROWSER_CLIENT_ORIGIN> # e.g. https://mcp-client.example.com
 # Audit is optional but can only be enabled from a file (JARVIS_AUDIT_* only
 # overrides values). Pick one delivery form and delete the other.
 audit:

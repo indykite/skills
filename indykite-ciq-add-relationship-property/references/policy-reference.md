@@ -10,7 +10,7 @@ The policy has four top-level keys, all siblings:
 
 | Key                | Use                                                                                                                |
 |--------------------|--------------------------------------------------------------------------------------------------------------------|
-| `meta`             | Set `policy_version: "1.0-ciq"`.                                                                                    |
+| `meta`             | `policy_version`: `"1.0-ciq"` or `"2.0-ciq"` (CIQ v2, see below).                                             |
 | `subject`          | Set `type` to the authenticating entity (e.g. `_Application`, `Person`).                                            |
 | `condition`        | Match the subject and bind the existing relationship to a variable; pin both endpoints with `external_id` filters.  |
 | `allowed_upserts`  | Use `relationships.existing_relationships` to whitelist the cypher relationship variables whose properties the KQ may set. |
@@ -39,7 +39,17 @@ For a relationship-property-write-only policy: include `meta`, `subject`, `condi
 
 ## `meta.policy_version`
 
-Currently `1.0-ciq`.
+Use `1.0-ciq` (CIQ v1, used by every example in this skill) or **`2.0-ciq`** (CIQ v2); IndyKite rejects unknown values.
+
+The version is chosen per policy; there is no project-level switch. A v2 policy is created, listed, updated and executed with the same Config API calls, the same Knowledge Query syntax and the same execute request and response envelope. What differs in `2.0-ciq`:
+
+- **Filter attributes take the `@` prefix** - in the policy's `condition.filter` and in the Knowledge Query's `filter` alike: `"attribute": "@subject.external_id"`, `"attribute": "@ln.property.value"`. A bare `"subject.external_id"` is a literal string and matches nothing. Token references (`$token.*`, `$ik_token.*`) and input parameters (`$name`) are unchanged, and `@` in a filter `value` works in both versions. `token_filter` may not reference graph values: `token filter attribute references cypher value: @…`.
+- **Untyped relationships** (`-[r]->` without a type) cannot be listed in `allowed_upserts.relationships.existing_relationships` or `allowed_deletes.relationships`: `untyped relationship <name> cannot be used in <section>`. Untyped nodes are rejected in both versions.
+- **Every parameter is checked before the query runs.** A `$name` used only inside `condition.cypher` and missing from `input_params` answers `422` with `{"message": "invalid_argument: missing or wrong input params, '<name>, …'"}` (every missing name listed), where `1.0-ciq` answers `500` from the graph database.
+- **Whole relationships are returned differently**: under `relationships`, as `{_startNode_external_id, _startNode_type, _endNode_external_id, _endNode_type, Props}` instead of the driver object with `Type` and `Props`; a variable-length relationship returns a list of those objects. `<rel>.<prop>` and `<rel>.*` are unchanged.
+- **Upsert values can be read from the graph.** A property `value` in `upsert_nodes` / `upsert_relationships` may be an `@` reference to a value the policy's Cypher matched, e.g. `"value": "@group.property.level"` - see [`knowledge-query-reference.md`](knowledge-query-reference.md#v2-only-copying-graph-values-with--references).
+
+`condition.skip_resource_label`, `token_filter`, `preprocess_param_defaults`, paging, `batch_read` and the metadata rules are the same in both versions, and so are the status codes except for the missing-parameter case. To move a policy to v2, change `policy_version` and add `@` to every filter `attribute` that names a graph value, in the policy and in each of its Knowledge Queries; a client that reads whole relationships gets the new shape.
 
 ## `subject.type`
 
@@ -81,7 +91,7 @@ If the chain cannot be restructured, the fallback is a planning barrier: pin the
 When the policy is saved, the platform rewrites the condition so that every named node also carries the `Resource` system label and the subject the `DigitalTwin` label: `MATCH (subject:Person)-[:OWNS]->(car:Car)` runs as `MATCH (subject:Person:DigitalTwin:Resource)-[:OWNS]->(car:Car:Resource)`. Two consequences:
 
 - **Blocked labels.** A condition that names a platform label is refused at save time with ``invalid node type `<label>` in cypher for node `<var>` ``. The blocked labels are `_AppAgent`, `_API`, `_TrustScore`, `Source`, and the four data-schema labels `_DataSchemaNode`, `_DataSchemaProperty`, `_DataSchemaRelationship`, `_DataSchemaMetadata`. The observed schema is read through the Data Schema API ([`indykite-data-schema`](../../indykite-data-schema/SKILL.md)), never through a query.
-- **`condition.skip_resource_label`** (optional, default `false`). For some conditions the added `Resource` label leads the planner to a poor plan, because the `id` and `external_id` indexes are defined on `Resource` and it may prefer them over the node type's own index. Setting `"skip_resource_label": true` inside `condition` leaves `Resource` out, so each lookup uses the indexes of the node type's label; only the subject's `DigitalTwin` label is still added, and the results are the same either way. Use it only when a condition that is already anchored and bounded (above) is still slow, and measure before and after - the default plan is right for most conditions. Accepted on `1.0-ciq`; a policy version that does not support it refuses the save with `skip_resource_label is not allowed for this policy version`.
+- **`condition.skip_resource_label`** (optional, default `false`). For some conditions the added `Resource` label leads the planner to a poor plan, because the `id` and `external_id` indexes are defined on `Resource` and it may prefer them over the node type's own index. Setting `"skip_resource_label": true` inside `condition` leaves `Resource` out, so each lookup uses the indexes of the node type's label; only the subject's `DigitalTwin` label is still added, and the results are the same either way. Use it only when a condition that is already anchored and bounded (above) is still slow, and measure before and after - the default plan is right for most conditions. Accepted on `1.0-ciq` and `2.0-ciq`; a policy version that does not support it refuses the save with `skip_resource_label is not allowed for this policy version`.
 
 ```json
 "condition": {

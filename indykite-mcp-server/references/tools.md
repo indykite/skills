@@ -1,6 +1,6 @@
 # IndyKite MCP — Tool Reference
 
-Five tools are exposed by the MCP server. All are invoked through the JSON-RPC `tools/call` method. On the stateless protocol (revision `2026-07-28`, the style this skill uses) the full envelope is:
+The MCP server exposes the four `authzen_*` tools, **one tool per active Knowledge Query of the project** (named after the query), and the deprecated `ciq_execute`. All are invoked through the JSON-RPC `tools/call` method. On the stateless protocol (revision `2026-07-28`, the style this skill uses) the full envelope is:
 
 ```json
 {
@@ -142,9 +142,48 @@ Useful for permissions inspectors and "show me everything I'm allowed to do here
 
 ## CIQ tools
 
-### `ciq_execute` — run a Knowledge Query
+### Knowledge Query tools
 
-> Execute a Knowledge Query (read or write) against the IndyKite Graph.
+> One tool per Knowledge Query: run that query (read or write) against the IndyKite Graph.
+
+Every Knowledge Query of the project that is **`ACTIVE` and has a `name`** is a tool whose name is the query's `name` (a query without a name is never a tool). The tool list follows the queries: a query created, changed, deactivated or deleted shows in `tools/list` within about 15 seconds. The query is fixed by the tool, so the arguments carry only its parameters and paging; it runs with the tokens of the request (`Authorization`, and `X-IK-Token` when present), exactly as on `POST /contx-iq/v1/execute`. Headers: `Mcp-Name: <query name>`.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "method": "tools/call",
+  "params": {
+    "name": "<knowledge_query_name>",
+    "arguments": {
+      "input_params": {
+        "license": "AL98745",
+        "app_external_id": "applicationParking"
+      }
+    }
+  }
+}
+```
+
+| Argument        | Description                                                                       |
+|-----------------|-----------------------------------------------------------------------------------|
+| `input_params`  | Optional. The parameters the Knowledge Query **and its policy** read, as on `POST /contx-iq/v1/execute`. |
+| `page_size`     | Optional. Rows per page, default `100`, maximum `1000`.                           |
+| `page_token`    | Optional. A 1-based page number, as below.                                        |
+
+The result is the execute answer as a `text` content item holding `{"data": [...]}`, one record per matched row.
+
+**Tool description and `x-coaz-mappings`.** The tool's description is the query's `description`, or `Execute the ContX IQ knowledge query <name>` when it has none. To declare what the tool does for an Agent Gateway's IBAC engine ([IBAC guide](https://developer.indykite.com/guides/guide-ibac)), end the query's `description` with the marker `x-coaz-mappings:` followed by a JSON list:
+
+```json
+"description": "The cars the caller owns, with their licence numbers.\nx-coaz-mappings: [{\"subject\":[{\"type\":\"Person\",\"id\":\"$token.sub\"}],\"resource\":[{\"type\":\"Car\",\"id\":\"$request.arguments.input_params.carId\"}],\"action\":[{\"name\":\"drive\"}]}]"
+```
+
+The text before the marker becomes the tool description; the list after it is served in the tool's `_meta` under `x-coaz-mappings`. Without the marker the tool has no mappings. A value after the marker that is not a JSON list is served as a string, which the IBAC engine reads as an invalid mapping, so a typo is never silently dropped. The IBAC guide notes that current gateway releases do not yet evaluate mappings on the request path. The mappings describe what the tool does; they never change what the IndyKite MCP server itself allows (the query's CIQ policy decides that).
+
+### `ciq_execute` — run a Knowledge Query by id (deprecated)
+
+> Deprecated: call the tool named after the query instead. Kept for existing clients; its `tools/list` description starts with `Deprecated:`.
 
 ```json
 {
@@ -189,7 +228,7 @@ POST /mcp/v1/<project_gid>
 }
 ```
 
-The response lists every Knowledge Query with an agent-friendly description and the parameter shape `ciq_execute` expects. Reading this first turns the otherwise-guesswork `input_params` into a deterministic call.
+The response lists every Knowledge Query with its name (the tool name), an agent-friendly description and the parameter shape it expects. Reading this first turns the otherwise-guesswork `input_params` into a deterministic call.
 
 ## Discovery methods (not tools, but commonly chained with them)
 
@@ -197,7 +236,7 @@ The response lists every Knowledge Query with an agent-friendly description and 
 |---------------------|--------------------------------------------------------------------------|
 | `server/discover`   | Stateless-only: the server's capabilities and supported protocol revisions (`result.supportedVersions`). |
 | `resources/list`    | Enumerate the resources this MCP server exposes.                         |
-| `tools/list`        | Enumerate the tools this MCP server exposes (canonically the five above, but verify per deployment). |
+| `tools/list`        | Enumerate the tools this MCP server exposes: the four `authzen_*` tools, one tool per active, named Knowledge Query, and the deprecated `ciq_execute`. |
 | `resources/read`    | Read a specific resource — most importantly `indykite://knowledge-queries/` (its URI also goes in the `Mcp-Name` header). |
 
 Each is a plain JSON-RPC method: set `Mcp-Method` to the method name and put the `_meta` object in `params` (for `server/discover`, `tools/list`, and `resources/list`, `_meta` is the only `params` content).

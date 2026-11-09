@@ -73,7 +73,7 @@ jq '[.[].data[]]' logs.json      # flatten every audit event out of every batch
 ./scripts/audit-logs.sh logs --all --jsonl > logs.jsonl   # one batch per line, for large exports
 ```
 
-`GET /audit/v1/logs` pages in lockstep with `/manifests` (same cursors, same sequences). Each item is one signed batch: `data` is the array of audit events, `hash` the digest of `data`, `signature` the platform's signature over that digest, `chain_hash` its position in the chain. Batches can be large; page with a small `pagesize` when memory matters.
+`GET /audit/v1/logs` pages in lockstep with `/manifests` (same cursors, same sequences). Each item is one signed batch: `data` is the array of audit events, `hash` the digest of `data`, `signature` the platform's signature over that digest, `chain_hash` its position in the chain. Batches can be large; page with a small `--pagesize` when memory matters (the default and the maximum are both `50`; a larger value is capped, not refused).
 
 Every event in `data` has the same top-level shape: `eventType` (an `indykite.audit.*` name), `time`, `customerId` and `appSpaceId`, an optional `initiator` object whose keys say which kind of caller acted (Application Agent, Service Account, or end user), `requestId`, the typed `data` payload, an optional `context`, and `eventSource` - the field table is in [`references/audit-log-reference.md`](references/audit-log-reference.md#logs---chain-batch). Within a batch the events are in the order the platform received them, not always the order in which they happened, so sort on `time` when the order matters.
 

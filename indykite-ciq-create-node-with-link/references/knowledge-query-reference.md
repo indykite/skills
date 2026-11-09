@@ -124,6 +124,59 @@ You can also project existing endpoints (`vehicle.external_id`, `person.external
 
 The platform applies all `upsert_nodes` and `upsert_relationships` in one transaction. If any single entry fails (e.g. one `relationship_types` triple isn't whitelisted), the whole call fails — none of the writes happen.
 
+## v2 only: copying graph values with `@` references
+
+With a `2.0-ciq` policy ([`policy-reference.md`](policy-reference.md#metapolicy_version)), a property `value` in `upsert_nodes` or `upsert_relationships` may be an **`@` reference** to a value the policy's Cypher matched, instead of a literal or a `$param`. The platform reads every referenced value first, for the rows the condition matched, then writes; each upserted element gets the value found for its row.
+
+| Form | Example |
+|------|---------|
+| `@<var>.<attr>` - an attribute of a node or relationship variable | `@subject.external_id`, `@owns.since` |
+| `@<var>.property.<name>` - a property of a node | `@subject.property.email` |
+| `@<var>.property.<name>.metadata.<field>` - metadata of that property | `@subject.property.country.metadata.source` |
+| `@<var>.trust_score.<field>` - a trust score of a node | `@subject.trust_score._final_score` |
+| `@<alias>` - an aggregate value projected with `AS` | `@numContracts` |
+
+A policy that lets a person stamp their own node with values the graph already holds, and the query that does it:
+
+```json
+{
+  "meta": { "policy_version": "2.0-ciq" },
+  "subject": { "type": "Person" },
+  "condition": {
+    "cypher": "MATCH (subject:Person)-[:MEMBER_OF]->(group:Group) WITH subject, group",
+    "filter": [ { "attribute": "@subject.external_id", "operator": "=", "value": "$token.sub" } ]
+  },
+  "allowed_upserts": { "nodes": { "existing_nodes": ["subject"] } },
+  "allowed_reads": { "nodes": ["subject.*"] }
+}
+```
+
+```json
+{
+  "nodes": ["subject.property.level", "subject.property.source"],
+  "upsert_nodes": [
+    {
+      "name": "subject",
+      "properties": [
+        { "type": "level", "value": "@group.property.level" },
+        { "type": "source", "value": "@subject.property.country.metadata.source" },
+        { "type": "verified_by", "value": "$token.cname" }
+      ]
+    }
+  ]
+}
+```
+
+Rules, checked when the Knowledge Query is saved:
+
+- A reference points at a variable of the policy's Cypher that is in scope at its end - never at a node or relationship the query itself creates, since the values are read before anything is written: `upsert value @<ref> must reference a variable of the policy cypher`.
+- A bare variable is allowed only for an aggregate alias; a node or relationship needs an attribute, property, metadata or trust-score path: `upsert value @<ref> must reference an attribute, a property, a trust score or an aggregate value`. A path of another shape is `invalid upsert value @<ref>: …`, and every name in the path must be a letter or underscore followed by letters, digits or underscores: `invalid upsert value @<ref>: invalid name <name>`.
+- A token claim is not read from the graph: write `$token.<claim>`, or the save is refused with `upsert value @token.<claim> references a token claim, use token.<claim> instead`.
+- When a query uses `@` references, no Cypher variable and no upserted node or relationship `name` may start with `__ref_`: `name <name> must not start with __ref_ when upsert values use @ references`.
+- Only property `value`s take a reference; `external_id`, `type`, metadata values and `external_value` do not. A literal that starts with `@` or `$` is written `\@…` or `\$…` (inside a JSON string `"\\@…"`); the escape is dropped.
+
+At execute time a reference whose value is null for a row - for example a property the matched node lacks - writes nothing for that property: a node property is left out, a relationship property left as it was. When several matched rows feed one upserted element, the first value found is written.
+
 ## Out-of-scope fields
 
 Omit for a pure combined-create:

@@ -10,7 +10,7 @@ Like the gateway, it is **not part of the IndyKite platform**: it is deployed an
 |---------------------------------------------------------------------------|-----------|--------------------|
 | One-hop workflow (user → gateway → agent)                                 | works     | works              |
 | Multi-hop workflow (user → gateway → agent → gateway → agent …)           | works only if the identity provider nests the previous `act` when it exchanges a delegation token (RFC 8693 allows it, does not require it); otherwise the second gateway sees a chain of one agent and the admission policy refuses | works - each hop nests the incoming chain |
-| Protected agent must see the caller's original access token               | no - replaced by the delegation token | yes - `Authorization` as it arrived, delegation in `X-IK-Token` |
+| Protected agent must see the caller's original access token               | no - replaced by the delegation token | yes - `Authorization` per `authorization_header.forward` (default: the caller's token when issued for this agent), delegation in `X-IK-Token` |
 | Downstream's own policies read the delegation chain                       | `$token`  | `$ik_token`        |
 | Gateway's admission policy reads the chain                                | `$ik_token.act_chain` (the gateway sends the delegation token in `X-IK-Token` on its admission call in both modes) | `$ik_token.act_chain` |
 

@@ -76,7 +76,7 @@ Variables: `subject`, `track`, `r`, `venue`. The relationship variable `r` is th
 
 Build the policy JSON with four blocks:
 
-- `meta.policy_version` - currently `1.0-ciq`.
+- `meta.policy_version` - `1.0-ciq` (the examples here) or `2.0-ciq` (CIQ v2: `@`-prefixed filter attributes, `422` for a missing parameter, `@` references in upsert values) - see [`references/policy-reference.md`](references/policy-reference.md#metapolicy_version).
 - `subject.type` - `_Application` for the running example.
 - `condition.cypher` and `condition.filter` - the cypher matches the existing relationship; the filter pins `subject.external_id = $_appId` (reserved) plus the source and target endpoints by `external_id`.
 - `allowed_upserts.relationships.existing_relationships` - array of relationship variables from `cypher` whose properties the Knowledge Query may write. The Knowledge Query's `upsert_relationships[].name` must be in this list.

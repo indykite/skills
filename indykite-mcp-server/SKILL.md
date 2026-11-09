@@ -1,6 +1,6 @@
 ---
 name: indykite-mcp-server
-description: Make live IndyKite authorization decisions (AuthZEN/KBAC) and run ContX IQ graph queries from an AI agent over the Model Context Protocol - self-contained Bearer-token JSON-RPC calls on the stateless protocol (revision 2026-07-28), no session handshake and no bespoke REST wiring. Use when calling the IndyKite MCP server (server/discover, tools/list, authzen_evaluate, authzen_evaluations, authzen_search_*, ciq_execute), configuring an MCP server, or debugging its single Bearer-token auth.
+description: Make live IndyKite authorization decisions (AuthZEN/KBAC) and run ContX IQ graph queries from an AI agent over the Model Context Protocol - self-contained Bearer-token JSON-RPC calls on the stateless protocol (revision 2026-07-28), no session handshake and no bespoke REST wiring. Use when calling the IndyKite MCP server (server/discover, tools/list, authzen_evaluate, authzen_evaluations, authzen_search_*, one tool per Knowledge Query named after the query, the deprecated ciq_execute), configuring an MCP server, or debugging its single Bearer-token auth.
 license: Apache-2.0
 compatibility: Requires curl and bash 4+. Network access to eu.mcp.indykite.com or us.mcp.indykite.com, plus the OAuth IdP that issues Bearer tokens, is required at runtime.
 ---
@@ -24,7 +24,8 @@ Activate this skill when the user:
 - is **configuring** an MCP server for a project (`POST /configs/v1/mcp-servers`) and needs the field set;
 - is debugging a **`401`** that returned `.well-known/oauth-protected-resource` metadata - almost always a missing, expired, or wrongly-bound `Authorization: Bearer` token;
 - is wiring an LLM client (Claude Code, Cursor, Goose, the [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk), etc.) into the IndyKite MCP and needs the request shape;
-- is choosing between `authzen_evaluate`, `authzen_evaluations`, `authzen_search_resource`, `authzen_search_action`, and `ciq_execute`.
+- is choosing between `authzen_evaluate`, `authzen_evaluations`, `authzen_search_resource`, `authzen_search_action`, and the Knowledge Query tools (one per active query, named after it; `ciq_execute` is deprecated);
+- is writing a Knowledge Query `description` so it reads well as a tool description, or declaring the tool's `x-coaz-mappings` for an Agent Gateway.
 
 Do **not** activate this skill when the user:
 
@@ -36,11 +37,11 @@ Do **not** activate this skill when the user:
 
 The MCP server will reject requests for a project until all of the following exist:
 
-- An IndyKite **project** with an **Application** and an **AppAgent** whose `api_permissions` include **`Authorization`** (the `authzen_*` tools) and **`ContXIQ`** (`ciq_execute`). The server uses this AppAgent to call IndyKite APIs at runtime, resolved server-side from the MCP server configuration's `app_agent_id` - the client no longer sends an AppAgent token.
+- An IndyKite **project** with an **Application** and an **AppAgent** whose `api_permissions` include **`Authorization`** (the `authzen_*` tools) and **`ContXIQ`** (the Knowledge Query tools and `ciq_execute`). The server uses this AppAgent to call IndyKite APIs at runtime, resolved server-side from the MCP server configuration's `app_agent_id` - the client no longer sends an AppAgent token.
 - A **Token Introspect** configuration on the project - used to validate inbound user Bearer tokens.
 - An **MCP server configuration** (`POST /configs/v1/mcp-servers`) that binds the runtime endpoint to the AppAgent (`app_agent_id`) and Token Introspect, and declares `scopes_supported`. Without this configuration, requests for the project are rejected. See [`references/configuration.md`](references/configuration.md).
 - The project's **GID** (used in the URL path).
-- Captured **data and policies**: KBAC and/or CIQ policies and Knowledge Queries, depending on which tools the agent will call.
+- Captured **data and policies**: KBAC and/or CIQ policies and Knowledge Queries, depending on which tools the agent will call. A Knowledge Query becomes a tool only when it is **ACTIVE and has a `name`**; the name is the tool name.
 
 If any of these are missing, stop and tell the user - fixing them first is much cheaper than debugging an opaque MCP rejection.
 
@@ -89,7 +90,7 @@ export PROJECT_GID="<your-project-gid>"
 
 A single `Authorization: Bearer` header is the only auth header on every call. The AppAgent the server uses to call IndyKite APIs at runtime is resolved **server-side** from the MCP server configuration's `app_agent_id` - clients no longer send an `X-IK-ClientKey` AppAgent token. See [`references/architecture.md`](references/architecture.md) for the rationale (the Bearer token identifies the user as the AuthZEN subject).
 
-One optional addition: a caller routed through the IndyKite Agent Gateway in Token Service mode also carries `X-IK-Token: <delegation-token>` (no prefix) beside the untouched Bearer token. The server validates it like the Bearer token, requires the same `sub`, forwards it with every `authzen_*` and `ciq_execute` call, and policies read its `act` chain as `$ik_token`. A delegation token that does not hold up is refused with `400 invalid_request` before anything is forwarded. Details in [`references/architecture.md`](references/architecture.md); the `indykite-agent-gateway` skill covers minting it.
+One optional addition: a caller routed through the IndyKite Agent Gateway in Token Service mode also carries `X-IK-Token: <delegation-token>` (no prefix) beside the untouched Bearer token. The server validates it like the Bearer token, requires the same `sub`, forwards it with every `authzen_*`, Knowledge Query tool and `ciq_execute` call, and policies read its `act` chain as `$ik_token`. A delegation token that does not hold up is refused with `400 invalid_request` before anything is forwarded. Details in [`references/architecture.md`](references/architecture.md); the `indykite-agent-gateway` skill covers minting it.
 
 ### 2. Probe the server with `server/discover` (optional but recommended)
 
@@ -122,11 +123,11 @@ The response is `200` with `result.supportedVersions` (e.g. `["2026-07-28", "202
 
 Before calling tools, ask the server what's available. Three useful methods (each a self-contained POST with the same `_meta` and headers, changing `Mcp-Method`):
 
-- `tools/list` - what tools the agent may call (the canonical set is in [`references/tools.md`](references/tools.md), but list it to verify what *this* deployment exposes).
+- `tools/list` - what tools the agent may call: the four `authzen_*` tools, **one tool per active Knowledge Query of the project, named after the query** (its description is the query's description), and the deprecated `ciq_execute`. The list follows the project's queries: one created, changed, deactivated or deleted shows within about 15 seconds.
 - `resources/list` - what resources the MCP server exposes.
 - `resources/read` with `uri: "indykite://knowledge-queries/"` (also sent as the `Mcp-Name` header) - agent-friendly descriptions of every CIQ Knowledge Query, including the parameters each one expects.
 
-The third one is especially important before any `ciq_execute` call: it tells the agent *which* `id` to pass and *what* `input_params` shape the query expects.
+The third one tells the agent *what* `input_params` shape each query expects (and, for the deprecated `ciq_execute`, which `id` to pass).
 
 ```bash
 scripts/mcp-call.sh tools/list
@@ -153,14 +154,17 @@ scripts/mcp-call.sh tools/call authzen_evaluate \
 
 ### 5. Call CIQ tools
 
-`ciq_execute` runs a Knowledge Query against the IndyKite Graph (read or write). Two main arguments, plus two optional paging ones:
+Each active, named Knowledge Query is **its own tool, named after the query**: call it with `tools/call`, `params.name` (and `Mcp-Name`) = the query name. The query is fixed by the tool, so the arguments carry only its parameters and paging; it runs with the tokens of the request, exactly as on `POST /contx-iq/v1/execute` (read or write):
 
-- `id` - GID **or** name of the Knowledge Query to run.
-- `input_params` - the partial parameters from the Knowledge Query **and its policy**; the exact set is documented in the query's description.
+- `input_params` - optional, the parameters the Knowledge Query **and its policy** read; the exact set is documented in the query's description.
 - `page_size` - optional, rows per page, default `100`, at most `1000` (a larger value is a validation error, `page_size exceeds maximum of 1000`).
 - `page_token` - optional, a 1-based page number (`1` or omitted is the first page, `2` the next); the result carries no token, so increment it and stop at the first page shorter than `page_size`.
 
-Always discover queries first via `resources/read` on `indykite://knowledge-queries/` so the agent passes the right parameters.
+```bash
+scripts/mcp-call.sh tools/call read_cars '{"input_params":{"license":"AL98745"}}'
+```
+
+`ciq_execute` (arguments `id` = the query's GID or name, plus the three above) still works but is **deprecated** - its `tools/list` description starts with `Deprecated:`; use it only for an existing client. Discover the parameters first via `resources/read` on `indykite://knowledge-queries/`. A query whose `description` ends with `x-coaz-mappings: [ … ]` serves only the text before the marker as the tool description and the JSON list after it in the tool's `_meta` under `x-coaz-mappings`, for an Agent Gateway's IBAC engine (details in [`references/tools.md`](references/tools.md#knowledge-query-tools)).
 
 ### 6. Read, interpret, and audit responses
 
@@ -177,14 +181,14 @@ When this skill has been applied successfully:
 - An MCP server configuration exists for the project (with `app_agent_id` set) and `enabled` is `true`.
 - The agent has `BEARER_TOKEN` (user OAuth access token) in scope and sends it as the sole `Authorization: Bearer` auth header.
 - `server/discover` returns `2026-07-28` among `result.supportedVersions`, and no `Mcp-Session-Id` header appears on any response.
-- `tools/list` and `resources/read` on `indykite://knowledge-queries/` enumerate what the agent can call.
+- `tools/list` shows one tool per active, named Knowledge Query next to the `authzen_*` tools, and `resources/read` on `indykite://knowledge-queries/` documents their parameters.
 - AuthZEN decisions and CIQ query results come back over JSON-RPC and the agent uses them in its workflow.
 
 ## Files in this skill
 
 - [`references/architecture.md`](references/architecture.md) - protocol styles (stateless `2026-07-28` vs legacy sessions), single Bearer-token auth with server-side AppAgent resolution, RFC 9728 `401` behavior.
 - [`references/configuration.md`](references/configuration.md) - `POST /configs/v1/mcp-servers` field reference and example payload.
-- [`references/tools.md`](references/tools.md) - schemas and examples for every AuthZEN and CIQ tool.
+- [`references/tools.md`](references/tools.md) - schemas and examples for every AuthZEN tool, the Knowledge Query tools (with `x-coaz-mappings`), and the deprecated `ciq_execute`.
 - [`references/troubleshooting.md`](references/troubleshooting.md) - symptom-to-cause map.
 - [`scripts/mcp-call.sh`](scripts/mcp-call.sh) - Bash helper that makes one stateless MCP call (builds the `_meta` object and MCP headers for any method). Requires `MCP_URL`, `PROJECT_GID`, `BEARER_TOKEN` in the environment, and `curl` on `PATH`.
 

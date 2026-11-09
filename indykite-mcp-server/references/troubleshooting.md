@@ -18,7 +18,7 @@ The MCP server checks the token's `iss`/`aud` against the project's bound Token 
 | Likely cause                                          | How to verify                                                                  | Fix                                                                  |
 |-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
 | Bearer token's `iss`/`aud` does not match the project's bound Token Introspect | Decode `iss`/`aud`; compare with the project's Token Introspect config. | Re-mint the user token with the right issuer/audience, or point the config at the right Token Introspect. |
-| AppAgent named by `app_agent_id` lacks the `Authorization` (for `authzen_*`) or `ContXIQ` (for `ciq_execute`) API permission - the tool result carries `insufficient API access level for appAgent` | Hub UI, or `GET /configs/v1/application-agents/{id}` and check `api_permissions` on the AppAgent referenced by the MCP server config. | Add the missing value to `api_permissions` (`PUT /configs/v1/application-agents/{id}` with the full list). |
+| AppAgent named by `app_agent_id` lacks the `Authorization` (for `authzen_*`) or `ContXIQ` (for the Knowledge Query tools and `ciq_execute`) API permission - the tool result carries `insufficient API access level for appAgent` | Hub UI, or `GET /configs/v1/application-agents/{id}` and check `api_permissions` on the AppAgent referenced by the MCP server config. | Add the missing value to `api_permissions` (`PUT /configs/v1/application-agents/{id}` with the full list). |
 | `app_agent_id` on the MCP server config names the wrong AppAgent (it cannot name a deleted one: deleting a referenced agent is refused with `412`) | `GET /configs/v1/mcp-servers?project_id=<gid>&full_fetch=true`; check `app_agent_id`. | Point the config at the intended AppAgent with a PUT (all four fields). |
 
 ## Symptom: `400 Bad Request` with `{"error": "invalid_request", "error_description": "Token in X-IK-Token header …"}`
@@ -45,16 +45,22 @@ Only requests that carry the optional `X-IK-Token` delegation token (Agent Gatew
 | Likely cause                                          | How to verify                                                                  | Fix                                                                  |
 |-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
 | Unknown tool name                                     | Compare against `tools/list`.                                                   | Use the exact tool name from `tools/list`.                            |
+| A Knowledge Query has no tool                         | The query is not `ACTIVE`, or has no `name` (a query without a name is never a tool), or was created less than about 15 seconds ago. | Activate it or give it a name; list again after a few seconds. Meanwhile the deprecated `ciq_execute` with its GID still runs it. |
+| Called through an IndyKite Agent Gateway: a tool missing from `tools/list`, or `403` with JSON-RPC `-31403` `Forbidden: the caller may not use the named tool` | The gateway's capability checks filtered it (its audit record is `DISCOVERY` / `INVOCATION`); calling the server directly lists it. | Model the tool (`external_id` = the tool name) and its `CAN_USE` policy - see the [`indykite-agent-gateway`](../../indykite-agent-gateway/SKILL.md) skill. |
 | `arguments` shape wrong (missing required field)      | The error message names the field.                                              | Add the field; cross-check with `references/tools.md`.                |
 | Wrong JSON-RPC envelope (`method`, `params` keys)     | Compare the request to the canonical shape.                                     | Use `method: "tools/call"` and put tool input under `params.arguments`. |
 | `Mcp-Method` / `Mcp-Name` header missing or not matching the body | Compare the headers with `method` and `params.name`.                | Set `Mcp-Method` to the JSON-RPC method and `Mcp-Name` to the tool name (or resource URI / prompt name); they must match the body. |
 | (legacy sessions only) `Mcp-Session-Id` missing       | Inspect headers.                                                                | Re-`initialize` and resend with the new session id — or switch to the stateless protocol. |
 
-## Symptom: `ciq_execute` runs but returns nothing
+## Symptom: `503` `{"error": "service_unavailable", "error_description": "Failed to read the knowledge queries of the project"}`
+
+The server builds the project's tool list from its Knowledge Queries and could not read them. Retry the request.
+
+## Symptom: a Knowledge Query tool (or `ciq_execute`) runs but returns nothing
 
 | Likely cause                                          | How to verify                                                                  | Fix                                                                  |
 |-------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------|
-| Wrong Knowledge Query `id`                            | Read `indykite://knowledge-queries/`; compare ids.                              | Use the GID or name from that resource.                              |
+| Wrong query (deprecated `ciq_execute` only: wrong `id`) | Read `indykite://knowledge-queries/`; compare names and ids.                  | Call the tool named after the intended query, or pass its GID or name as `id`. |
 | `input_params` keys do not match the parameters in the query's description | Read the query's parameter description in `indykite://knowledge-queries/`. | Rename the keys; coerce types where needed.                          |
 | Query expects values that no longer exist in the IKG  | Run a smaller probe query against the same data.                                | Capture the missing data, or relax the filter values.                 |
 

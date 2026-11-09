@@ -17,10 +17,11 @@ IAG reads one YAML file passed with `--config=<file>`, or a directory of `.yaml`
 | `token_service`        | Optional. The issuer that mints the delegation token instead of the IdP (the IndyKite Token Service, or an IdP that meets the issuer requirements): `base_url`, `exchange_endpoint`, `introspect_endpoint`, `audience`, `client_auth.*`. |
 | `protected_agent`      | Target `base_url`, downstream `protocol` (`a2a` default, or `mcp`), `node_type`, client credentials (`authentication.client_id` / `client_secret`), `authentication.audiences`. |
 | `a2a`                  | Optional. Agent card cache: `cache_ttl`, `cache_update_after`, `cache_update_after_error`.             |
-| `authorization_header` | Optional, with `token_service`: `same_user_check`.                                                     |
+| `authorization_header` | Optional, with `token_service`: `forward`, `same_user_check`.                                          |
 | `ibac`, `intent_agent` | Optional, a2a mode: `ibac.enabled`, `intent_agent.base_url` / `audience` / `timeout`.                  |
-| `authzen`              | `base_url`, `action`, `input_params`, `policy_tags`, cache tuning. `subject_types` is not read.        |
+| `authzen`              | `base_url`, `action`, `input_params`, `policy_tags`, cache tuning, `capabilities.*` (capability checks). `subject_types` is not read. |
 | `contx_iq`             | `base_url`, `app_agent_credentials_token`, `cache_ttl`. `query_id` is ignored; `allowed_workflow_id` stops the gateway. |
+| `cors`                 | Optional. `allowed_origins`: the origins a browser may call the token-protected paths from.            |
 | `audit`                | Optional. `delivery: webhook` (`http.*`) or `delivery: file` (`file.*`), `async.buffer_size`, `include_prompt`. |
 
 ## Service
@@ -51,7 +52,7 @@ IAG reads one YAML file passed with `--config=<file>`, or a directory of `.yaml`
 Whether the section is filled in decides how the gateway obtains and forwards the delegation token:
 
 - **Left out** - the IdP exchanges the tokens at `identity_provider.exchange_endpoint` and its delegation token **replaces** the caller's token in `Authorization`; the downstream's own policies reach the chain as `$token`. An incoming `X-IK-Token` is ignored and removed from the forwarded request.
-- **Filled in** - the issuer named here mints the delegation token: the IndyKite Token Service, or an IdP that supports the RFC 8693 exchange with the user's token as `subject_token` and the agent's client-credentials token as `actor_token`, takes its own delegated token as `subject_token` on a later hop and nests the previous `act`, keeps the subject's `sub` and writes the actor as `act.sub`, and answers RFC 7662 introspection of its tokens with their `act` claim. The caller's token travels **as it arrived** in `Authorization` (if at all) and the delegation token beside it in **`X-IK-Token`** (`$ik_token` downstream). A workflow then starts only at the agent the user's token was issued for, a later hop needs only its `X-IK-Token`, and `protected_agent.authentication.audiences` becomes required.
+- **Filled in** - the issuer named here mints the delegation token: the IndyKite Token Service, or an IdP that supports the RFC 8693 exchange with the user's token as `subject_token` and the agent's client-credentials token as `actor_token`, takes its own delegated token as `subject_token` on a later hop and nests the previous `act`, keeps the subject's `sub` and writes the actor as `act.sub`, and answers RFC 7662 introspection of its tokens with their `act` claim. The caller's token travels in `Authorization` as `authorization_header.forward` decides (by default when issued for this agent) and the delegation token beside it in **`X-IK-Token`** (`$ik_token` downstream). A workflow then starts only at the agent the user's token was issued for, a later hop needs only its `X-IK-Token`, and `protected_agent.authentication.audiences` becomes required.
 
 In both cases the gateway sends the delegation token in `X-IK-Token` on its own admission call, so the admission policy reads `$ik_token.act_chain` either way. Two policy features depend on what the issuer writes into `act`, both of which the IndyKite Token Service writes: `act.type` on every level (without it the platform looks each actor up by `external_id` alone, and `$ik_token.act_chain_types` is null), and `act.intent`.
 
@@ -84,6 +85,14 @@ Env-var form: `JARVIS_TOKEN_SERVICE_BASE_URL`, `JARVIS_TOKEN_SERVICE_EXCHANGE_EN
 
 ## Authorization header (`authorization_header`, optional, with `token_service`)
 
+`forward` (default `correct_audience`): what the protected agent gets in `Authorization`; the delegation token goes in `X-IK-Token` with every value.
+
+- `none` - nothing; the agent cannot use the user's token to start a new workflow as the user.
+- `correct_audience` - a bearer token only when it is issued for this agent: the IdP reports it active and its `aud` names one of `protected_agent.authentication.audiences`. A credential that is not a bearer token passes unchanged; any other bearer token is dropped and the request goes on. When the IdP fails or answers `429`, the request fails, since the gateway cannot tell whom the token is for. At the entry the user's token is always issued for this agent, so it is passed on.
+- `all` - `Authorization` exactly as the caller sent it.
+
+Any other value stops the gateway: `invalid authorization_header.forward "…", must be one of none, correct_audience, all`. The other headers of the caller are passed on in both modes, except the hop-by-hop ones (`Connection` and the headers it names, `Keep-Alive`, `Proxy-Authorization` and the like). Without `token_service`, an A2A agent gets no header of the caller, and an MCP server gets all of them but `Authorization`, `X-IK-Token` and `Accept-Encoding`.
+
 `same_user_check` (default `true`): on a later hop, refuse a bearer token in `Authorization` whose `sub` differs from the delegation token's (`401 Invalid delegated token, subject mismatch`). Switch it off for a flow whose `Authorization` carries something other than the user's token, such as the calling agent's service token: the gateway then does not read the bearer token of a later hop at all, and whoami and the admission call receive the delegation token in its place, so the subject stays the user named in the delegation token.
 
 ## IBAC and Intent Agent (`ibac`, `intent_agent`, optional, a2a mode)
@@ -107,11 +116,31 @@ With `ibac.enabled` on, the gateway asks the [Intent Agent](https://developer.in
 | `input_params`             | -       | Optional map sent as `context.input_params` in every admission call; a policy reads a value as `$name`, and the platform refuses a request that lacks a value the policy reads. A key has 2 to 20 lowercase letters, digits or `_` and starts with a letter; a text value has 1 to 256 bytes; the keys the platform fills are refused (`token`, `ik_token`, `subject_external_id`, `subject_id`, `subject_type`, `resource_external_id`, `resource_type`). |
 | `policy_tags`              | -       | Optional list sent as `context.policy_tags`, so that only policies carrying at least one of the tags apply. A tag has 1 to 20 letters or digits, listed once. When a project uses tags, every gateway of the project should send them: a call without tags also reaches the tagged policies and their required parameters. |
 | `subject_types`            | -       | Not read: the subject type comes from whoami. A value left over from an older configuration is ignored. |
-| `cache_ttl`                | `5m`    | How long an admission decision is kept, per subject, resource type, chain and token claims. |
+| `cache_ttl`                | `5m`    | How long an admission decision and a permitted set are kept, per subject, resource type (label), chain and token claims. |
 | `cache_update_after`       | `cache_ttl` | Age after which the next request triggers a background re-evaluation. Must not exceed `cache_ttl`. |
 | `cache_update_after_error` | smaller of `10s` and `cache_update_after` | How long a failed evaluation is served before a retry. Must not exceed `cache_update_after`. |
+| `capabilities.enabled`     | `true`  | Capability checks (see [`architecture.md`](architecture.md#capability-checks)). `false`: no capability question is asked and every request gets the admission decision. Env `JARVIS_AUTHZEN_CAPABILITIES_ENABLED`. |
+| `capabilities.action`      | `CAN_USE` | The action of every capability search, the one the capability policies list. An empty value stops the gateway. |
+| `capabilities.labels.tools`, `.resources`, `.prompts`, `.skills` | `Tool`, `McpResource`, `Prompt`, `Skill` | The IKG node types of the capabilities of each kind (`skills` = the skills of an A2A extended card). Two kinds may share a label; an empty value stops the gateway. Env `JARVIS_AUTHZEN_CAPABILITIES_LABELS_TOOLS` and so on. |
 
 Example: to restrict a gateway to `wf1`, set `input_params` to `workflow_ids: ["wf1"]` and `policy_tags` to `["pinned"]`, and add `AND wf.external_id IN $workflow_ids` to a copy of the admission policy that carries the tag `pinned`.
+
+## CORS (`cors`, optional)
+
+`allowed_origins` (env `JARVIS_CORS_ALLOWED_ORIGINS`, space-separated): the origins a browser may call the paths that need a token from - the MCP endpoint in `mcp` mode, the JSON-RPC paths and the extended agent card in `a2a` mode. Each entry is `scheme://host[:port]`, without path, query, fragment or credentials, e.g. `https://mcp-client.example.com`; the single entry `*` allows every origin. **Empty by default: no origin is allowed** until one is listed. The comparison is exact, on the scheme and host lower-cased and without the default port.
+
+| Gateway | Path | Allowed origins | Methods |
+|---------|------|-----------------|---------|
+| `mcp` | the two OAuth metadata paths | every origin (`*`) | `GET, HEAD` |
+| `mcp` | the path of `service.base_url` | `allowed_origins` | `GET, POST, DELETE` |
+| `mcp` | any other path | none - the path is `404` | - |
+| `a2a` | `/.well-known/agent-card.json`, a `GET` without `Authorization` (public card) | every origin (`*`) | `GET` |
+| `a2a` | `/.well-known/agent-card.json` otherwise (extended card, JSON-RPC), and any other path | `allowed_origins` | `GET, POST` |
+
+- `OPTIONS` on these paths is answered by the gateway with `204` and `Allow: <methods>` before the token is read; nothing is forwarded. A preflight from an allowed origin also gets `Access-Control-Allow-Origin` (`*` on a public path or with `*` listed, else the request's origin), `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers: Authorization, X-IK-Token, Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID, Mcp-Method, Mcp-Name, A2A-Version, A2A-Extensions` (on the MCP endpoint also the `Mcp-Param-{Name}` headers the preflight asks for) and `Access-Control-Max-Age: 7200`. On the agent card path only a `GET` preflight that does not name `Authorization` counts as public.
+- Other requests from an allowed origin get `Access-Control-Allow-Origin` and `Access-Control-Expose-Headers: WWW-Authenticate, Mcp-Session-Id` on every answer, the gateway's `400` / `401` / `403` and forwarded answers and streams included. Answers on non-public paths carry `Vary: Origin`; answers on public paths always carry `Access-Control-Allow-Origin: *`.
+- A request from an origin that is not allowed, or without `Origin`, gets no CORS headers and is otherwise processed normally - not refused with `403`; the browser refuses the answer.
+- The gateway never sends `Access-Control-Allow-Credentials` (tokens travel in `Authorization`, not cookies), drops the MCP server's own `Access-Control-*` headers, and forwards `Origin` unchanged - an MCP server that checks `Origin` must accept the listed origins too.
 
 ## ContX IQ (`contx_iq`, required)
 
@@ -160,13 +189,15 @@ A configuration problem stops the process with one of these messages in the log.
 | Message | Cause |
 |---------|-------|
 | `invalid identity_provider configuration: missing <key>`, `… client_credential_renew_before must not be negative` | One of the four IdP keys is absent, or the renewal margin is negative. |
-| `missing authentication.audiences in protected_agent configuration`, `invalid authorization_header.same_user_check: …` | With `token_service`, the entry audiences are absent, or `same_user_check` is not a boolean. |
+| `missing authentication.audiences in protected_agent configuration`, `invalid authorization_header.same_user_check: …`, `invalid authorization_header.forward "…", must be one of none, correct_audience, all` | With `token_service`, the entry audiences are absent, `same_user_check` is not a boolean, or `forward` has another value. |
 | `intent_agent.base_url is required when ibac.enabled is on in front of an A2A agent`, `intent_agent.base_url must be an absolute http or https URL`, `intent_agent.timeout must be positive` | Incomplete `intent_agent` section with `ibac.enabled` on. |
 | `invalid token_service configuration: missing <key>`, `client_auth of type "client_secret_basic" requires client_id and client_secret`, `client_auth has invalid type "…" (want "client_secret_basic")` | Incomplete Token Service section. |
 | `cannot get protected_agent base_url`, `invalid protected_agent protocol`, `missing client_id in protected_agent configuration`, `missing client_secret in protected_agent configuration` | Incomplete protected agent section. |
 | `cannot get service base_url, the public URL of the gateway`, `service base_url must be an absolute URL`, `cannot get identity_provider openid_configuration_url` | In `a2a` mode, the settings the served agent card needs are absent. |
 | `protected_agent base_url must be the full URL of the MCP endpoint of the server, with its path, unencoded, and without a fragment`, `cannot get service base_url, the public URL of the MCP endpoint at the gateway`, `service base_url must be the full public URL of the MCP endpoint at the gateway, …`, `cannot get identity_provider issuer`, `identity_provider issuer must be an absolute URL without a query or fragment` | In `mcp` mode, one of the three endpoint settings is absent or malformed, e.g. a `protected_agent.base_url` without a path or a percent-encoded `gid%3A`. |
 | `missing required authzen.base_url`, `missing required authzen.action` | Incomplete AuthZEN section. |
+| An empty `authzen.capabilities.action` or an empty `authzen.capabilities.labels.*` value | Stops the gateway as well; remove the key to get the default, or give it a value. |
+| `cors.allowed_origins: invalid origin "…", it must be scheme://host[:port] without a path, query, fragment or credentials`, `cors.allowed_origins: "*" must be the only entry` | An entry that is not an origin (including `null`, or a trailing `/`), or `*` next to another entry. |
 | `missing required contx_iq.base_url`, `missing required contx_iq.app_agent_credentials_token in configuration` | Incomplete ContX IQ section. |
 | `contx_iq.allowed_workflow_id is no longer supported: restrict the workflows in the admission policy and pass the values with authzen.input_params and authzen.policy_tags` | A configuration from before the admission policy still restricts the gateway to one workflow. |
 | `authzen.input_params must be a map: …`, `authzen.input_params: the key "…" is reserved, the platform fills it`, `… must have 2 to 20 lowercase letters, digits or underscores and start with a lowercase letter`, `… the value of "…" must have 1 to 256 bytes`, `authzen.policy_tags: the tag "…" must have 1 to 20 letters or digits`, `… the tag "…" is listed twice` | An `input_params` or `policy_tags` value the platform would refuse, including invalid JSON in `JARVIS_AUTHZEN_INPUT_PARAMS`. |
@@ -243,11 +274,21 @@ Write both paths unencoded (`gid:`, not `gid%3A`). In MCP mode:
 - The gateway serves MCP on the path of `service.base_url` only; a client that used to call other paths of the server through the gateway now gets `404`. The two OAuth metadata paths are public.
 - The `Mcp-Session-Id` header and the response body pass through unchanged, streamed for SSE; the server's status is returned as is.
 - IAG mints its own delegation token for the downstream MCP server (from `protected_agent.authentication.client_id` / `client_secret`) and forwards the request with it - in `Authorization` when the IdP mints it, in `X-IK-Token` next to the caller's access token when the Token Service does.
-- Only the MCP protocol revisions `2025-06-18`, `2025-11-25`, and `2026-07-28` are forwarded, and the gateway reads the tool or resource each request names; there is no configuration knob for either. Details in the *MCP protocol revisions* and *MCP request classification* sections of [`architecture.md`](architecture.md#mcp-protocol-revisions).
+- Only the MCP protocol revisions `2025-06-18`, `2025-11-25`, and `2026-07-28` are forwarded, and the gateway reads the tool, resource or prompt each request names; there is no configuration knob for either.
+- **Capability checks are on by default**: `*/list` answers are filtered and an invocation outside the caller's permitted set is `403` / `-31403`. Model the capabilities and create the `CAN_USE` policies before the gateway takes traffic, or set `authzen.capabilities.enabled: false` (`JARVIS_AUTHZEN_CAPABILITIES_ENABLED=false`).
+- A browser MCP client on another origin needs that origin in `cors.allowed_origins`; its preflight is answered without a token, and it can then read the `WWW-Authenticate` of a `401` and the `Mcp-Session-Id` of an answer. Details in the *MCP protocol revisions* and *MCP request classification* sections of [`architecture.md`](architecture.md#mcp-protocol-revisions).
 
 ### iag-mcp-demo (the `mcp-iag` instance)
 
 The `iag-mcp-demo` reference app adds one MCP-mode instance, `mcp-iag`, in front of the IndyKite MCP server; the `retriever` and `weather` agents are MCP clients routed through it instead of calling the MCP server directly. The MCP agents authenticate with their own token (`IK_APP_AGENT_KEY`), not the chatbot user token used by the A2A flows, so that token must match a Token Introspect configuration of the project (its `ikg_node_type` is the subject type an admission policy must name) and the one-agent workflow `[mcp-agent]` must exist; `JARVIS_AUTHZEN_ACTION` can be overridden on the instance.
+
+## Turning on capability checks (upgrade)
+
+Capability checks are on by default in current images. Before upgrading a gateway:
+
+1. Model the capabilities of every MCP server and the skills of every A2A agent the gateways front - nodes of the configured labels, `HAS` edges with `workflow_name` from the agent - and create one `CAN_USE` policy per label used (`SKILL.md` step 3). Without them every list of such a gateway comes back empty, every invocation is refused, and the extended card lists no skill.
+2. Or switch the checks off per gateway with `authzen.capabilities.enabled: false`; it then behaves as before.
+3. What callers see with the checks on: a caller admitted nowhere gets an empty `tools/list` instead of `403`, and `403` with JSON-RPC `-31403` on `tools/call`. With the checks on or off, a `prompts/get` without a prompt name is `400`. A client that read `-32003` from an A2A stream must now read `-31401` / `-31403`.
 
 ## Moving from the workflow query to the admission policy
 

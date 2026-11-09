@@ -40,6 +40,7 @@ All settings are environment variables (or a `.env` file), read once at startup.
 | `SCHEMA_REFRESH_TTL_MINUTES`, `POLICY_REFRESH_TTL_MINUTES` | `5.0`             | How long a cached schema / policy list is served. An expired schema is served stale while it refreshes in the background; a failed policy refresh serves the last known-good list (audit `policy_fetch_failed: true`). |
 | `CACHE_BACKEND`, `REDIS_URL`                    | `memory`, -                 | `redis` shares the schema and policy cache between instances; `REDIS_URL` is then required. |
 | `INTROSPECT_TIMEOUT_SECONDS`                    | `5.0`                       | Per introspection call. |
+| `HEALTH_CHECK_TIMEOUT_SECONDS`                  | `3.0`                       | Bound on each startup probe that seeds `/health` (must be positive). |
 | `LOG_LEVEL`                                     | `INFO`                      | `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. At `DEBUG` the log shows the model's raw answer. |
 
 ### Audit delivery
@@ -51,7 +52,7 @@ Every request produces one record; a failed delivery (unreachable webhook, disk 
 | `AUDIT_ASYNC`, `AUDIT_ASYNC_BUFFER_SIZE`        | `true` delivers through a bounded in-memory queue (default length `512`) drained by a background worker and flushed on shutdown; a full queue drops records with the warning `dropping payload, async queue is full`. Default `false` (inline delivery). |
 | `AUDIT_FILE_STORAGE_PATH`, `AUDIT_FILE_FORMAT`, `AUDIT_FILE_ROTATION_STRATEGY` | Required with `file`: the directory (created if missing, must be writable by user `65532`), `csv` / `json` (one object per line) / `txt`, and `time` / `size` / `size-and-time`. Files are named `audit-<INTENT_AGENT_NAME>-<unixNano>.<format>`. |
 | `AUDIT_FILE_ROTATION_INTERVAL_SECONDS`, `AUDIT_FILE_ROTATION_MAX_BYTES` | Defaults `86400` (24 h) and `104857600` (100 MiB). |
-| `AUDIT_HTTP_URL`, `AUDIT_HTTP_METHOD`, `AUDIT_HTTP_AUTH_TYPE` | Required with `webhook`: one request per record with the record as JSON body, `POST` or `PUT`, and `mTLS` / `api-key` / `no-auth`. |
+| `AUDIT_HTTP_URL`, `AUDIT_HTTP_METHOD`, `AUDIT_HTTP_AUTH_TYPE` | Required with `webhook`: one request per record with the record as JSON body, `POST` or `PUT` (any letter case), and `mTLS` / `api-key` / `no-auth`. |
 | `AUDIT_HTTP_MTLS_CERTIFICATE_FILE_PATH`, `AUDIT_HTTP_MTLS_PRIVATE_KEY_PATH` | Both required with `mTLS` (TLS 1.3 minimum). |
 | `AUDIT_HTTP_API_KEY`, `AUDIT_HTTP_API_KEY_HEADER` | Required with `api-key`; the header defaults to `X-API-Key`. |
 | `AUDIT_HTTP_TIMEOUT_SECONDS`                    | Per delivery, default `5.0`. |
@@ -77,7 +78,7 @@ docker run -d --name intent-agent -p 6003:6003 -p 8001:8001 --env-file .env \
   -v "$(pwd)/audit:/var/audit" \
   -e AUDIT_FILE_STORAGE_PATH=/var/audit \
   indykite/intent-agent:<version>
-curl http://localhost:8001/health                        # liveness
+curl http://localhost:8001/health                        # liveness + last known dependency state
 curl http://localhost:6003/.well-known/agent-card.json   # public agent card
 ```
 
@@ -95,4 +96,4 @@ On the Intent Agent side this needs: `EXPECTED_TOKEN_AUDIENCE` equal to the gate
 
 ## The demo
 
-The [`intent-agent-demo`](https://github.com/indykite/developer-hub/tree/master/a2a/intent-agent-demo) in the developer-hub repository runs the Intent Agent, the Token Service, and a web console locally with Docker Compose, or on minikube with its Helm chart. Its graph and 24 KBAC policies come from the `intent` dataset of the instant-stack app (the CanBank users and customers of the examples). The console exchanges the person's token at the Token Service for a delegation token with audience `intent_agent`, and the Intent Agent introspects that token at the Token Service. Views: a playground (prompt, steps, each evaluation as a ticket with its AuthZEN decision, raw JSON-RPC and audit record), guardrails (ambiguous and out-of-scope prompts, prompt injection, encoded payloads, SQL in filters, three token failures), the vocabulary per subject type, live audit records, and the architecture.
+The [`intent-agent-demo`](https://github.com/indykite/developer-hub/tree/master/a2a/intent-agent-demo) in the developer-hub repository runs the Intent Agent, the Token Service, and a web console locally with Docker Compose, or on minikube with its Helm chart. Its graph and 24 KBAC policies come from the `intent` dataset of the instant-stack app (the CanBank users and customers of the examples). The console exchanges the person's token at the Token Service for a delegation token with audience `intent_agent`, and the Intent Agent introspects that token at the Token Service. Views: a playground (prompt, steps, each evaluation as a ticket with its AuthZEN decision, raw JSON-RPC and audit record), guardrails (sample prompts the agent refuses, and three token failures), the vocabulary per subject type, live audit records, and the architecture.
