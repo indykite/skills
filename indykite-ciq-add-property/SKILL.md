@@ -76,7 +76,7 @@ Variable: `subject`. The KQ will reference this name in `upsert_nodes`.
 
 Build the policy JSON with four blocks:
 
-- `meta.policy_version` - currently `1.0-ciq`.
+- `meta.policy_version` - `1.0-ciq` (the examples here) or `2.0-ciq` (CIQ v2: `@`-prefixed filter attributes, `422` for a missing parameter, `@` references in upsert values) - see [`references/policy-reference.md`](references/policy-reference.md#metapolicy_version).
 - `subject.type` - `Person` for the running example.
 - `condition.cypher` and `condition.filter` - anchor the node to update. For `Person`, filter on `subject.external_id = $token.sub`.
 - `allowed_upserts.nodes.existing_nodes` - array of variables from `cypher` whose properties the Knowledge Query may write. The Knowledge Query's `upsert_nodes[].name` must be in this list.

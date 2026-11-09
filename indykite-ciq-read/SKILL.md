@@ -69,7 +69,7 @@ Variables: `subject`, `r`, `car`.
 
 Build the policy JSON. For a read-only policy you need three things and only three things:
 
-- `meta.policy_version` - currently `1.0-ciq`.
+- `meta.policy_version` - `1.0-ciq` (the examples here) or `2.0-ciq` (CIQ v2: `@`-prefixed filter attributes, `422` for a missing parameter) - see [`references/policy-reference.md`](references/policy-reference.md#metapolicy_version).
 - `subject.type` - the chosen subject type.
 - `condition.cypher` and (optionally) `condition.filter` - the pattern and any filters. Use `$varname` to mark **partial filters** that will be supplied at execution time. A third, optional `condition.skip_resource_label` exists for a condition that stays slow after it is anchored and bounded - see [the policy reference](references/policy-reference.md#labels-the-condition-cannot-match-and-skip_resource_label) before using it.
 - `allowed_reads` - list every variable the Knowledge Query will be allowed to return. Use `<var>.*` to allow all properties of a node/relationship, or `<var>.property.<name>` for a single property.

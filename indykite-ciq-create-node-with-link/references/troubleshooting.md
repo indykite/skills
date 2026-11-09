@@ -73,6 +73,19 @@ A `$param` used as the value of an `assurance_level`, `verified_time` or `source
 |--------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
 | Policy `condition.cypher` is anchored on a high-fan-in node (a brand / tenant / category most records point to) instead of the subject | Execution time grows roughly linearly with dataset size, and the pattern's only selective filters sit at the endpoints of a multi-hop chain. | Take the fan-in node out of the connected chain (separate `MATCH` pinned by `external_id` + a `WHERE (x)-[:REL]->(fanin)` pattern predicate), or pin the subject with `WHERE … WITH subject LIMIT 1` — see "Performance: pin the subject before high-fan-in hops" in `policy-reference.md`. |
 
+## Symptom: a `2.0-ciq` (CIQ v2) policy or query misbehaves
+
+See the version differences in [`policy-reference.md`](policy-reference.md#metapolicy_version).
+
+| Likely cause | How to verify | Fix |
+|--------------|---------------|-----|
+| A filter that worked on `1.0-ciq` matches nothing on `2.0-ciq` | An `attribute` without the `@` prefix (`subject.external_id`) is a literal string in v2. | Write `"attribute": "@subject.external_id"` - in the policy's `condition.filter` and in every Knowledge Query `filter`. |
+| `token filter attribute references cypher value: @…` | A `token_filter` attribute names a graph value. | `token_filter` reads token claims only; move the graph comparison to `condition.filter`. |
+| `untyped relationship <name> cannot be used in <section>` | An untyped `-[r]->` is listed in `allowed_upserts.relationships.existing_relationships` or `allowed_deletes.relationships`. | Give the relationship a type in the Cypher. |
+| `422` `missing or wrong input params, '…'` naming a parameter only `condition.cypher` uses | v2 checks every parameter before the query runs (`1.0-ciq` answered `500` from the graph database instead). | Send every listed name in `input_params`. |
+| `upsert value @<ref> must reference a variable of the policy cypher` (and the other `upsert value @…` / `invalid upsert value @…` / `must not start with __ref_` messages) | An `@` reference in an upsert value breaks a rule - see [`knowledge-query-reference.md`](knowledge-query-reference.md#v2-only-copying-graph-values-with--references). | Point it at an in-scope policy variable with an attribute / property / metadata / trust-score path or an aggregate alias; write token claims as `$token.<claim>`. |
+| An upsert with an `@` reference returns `200` but one property was not written | The referenced value was null for that row (e.g. the matched node lacks the property), so nothing was written for it. | Read the source value first; make the condition match only rows that hold it. |
+
 ## Useful one-liners
 
 ```bash

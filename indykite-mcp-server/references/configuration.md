@@ -60,6 +60,6 @@ curl -X POST "$API_URL/configs/v1/mcp-servers" \
 
 ## Related setup
 
-- **AppAgent**: the AppAgent referenced by `app_agent_id` must exist and hold the `Authorization` and `ContXIQ` API permissions (`api_permissions` on `POST` / `PUT /configs/v1/application-agents`, or the Hub UI): the `authzen_*` tools call `/access/v1/evaluation(s)` and `/access/v1/search/*`, and `ciq_execute` calls `/contx-iq/v1/execute`. The server resolves and uses the AppAgent server-side; clients do not send AppAgent credentials at runtime.
+- **AppAgent**: the AppAgent referenced by `app_agent_id` must exist and hold the `Authorization` and `ContXIQ` API permissions (`api_permissions` on `POST` / `PUT /configs/v1/application-agents`, or the Hub UI): the `authzen_*` tools call `/access/v1/evaluation(s)` and `/access/v1/search/*`, and the Knowledge Query tools (and the deprecated `ciq_execute`) call `/contx-iq/v1/execute`. The server resolves and uses the AppAgent server-side; clients do not send AppAgent credentials at runtime.
 - **Token introspection**: `POST /token-introspects` — required so the MCP server can validate inbound Bearer tokens against the project's IdP.
 - **Environment setup walkthrough**: <https://developer.indykite.com/resources/environment-1>

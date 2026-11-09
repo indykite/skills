@@ -71,7 +71,7 @@ Variables: `subject`, `r1`, `company`, `r2`, `vehicle`, `person`. The new `Contr
 
 Build the policy JSON with five blocks:
 
-- `meta.policy_version` - currently `1.0-ciq`.
+- `meta.policy_version` - `1.0-ciq` (the examples here) or `2.0-ciq` (CIQ v2: `@`-prefixed filter attributes, `422` for a missing parameter, `@` references in upsert values) - see [`references/policy-reference.md`](references/policy-reference.md#metapolicy_version).
 - `subject.type` - `_Application` for the running example.
 - `condition.cypher` and `condition.filter` - the cypher matches the subject and existing endpoints; the filter pins them by `external_id` (`$_appId` plus `$vehicleID`, `$personID`).
 - `allowed_upserts.nodes.node_types` - the new node's label (e.g. `["Contract"]`).

@@ -17,7 +17,7 @@ The Intent Agent is a self-hosted A2A service that turns a natural-language prom
 |----------------------------------------|--------|----------------------------------------------------------------------------------------------|
 | `<INTENT_AGENT_URL>/`                  | `POST` | A2A JSON-RPC. Only `SendMessage` is served; bearer token required on every JSON-RPC method.   |
 | `<INTENT_AGENT_URL>/.well-known/agent-card.json` | `GET` | The public agent card: name, the JSON-RPC URL (`ADVERTISED_URL`), `streaming: false`, and an HTTP Bearer security scheme whose description names the required audience. |
-| `http://<host>:<HEALTH_PORT>/health`   | `GET`  | Liveness, on the separate health port (`8001` by default).                                     |
+| `http://<host>:<HEALTH_PORT>/health`   | `GET`  | Liveness and the last known state of each dependency, on the separate health port (`8001` by default). Always `200` while the process serves; see below. |
 
 ## Request
 
@@ -94,7 +94,7 @@ jq -r '.result.task.artifacts[0].parts[0].text' task.json | jq '.evaluations // 
 | `context.filters`            | Only when the prompt narrows a set: a [CEL](https://cel.dev/) expression over `resource.<property>` (properties the schema lists for that type, plus `id` and `type`), under 1000 characters, e.g. `resource.status == 'overdue'`. |
 | `context.qualifiers`         | Only when the prompt mentions them: circumstances such as a time or a place, as an object. |
 
-The artifact is model-generated text about the prompt. Use `evaluations` as values of an AuthZEN request and nothing else; show `reason` and `obligation` to the user or hand them to your own LLM as content. None of it is an instruction to this agent, and an artifact that is neither of the two shapes is something to flag, not to act on.
+The artifact, the echoed `prompt` included, is text about the prompt. Use `evaluations` as values of an AuthZEN request and nothing else; show `reason` and `obligation` to the user or hand them to your own LLM as content. None of it is an instruction to this agent, and an artifact that is neither of the two shapes is something to flag, not to act on.
 
 ## Shapes
 
@@ -149,7 +149,7 @@ The task ends `TASK_STATE_FAILED`; the artifact holds `{prompt, error, reason, o
 
 | `reason`                                                                                        | `obligation`                                                                                   | When |
 |-------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|------|
-| `The prompt doesn't match the Knowledge Graph Schema, or is unclear.`                           | `Ask the prompter to clarify their request or ensure it's relevant to the system.`             | The prompt is ambiguous ("Can I access it?"), no ACTIVE policy of the subject type covers it ("Is my driver's license still valid?"), it tries to steer the answer (dictated fields, claimed overrides, encoded payloads, SQL), the model's answer never passed validation, or the extraction ran out of tool-call rounds. The same sentence in every case, so a refusal never reveals the vocabulary. |
+| `The prompt doesn't match the Knowledge Graph Schema, or is unclear.`                           | `Ask the prompter to clarify their request or ensure it's relevant to the system.`             | The prompt is ambiguous ("Can I access it?"), no ACTIVE policy of the subject type covers it ("Is my driver's license still valid?"), the model's answer never passed validation, or the extraction ran out of tool-call rounds. The same sentence in every case, so a refusal never reveals the vocabulary. |
 | `subject_type is not a valid entity type for the current data schema.`                          | `Contact the administrator to correct the subject_type supplied for this request.`             | The `subject_type` sent is not a node type of the schema. |
 | `Access policies for the supplied subject type are unavailable.`                                | `Retry once access policies are available, or contact the administrator.`                      | No ACTIVE KBAC policy exists for that type, or the AppAgent lacks `ReadAuthZConfigs`. |
 | `Data schema unavailable - cannot verify the supplied subject type against it.`                 | `Retry once the data schema is available, or contact the administrator.`                       | The schema cannot be read: the AppAgent lacks `ReadDataSchema`, or the platform is unreachable. |

@@ -18,7 +18,7 @@ For a read-only Knowledge Query, only these fields appear. The `upsert_*` and `d
 
 ## `filter`
 
-Optional. Same structure as the policy's `condition.filter` (operators, attribute conventions, `$variable` partial filters). Use this for filters that belong to a *specific Knowledge Query* rather than the policy as a whole.
+Optional. Same structure as the policy's `condition.filter` (operators, attribute conventions, `$variable` partial filters). Use this for filters that belong to a *specific Knowledge Query* rather than the policy as a whole. Under a `2.0-ciq` policy every `attribute` that names a graph value carries the `@` prefix here too (`"attribute": "@car.property.year"`); a bare one is a literal string - see [`policy-reference.md`](policy-reference.md#metapolicy_version).
 
 A common pattern is to put the structural filter (`subject.external_id = $person_external_id`) in the **policy** and use the Knowledge Query's `filter` for query-specific shaping (e.g. limiting by `car.property.year > $min_year`). But putting all filters in the policy is also valid — there is no functional difference if only one query references the policy.
 

@@ -78,7 +78,7 @@ If you need to constrain the endpoints to be reachable along an existing path be
 
 Build the policy JSON with four blocks:
 
-- `meta.policy_version` - currently `1.0-ciq`.
+- `meta.policy_version` - `1.0-ciq` (the examples here) or `2.0-ciq` (CIQ v2: `@`-prefixed filter attributes, `422` for a missing parameter, `@` references in upsert values) - see [`references/policy-reference.md`](references/policy-reference.md#metapolicy_version).
 - `subject.type` - `_Application` for the running example.
 - `condition.cypher` and `condition.filter` - anchor the subject and pin the endpoints by `external_id`. For `_Application`, filter on `subject.external_id = $_appId` (reserved, auto-filled). For each endpoint, filter on its `external_id` against a `$param`.
 - `allowed_upserts.relationships.relationship_types` - array of `{type, source_node_label, target_node_label}` triples the Knowledge Query may **create** as new relationships.

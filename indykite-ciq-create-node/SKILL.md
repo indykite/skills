@@ -73,7 +73,7 @@ That's the entire `cypher` - just enough to identify the subject. The `Track` do
 
 Build the policy JSON with four blocks:
 
-- `meta.policy_version` - currently `1.0-ciq`.
+- `meta.policy_version` - `1.0-ciq` (the examples here) or `2.0-ciq` (CIQ v2: `@`-prefixed filter attributes, `422` for a missing parameter, `@` references in upsert values) - see [`references/policy-reference.md`](references/policy-reference.md#metapolicy_version).
 - `subject.type` - `_Application` for the running example.
 - `condition.cypher` and `condition.filter` - anchor to the subject. For `_Application`, filter on `subject.external_id = $_appId` (a reserved value auto-filled from the AppAgent at execute time).
 - `allowed_upserts.nodes.node_types` - array of node labels the Knowledge Query may **create** as new nodes.

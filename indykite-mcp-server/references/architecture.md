@@ -35,7 +35,7 @@ When the caller is an agent acting on a user's behalf through the [Agent Gateway
 
 - **Header**: `X-IK-Token: <delegation-token>`, sent as is with no prefix, beside the untouched `Authorization: Bearer` header. It never replaces the Bearer token.
 - **Validation**: introspected through the project's Token Introspect configurations like the Bearer token; its `sub` must equal the Bearer token's `sub`.
-- **Purpose**: forwarded with every `ciq_execute` and `authzen_*` call, where ContX IQ and KBAC policies read its claims as `$ik_token`, including the nested `act` delegation chain (`$ik_token.act.sub` = the calling agent, `$ik_token.act.act.sub` = the one before it), plus the derived `$ik_token.act_chain` / `$ik_token.act_chain_types` lists (each hop's `sub` and `type`, oldest first) for comparing the whole chain with a graph path in a Cypher condition.
+- **Purpose**: forwarded with every Knowledge Query tool, `ciq_execute` and `authzen_*` call, where ContX IQ and KBAC policies read its claims as `$ik_token`, including the nested `act` delegation chain (`$ik_token.act.sub` = the calling agent, `$ik_token.act.act.sub` = the one before it), plus the derived `$ik_token.act_chain` / `$ik_token.act_chain_types` lists (each hop's `sub` and `type`, oldest first) for comparing the whole chain with a graph path in a Cypher condition.
 
 A delegation token that does not hold up is refused **before anything is forwarded**, with `400 Bad Request` and no `WWW-Authenticate` challenge - the Bearer token itself is fine, so re-authenticating would not help:
 
@@ -139,10 +139,10 @@ Two MCP resources are worth knowing about specifically:
 | Resource URI                            | Returns                                                                                  |
 |-----------------------------------------|------------------------------------------------------------------------------------------|
 | (default) `resources/list`              | All resources this server exposes.                                                        |
-| `indykite://knowledge-queries/`         | A list of CIQ Knowledge Query IDs and **agent-friendly descriptions** of how to call `ciq_execute` against each one — including the input-parameter shape. Read this *before* any `ciq_execute`. |
+| `indykite://knowledge-queries/`         | A list of CIQ Knowledge Queries (id, name, **agent-friendly description**) including the input-parameter shape. Read it before calling a Knowledge Query tool (named after the query) or the deprecated `ciq_execute`. |
 
 ## Why this matters for the agent
 
 - **Auth is now a single Bearer token.** Send only `Authorization: Bearer <user-token>`; do **not** send `X-IK-ClientKey` (removed). If a `401` returns the `.well-known` metadata, the token is missing, expired, or bound to the wrong issuer/audience for the project — not a missing application key. The application identity (AppAgent) is resolved server-side from the MCP server configuration's `app_agent_id`.
 - **`subject_id` is rarely an opaque identifier the user typed.** It is the Bearer token's `sub` claim. Reading and forwarding it correctly is what makes AuthZEN decisions match the real caller.
-- **CIQ parameter shapes are not guessable.** The `indykite://knowledge-queries/` resource exists because Knowledge Queries are project-defined; without reading it first, `ciq_execute` calls usually fail on the first attempt.
+- **CIQ parameter shapes are not guessable.** The `indykite://knowledge-queries/` resource exists because Knowledge Queries are project-defined; without reading it first, Knowledge Query tool calls usually fail on the first attempt.

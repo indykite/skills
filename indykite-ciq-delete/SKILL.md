@@ -75,7 +75,7 @@ Variable: `subject`. The KQ will reference this in `delete_nodes`.
 
 Build the policy JSON with four blocks:
 
-- `meta.policy_version` - currently `1.0-ciq`.
+- `meta.policy_version` - `1.0-ciq` (the examples here) or `2.0-ciq` (CIQ v2: `@`-prefixed filter attributes, `422` for a missing parameter) - see [`references/policy-reference.md`](references/policy-reference.md#metapolicy_version).
 - `subject.type` - `Person` for the running example.
 - `condition.cypher` and `condition.filter` - anchor the element. For `Person`, filter on `subject.external_id = $token.sub`.
 - `allowed_deletes` - at least one of `nodes` or `relationships`. Each entry is either a bare variable name (delete the whole element) or `<var>.<property>` / `<var>.property.<name>` (delete a property only).
