@@ -49,7 +49,7 @@ The gateway performs this call on every request; it is listed here so a policy a
 | `requested_token_type`                   | Optional: `urn:ietf:params:oauth:token-type:access_token` or `urn:ietf:params:oauth:token-type:jwt`.      |
 | `audience`, `resource`                   | Optional, repeatable; every value must be in `idp.audiences` / `idp.resources`, else `invalid_target`.     |
 | `scope`                                  | Accepted and ignored: the claims of an issued token are fixed.                                            |
-| `intent`                                 | Optional, platform release 2.84.0 and later. The intent of this hop: a JSON list of evaluations in the shape of an AuthZEN evaluation, at most `idp.max_intent_evaluations` (default 10). The gateway's own exchanges send none; a caller exchanging directly may. |
+| `intent`                                 | Optional, platform release 2.84.0 and later. The intent of this hop: a JSON list of evaluations in the shape of an AuthZEN evaluation, at most `idp.max_intent_evaluations` (default 10). An Agent Gateway with `ibac.enabled` sends it on a second exchange for a message the Intent Agent found an intent in (see below); a caller exchanging directly may send it too. |
 
 The `200` response (`Cache-Control: no-store`) carries `access_token`, `issued_token_type`, `token_type: Bearer`, and `expires_in`. The token's claims are exactly `iss`, `sub`, `aud`, `iat`, `exp`, `jti`, and `act` (`sub` + `type` of the actor, nesting the subject token's own `act`, so the oldest agent ends up innermost).
 
