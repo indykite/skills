@@ -99,9 +99,15 @@ protected_agent:
 # authorization_header:
 #   forward: correct_audience
 #   same_user_check: true
-# Optional, a2a: ask the Intent Agent about every message before forwarding.
+# Optional IBAC. a2a: ask the Intent Agent about every message before
+# forwarding; with token_service the intent is written into act.intent of
+# this hop. mcp: check the x-coaz-mappings of each invoked tool, resource or
+# prompt when the delegation token carries an intent.
 # ibac:
 #   enabled: false
+#   capabilities:          # mcp only
+#     cache_ttl: 5m        # how long a listed capability and its mappings are kept
+#     unmapped: allow      # allow | deny a capability without a mapping
 # intent_agent:
 #   base_url: <INTENT_AGENT_BASE_URL> # required with ibac.enabled
 #   audience: intent_agent # must match the Intent Agent's EXPECTED_TOKEN_AUDIENCE

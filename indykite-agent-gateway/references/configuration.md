@@ -18,7 +18,7 @@ IAG reads one YAML file passed with `--config=<file>`, or a directory of `.yaml`
 | `protected_agent`      | Target `base_url`, downstream `protocol` (`a2a` default, or `mcp`), `node_type`, client credentials (`authentication.client_id` / `client_secret`), `authentication.audiences`. |
 | `a2a`                  | Optional. Agent card cache: `cache_ttl`, `cache_update_after`, `cache_update_after_error`.             |
 | `authorization_header` | Optional, with `token_service`: `forward`, `same_user_check`.                                          |
-| `ibac`, `intent_agent` | Optional, a2a mode: `ibac.enabled`, `intent_agent.base_url` / `audience` / `timeout`.                  |
+| `ibac`, `intent_agent` | Optional: `ibac.enabled`; a2a mode `intent_agent.base_url` / `audience` / `timeout`; mcp mode `ibac.capabilities.cache_ttl` / `unmapped`. |
 | `authzen`              | `base_url`, `action`, `input_params`, `policy_tags`, cache tuning, `capabilities.*` (capability checks). `subject_types` is not read. |
 | `contx_iq`             | `base_url`, `app_agent_credentials_token`, `cache_ttl`. `query_id` is ignored; `allowed_workflow_id` stops the gateway. |
 | `cors`                 | Optional. `allowed_origins`: the origins a browser may call the token-protected paths from.            |
@@ -95,9 +95,19 @@ Any other value stops the gateway: `invalid authorization_header.forward "…", 
 
 `same_user_check` (default `true`): on a later hop, refuse a bearer token in `Authorization` whose `sub` differs from the delegation token's (`401 Invalid delegated token, subject mismatch`). Switch it off for a flow whose `Authorization` carries something other than the user's token, such as the calling agent's service token: the gateway then does not read the bearer token of a later hop at all, and whoami and the admission call receive the delegation token in its place, so the subject stays the user named in the delegation token.
 
-## IBAC and Intent Agent (`ibac`, `intent_agent`, optional, a2a mode)
+## IBAC and Intent Agent (`ibac`, `intent_agent`, optional)
 
-With `ibac.enabled` on, the gateway asks the [Intent Agent](https://developer.indykite.com/guides/guide-intent-agent#gateway) about every A2A message with text before forwarding it, after its own admission check. Off (default), the Intent Agent is never called and the `intent_agent` section is not read.
+With `ibac.enabled` on, a gateway in front of an A2A agent asks the [Intent Agent](https://developer.indykite.com/guides/guide-intent-agent#gateway) about every A2A message with text before forwarding it, after its own admission check, and a gateway in front of an MCP server checks the mappings of invocations whose delegation token carries an intent (below). Off (default), neither happens, and the `intent_agent` and `ibac.capabilities` settings are not read. The [IBAC engine guide](https://developer.indykite.com/guides/guide-ibac) covers the model behind the switch.
+
+**The intent in the delegation token (a2a, with `token_service`).** A message the Intent Agent found an intent in gets a second exchange of the delegation token: the same subject token and actor as the first, plus the intent's evaluations in the `intent` parameter, which the issuer writes into `act.intent` of this hop. The gateway authorizes on the token of the first exchange; the agent receives the token of the second in `X-IK-Token`, so the next hop and the platform see what this hop is about to do. This needs an issuer that knows the `intent` parameter, such as the IndyKite Token Service ([`token-service.md`](token-service.md)): a token that comes back without all the evaluations is refused with `502` `cannot delegate the token with the intent`. The gateway reads an intent of at most 64 evaluations; without `token_service`, a larger one is a `502`. With `token_service`, an intent with more evaluations than the Token Service accepts (`idp.max_intent_evaluations`, `10` by default) or more than 64 is neither forwarded nor cut down: the gateway answers in place of the agent, as for a failed task, with the error `The request asks for too much at once: its intent has <n> evaluations, too many for one request.`, the reason `intent_too_large` and the obligation `Send the request in smaller parts.` Keep `idp.max_intent_evaluations` at least as large as the intents your users' prompts produce. A delegation token the Token Service finds too large, from either exchange, is refused with `403` `Authorization check failed`; a `429` of the second exchange goes to the caller, as on the first.
+
+**The mapping check (mcp, an intent in the delegation token).** When the delegation token of the request carries an intent, written by an earlier hop, the gateway also checks each invocation (`tools/call`, `resources/read`, `resources/subscribe`, `prompts/get`, `subscriptions/listen`) against the `x-coaz-mappings` of the capability it names. It keeps a catalog of the server's tools, resources and prompts with their mappings, filled from every list that passes through it (before filtering) and kept for `ibac.capabilities.cache_ttl`; a list adds and refreshes entries and removes none, since a list can be one page of several. For a capability it has not seen listed, it first lists the server itself - every page of that kind, with the tokens of the request - and that list fills the catalog and never reaches the caller; a server that cannot be listed fails the call with `502` `cannot list the capabilities of the MCP server`. Then:
+
+- a mapping that cannot be read - `403`, JSON-RPC `-31403` `Forbidden: the named tool has an invalid mapping` (or `resource`, `prompt`);
+- no mapping, or a capability the server does not list - goes on with `ibac.capabilities.unmapped: allow` (default), so the permitted set alone decides; `403` / `-31403` `Forbidden: the named tool has no mapping` with `deny`;
+- a valid mapping - goes on.
+
+The check reads and validates the mappings; it does not match the intent against them or derive AuthZEN requests from them. Without an intent in the delegation token it does not run: the gateway lists nothing itself and refuses nothing. Each check writes an `IBAC_USAGE` audit record (below).
 
 | Key                     | Default        | Meaning |
 |-------------------------|----------------|---------|
@@ -105,6 +115,8 @@ With `ibac.enabled` on, the gateway asks the [Intent Agent](https://developer.in
 | `intent_agent.base_url` | -              | Where the Intent Agent serves its agent card; an absolute `http` or `https` URL. |
 | `intent_agent.audience` | `intent_agent` | Audience of the client credentials token the gateway gets for the Intent Agent; must match the Intent Agent's `EXPECTED_TOKEN_AUDIENCE`. |
 | `intent_agent.timeout`  | `45s`          | How long one prompt may take, the token grant included; longer answers `504`. Must be positive. |
+| `ibac.capabilities.cache_ttl` | `5m`     | mcp mode: how long the gateway keeps a tool, resource or prompt, with its mappings, after the server last listed it. Must be positive. |
+| `ibac.capabilities.unmapped`  | `allow`  | mcp mode, an intent in the delegation token: the call of a capability without a mapping goes on (`allow`, the permitted set alone decides) or is refused with `403` (`deny`). A mapping that cannot be read refuses the call in both settings. |
 | `audit.include_prompt`  | `false`        | Adds the prompt, and the reason of a failed task, to the `INTENT` audit records. Off, those records carry neither, since both can quote the user. |
 
 ## AuthZEN (`authzen`, required)
@@ -190,7 +202,7 @@ A configuration problem stops the process with one of these messages in the log.
 |---------|-------|
 | `invalid identity_provider configuration: missing <key>`, `… client_credential_renew_before must not be negative` | One of the four IdP keys is absent, or the renewal margin is negative. |
 | `missing authentication.audiences in protected_agent configuration`, `invalid authorization_header.same_user_check: …`, `invalid authorization_header.forward "…", must be one of none, correct_audience, all` | With `token_service`, the entry audiences are absent, `same_user_check` is not a boolean, or `forward` has another value. |
-| `intent_agent.base_url is required when ibac.enabled is on in front of an A2A agent`, `intent_agent.base_url must be an absolute http or https URL`, `intent_agent.timeout must be positive` | Incomplete `intent_agent` section with `ibac.enabled` on. |
+| `intent_agent.base_url is required when ibac.enabled is on in front of an A2A agent`, `intent_agent.base_url must be an absolute http or https URL`, `intent_agent.timeout must be positive`, `ibac.capabilities.cache_ttl must be positive, got …`, `ibac.capabilities.unmapped must be allow or deny, got "…"` | Incomplete `intent_agent` section with `ibac.enabled` on, or an invalid `ibac.capabilities` value. |
 | `invalid token_service configuration: missing <key>`, `client_auth of type "client_secret_basic" requires client_id and client_secret`, `client_auth has invalid type "…" (want "client_secret_basic")` | Incomplete Token Service section. |
 | `cannot get protected_agent base_url`, `invalid protected_agent protocol`, `missing client_id in protected_agent configuration`, `missing client_secret in protected_agent configuration` | Incomplete protected agent section. |
 | `cannot get service base_url, the public URL of the gateway`, `service base_url must be an absolute URL`, `cannot get identity_provider openid_configuration_url` | In `a2a` mode, the settings the served agent card needs are absent. |
