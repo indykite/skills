@@ -172,8 +172,9 @@ Rules, checked when the Knowledge Query is saved:
 
 - A reference points at a variable of the policy's Cypher that is in scope at its end - never at a node or relationship the query itself creates, since the values are read before anything is written: `upsert value @<ref> must reference a variable of the policy cypher`.
 - A bare variable is allowed only for an aggregate alias; a node or relationship needs an attribute, property, metadata or trust-score path: `upsert value @<ref> must reference an attribute, a property, a trust score or an aggregate value`. A path of another shape is `invalid upsert value @<ref>: …`, and every name in the path must be a letter or underscore followed by letters, digits or underscores: `invalid upsert value @<ref>: invalid name <name>`.
-- A token claim is not read from the graph: write `$token.<claim>`, or the save is refused with `upsert value @token.<claim> references a token claim, use token.<claim> instead`.
+- A token claim is not read from the graph: write `$token.<claim>`, and an `@` in front of it is refused when the query is saved, with `upsert value @$token.<claim> references a token claim, use $token.<claim> instead` (the same for `$ik_token`).
 - When a query uses `@` references, no Cypher variable and no upserted node or relationship `name` may start with `__ref_`: `name <name> must not start with __ref_ when upsert values use @ references`.
+- A variable-length relationship (`-[r:REL*1..2]->`) cannot be referenced: the execute answers `424` (see [`policy-reference.md`](policy-reference.md#metapolicy_version)).
 - Only property `value`s take a reference; `external_id`, `type`, metadata values and `external_value` do not. A literal that starts with `@` or `$` is written `\@…` or `\$…` (inside a JSON string `"\\@…"`); the escape is dropped.
 
 At execute time a reference whose value is null for a row - for example a property the matched node lacks - writes nothing for that property: a node property is left out, a relationship property left as it was. When several matched rows feed one upserted element, the first value found is written.
