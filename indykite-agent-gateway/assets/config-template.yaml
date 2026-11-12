@@ -162,7 +162,8 @@ contx_iq:
 # overrides values). Pick one delivery form and delete the other.
 audit:
   delivery: webhook
-  # Adds the prompt and the reason of a failed task to INTENT records.
+  # Adds the prompt, the reason of a failed task and the model's text answer
+  # (in place of an intent) to INTENT records.
   # include_prompt: false
   # Optional buffered delivery for either form; records are drained on
   # shutdown, a full queue drops records with a warning in the service log.
