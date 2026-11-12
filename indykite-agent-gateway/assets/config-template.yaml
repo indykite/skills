@@ -101,8 +101,8 @@ protected_agent:
 #   same_user_check: true
 # Optional IBAC. a2a: ask the Intent Agent about every message before
 # forwarding; with token_service the intent is written into act.intent of
-# this hop; with capability checks the extended card lists only the skills
-# that fit the caller's intent. mcp: check the x-coaz-mappings of each invoked tool, resource or
+# this hop; the extended card lists only the skills that fit the caller's
+# intent (of the permitted skills when capability checks are on). mcp: check the x-coaz-mappings of each invoked tool, resource or
 # prompt when the delegation token carries an intent.
 # ibac:
 #   enabled: false
