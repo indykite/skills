@@ -69,7 +69,7 @@ A runnable shell helper builds the authenticated request: [`scripts/capture.sh`]
 
 ### 4. Read the results
 
-A `200` returns one result per node, in order: `{ "results": [ { "id": "gid:…" } ] }`. Field shapes and error semantics: [`references/capture-reference.md`](references/capture-reference.md).
+A `200` returns one result per node, in order: `{ "results": [ { "id": "gid:…" } ] }`. On a composite IKG (data residency), a request in which any node carries a `location` is answered instead with the GIDs grouped by location - `{ "east": [ "gid:…" ], "global": [ "gid:…" ] }`; the proxies deleted from the global database are under `global`; a location of the request where nothing was found is listed with an empty list - so read the result by location, not by position in the request. Field shapes and error semantics: [`references/capture-reference.md`](references/capture-reference.md).
 
 ## Outcome
 

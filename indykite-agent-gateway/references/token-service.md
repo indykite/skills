@@ -187,10 +187,10 @@ Once trusted, the delegation token is accepted on every AuthZEN and ContX IQ end
 ```bash
 docker run --rm -d --name token-service -p 8102:8102 \
   -v "$(pwd)/token-service.yaml:/app/.configs/token-service.yaml:ro" \
-  indykite/token-service:1.0.0 --config=/app/.configs/token-service.yaml
+  indykite/token-service:<tag> --config=/app/.configs/token-service.yaml
 ```
 
-- Pin a concrete tag from Docker Hub rather than `latest`. The image is built for `linux/amd64`; on Apple Silicon add `--platform linux/amd64`.
+- Pin a concrete tag from Docker Hub rather than `latest`. When gateways run with `ibac.enabled`, pick a tag whose service accepts the `intent` parameter: a token that comes back without all the intent's evaluations is refused by the gateway with `502` `cannot delegate the token with the intent`. The image is built for `linux/amd64`; on Apple Silicon add `--platform linux/amd64`.
 - Use `--config=<file>` for a single file, or `--config-dir=<dir>` when the sensitive part (`idp.signing_keys`, `idp.client_auth`, introspection `client_auth`) is delivered as a separate file, e.g. from a secret store or a Kubernetes Secret mounted next to the non-sensitive definitions.
 - `service.base_url` must be the public `https` URL the gateways, the platform, and any relying party reach the service at; it is the issuer of every token, so it must not change once tokens are in flight. Put the service behind TLS on its own hostname.
 - The published port must match `service.port`: the command above and the starter template both use `8102`; if you keep the image default of `8080`, publish `-p 8080:8080` instead. Expose only the ports you need: the request port for the gateways, the health port for orchestration. Ingress, TLS termination, and monitoring are your deployment's concern.

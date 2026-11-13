@@ -102,6 +102,8 @@ A `200` returns one result per node, in order:
 { "results": [ { "id": "gid:…" }, { "id": "gid:…" } ] }
 ```
 
+On a composite IKG (data residency), a request in which any node carries a `location` is answered instead with the GIDs grouped by location - `{ "east": [ "gid:…" ], "global": [ "gid:…" ] }`, nodes without a location under `__default`, and the proxies written for `create_proxy` under `global` after the global nodes - so read the result by location, not by position in the request.
+
 `400` (with `errors[]`) means a malformed body - commonly a missing `external_id` or `type`. Field shapes, batch limits, and error semantics: [`references/capture-reference.md`](references/capture-reference.md). To verify the ingest at schema level (types, property names, counts), read the schema back with [`indykite-data-schema`](../indykite-data-schema/SKILL.md).
 
 ## Outcome
