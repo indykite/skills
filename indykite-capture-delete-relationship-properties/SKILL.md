@@ -1,6 +1,6 @@
 ---
 name: indykite-capture-delete-relationship-properties
-description: Build the request-body JSON for the IndyKite Capture API batch relationship-property delete (`POST /capture/v1/relationships/properties/delete`) - a `relationships` array (1-250 per request), each entry identifying a relationship by `source` node, `target` node (each `external_id` + `type`), and relationship `type`, plus the `property_types` (1-250 names) to strip from it; the relationship itself survives. On composite IKGs setting the top-level `use_global_db` field to `true` targets the global constituent. Use when the user wants to remove properties from edges in the IndyKite Knowledge Graph (IKG) - "drop the status property from millicent's OWNS edge", "prepare a relationship-property-delete payload for the Capture API". Produces a ready-to-send JSON file; sending it is optional. Not for deleting the relationship (indykite-capture-delete-relationships), node properties (indykite-capture-delete-node-properties), or CIQ policy-mediated deletes (indykite-ciq-delete).
+description: Build the request-body JSON for the IndyKite Capture API batch relationship-property delete (`POST /capture/v1/relationships/properties/delete`) - a `relationships` array (1-250 per request), each entry identifying a relationship by `source` node, `target` node (each `external_id` + `type`), and relationship `type`, plus the `property_types` (1-250 names) to strip from it; the relationship itself survives. On composite IKGs (data residency) the `location` of the source and target nodes finds the constituent. Use when the user wants to remove properties from edges in the IndyKite Knowledge Graph (IKG) - "drop the status property from millicent's OWNS edge", "prepare a relationship-property-delete payload for the Capture API". Produces a ready-to-send JSON file; sending it is optional. Not for deleting the relationship (indykite-capture-delete-relationships), node properties (indykite-capture-delete-node-properties), or CIQ policy-mediated deletes (indykite-ciq-delete).
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq for the bundled helper script; authoring the JSON payload itself needs no tools. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
@@ -49,7 +49,7 @@ Do **not** activate this skill to:
 
 ### 2. Assemble the request body
 
-One JSON object: `{ "relationships": [ … ] }`, 1-250 entries per request. On a **composite IKG**, add top-level `"use_global_db": true` to target relationships stored in the global constituent ([Data Residency guide](https://developer.indykite.com/guides/guide-data-residency)); omit it on a regular IKG. A ready example: [`assets/delete-relationship-properties.json`](assets/delete-relationship-properties.json).
+One JSON object: `{ "relationships": [ … ] }`, 1-250 entries per request. On a **composite IKG** (data residency), give the `source` and `target` nodes their `location` - the same ones they were upserted with - and the platform picks the database: one location on both, that location's; different locations, the global one; none, the default one ([Data Residency guide](https://developer.indykite.com/guides/guide-data-residency)). Do not send `use_global_db`, the former data-residency setting: `true` is refused with `400`. On a regular IKG nothing changes. A ready example: [`assets/delete-relationship-properties.json`](assets/delete-relationship-properties.json).
 
 ```json
 {
@@ -83,7 +83,7 @@ A `200` returns one result per entry, in order: `{ "results": [ { "id": "gid:…
 
 ## Files in this skill
 
-- [`references/capture-reference.md`](references/capture-reference.md) - field reference, `use_global_db` behavior, batch limits, and error semantics.
+- [`references/capture-reference.md`](references/capture-reference.md) - field reference, composite-IKG routing by node location, batch limits, and error semantics.
 - [`assets/delete-relationship-properties.json`](assets/delete-relationship-properties.json) - ready request body stripping `status` from an `OWNS` edge.
 - [`scripts/capture.sh`](scripts/capture.sh) - Bash helper that POSTs a body file to `/capture/v1/relationships/properties/delete` (host-pinned; `--print` to preview).
 
@@ -94,5 +94,5 @@ This skill uses generic markdown instructions and works across all agents listed
 ## References
 
 - [Capture API reference (OpenAPI)](https://openapi.indykite.com/)
-- [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency) - `use_global_db` on composite IKGs
+- [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency) - routing by node location on composite IKGs
 - [Credentials guide](https://developer.indykite.com/guides/guide-credentials)

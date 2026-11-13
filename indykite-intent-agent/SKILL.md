@@ -154,6 +154,7 @@ This skill uses generic markdown instructions and works across all agents listed
 
 - [Intent Agent guide](https://developer.indykite.com/guides/guide-intent-agent) - the full guide: request, task, every shape, refusals, from intent to decision, running it, the gateway section, the demo.
 - [intent-agent repository](https://github.com/indykite/intent-agent) - the source, its README (configuration, audit log, releases) and Helm chart.
+- [Intent-based access control with Agent Gateway (tutorial)](https://developer.indykite.com/tutorials/tutorial-intent-ibac-gateway) - the Intent Agent behind six gateways with `ibac.enabled`, the Token Service and an external IdP, end to end.
 - [`intent-agent-demo`](https://github.com/indykite/developer-hub/tree/master/a2a/intent-agent-demo) - the Intent Agent, the Token Service, and a web console with a playground, guardrails, vocabulary, and live audit views.
 - [Audit Event Formats guide](https://developer.indykite.com/guides/guide-audit-formats) - the Intent Agent record next to the gateway's `INTENT` records and the platform events, and how to correlate them.
 - [AuthZEN guide](https://developer.indykite.com/guides/guide-authzen), [Data Schema guide](https://developer.indykite.com/guides/guide-data-schema), [Agent Gateway guide](https://developer.indykite.com/guides/guide-agent-gateway), [Token Service guide](https://developer.indykite.com/guides/guide-token-service), [Credentials guide](https://developer.indykite.com/guides/guide-credentials).

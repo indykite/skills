@@ -27,6 +27,7 @@ POST <API_URL>/capture/v1/nodes
 | `is_identity` | no       | boolean | -           | `true` marks an identity node (person or other actor). |
 | `labels`      | no       | string[] | -          | Additional labels beyond `type`. |
 | `location`    | no       | string  | 2-32 chars  | Composite IKG only: logical location to store the node in - must be a key of the project's `alias_mapping`. See [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency). |
+| `create_proxy` | no      | boolean | default `false` | Composite IKG only: `true` also writes a proxy of the node (external ID, type and location, no properties) to the global database. Ignored for a node whose `location` is `global` and in a request where no node has a location. |
 | `properties`  | no       | array   | -           | Typed property values - below. |
 
 ### Property
@@ -63,7 +64,7 @@ POST <API_URL>/capture/v1/nodes
 
 ## Location routing (composite IKG)
 
-On a composite-database project, a node with `location` is stored in that constituent database, and a property-less **proxy node** (external ID, type, location) is automatically upserted into the global constituent so the node stays addressable graph-wide. A node **without** `location` goes to the default database - the regular, always-safe behavior. A `location` that is not an `alias_mapping` key, or any `location` on a project without a composite database, fails the request. Details: [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency).
+On a composite-database project (data residency), a node with `location` is stored, with all its properties, in that location's constituent database. It gets a property-less **proxy node** (external ID, type, location) in the global constituent only when it also sets `"create_proxy": true` - ask for one when the node takes part in relationships with nodes of other locations, which live in the global database, and upsert it before those relationships. `__default` is reserved and cannot be used as a location (`422`). A node **without** `location` goes to the default database - the regular, always-safe behavior. A `location` that is not an `alias_mapping` key, or any `location` on a project without a composite database, fails the request. Details: [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency).
 
 ## Response
 
@@ -72,6 +73,8 @@ On a composite-database project, a node with `location` is stored in that consti
 ```json
 { "results": [ { "id": "gid:…" } ] }
 ```
+
+On a composite IKG, a request in which at least one node carries a `location` is answered instead with one key per location and the GIDs written there, nodes without a location under `__default` and proxy GIDs under `global` after the GIDs of the global nodes: `{"east": ["gid:…"], "global": ["gid:…"]}`.
 
 ## Error semantics
 

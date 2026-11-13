@@ -1,6 +1,6 @@
 ---
 name: indykite-capture-upsert-relationships
-description: Build the request-body JSON for the IndyKite Capture API batch relationship upsert (`POST /capture/v1/relationships`) - a `relationships` array (1-250 per request), each entry connecting a `source` node to a `target` node (by `external_id` + `type`) with a relationship `type` and optional typed `properties`; on composite IKGs setting `use_global_db` to `true` routes cross-location relationships to the global constituent. Use when the user wants to connect existing entities in the IndyKite Knowledge Graph (IKG) - "link millicent OWNS kitt", "wire these contracts to their vehicles", "prepare a relationships payload for the Capture API". Produces a ready-to-send JSON file; sending it is optional. Not for creating the nodes themselves (indykite-capture-upsert-nodes), removing relationships (indykite-capture-delete-relationships), or CIQ policy-mediated writes (indykite-ciq-create-relationship).
+description: Build the request-body JSON for the IndyKite Capture API batch relationship upsert (`POST /capture/v1/relationships`) - a `relationships` array (1-250 per request), each entry connecting a `source` node to a `target` node (by `external_id` + `type`) with a relationship `type` and optional typed `properties`; on composite IKGs (data residency) the `location` of the source and target nodes chooses the constituent. Use when the user wants to connect existing entities in the IndyKite Knowledge Graph (IKG) - "link millicent OWNS kitt", "wire these contracts to their vehicles", "prepare a relationships payload for the Capture API". Produces a ready-to-send JSON file; sending it is optional. Not for creating the nodes themselves (indykite-capture-upsert-nodes), removing relationships (indykite-capture-delete-relationships), or CIQ policy-mediated writes (indykite-ciq-create-relationship).
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq for the bundled helper script; authoring the JSON payload itself needs no tools. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
@@ -51,7 +51,7 @@ For each connection decide:
 
 ### 2. Assemble the request body
 
-One JSON object: `{ "relationships": [ … ] }`, 1-250 entries per request. On a **composite IKG**, add top-level `"use_global_db": true` - relationships can connect nodes living in different locations, so they are stored in the global constituent alongside the proxy nodes ([Data Residency guide](https://developer.indykite.com/guides/guide-data-residency)). Omit it on a regular IKG.
+One JSON object: `{ "relationships": [ … ] }`, 1-250 entries per request. On a **composite IKG** (data residency), give the `source` and `target` nodes their `location` - the same ones they were upserted with - and the platform picks the database: one location on both, that location's; different locations, the global one; none, the default one ([Data Residency guide](https://developer.indykite.com/guides/guide-data-residency)). Do not send `use_global_db`, the former data-residency setting: `true` is refused with `400`. On a regular IKG nothing changes.
 
 A ready example: [`assets/relationships-vehicle-rental.json`](assets/relationships-vehicle-rental.json).
 
@@ -85,7 +85,7 @@ A `200` returns one result per relationship, in order: `{ "results": [ { "id": "
 
 ## Files in this skill
 
-- [`references/capture-reference.md`](references/capture-reference.md) - full field reference (relationship, node reference, properties, `use_global_db`), batch limits, and error semantics.
+- [`references/capture-reference.md`](references/capture-reference.md) - full field reference (relationship, node reference, properties, composite-IKG routing), batch limits, and error semantics.
 - [`assets/relationships-vehicle-rental.json`](assets/relationships-vehicle-rental.json) - ready request body: `OWNS` (with a property) and `CAN_DRIVE` relationships.
 - [`scripts/capture.sh`](scripts/capture.sh) - Bash helper that POSTs a body file to `/capture/v1/relationships` (host-pinned; `--print` to preview).
 
@@ -97,5 +97,5 @@ This skill uses generic markdown instructions and works across all agents listed
 
 - [Capture API reference (OpenAPI)](https://openapi.indykite.com/)
 - [Ingest data into the IKG (developer hub resource)](https://developer.indykite.com/resources/capture-1)
-- [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency) - `use_global_db` on composite IKGs
+- [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency) - routing by node location on composite IKGs
 - [Credentials guide](https://developer.indykite.com/guides/guide-credentials)

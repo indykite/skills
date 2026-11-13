@@ -13,10 +13,10 @@ POST <API_URL>/capture/v1/relationships/delete
 ## Request body
 
 ```json
-{ "relationships": [ <relationship>, … ], "use_global_db": false }
+{ "relationships": [ <relationship>, … ] }
 ```
 
-`relationships` is required, 1-250 items per request. `use_global_db` is optional (composite IKGs only): set `true` to delete relationships stored in the **global** constituent of a composite deployment - the place cross-location relationships live ([Data Residency guide](https://developer.indykite.com/guides/guide-data-residency)).
+`relationships` is required, 1-250 items per request. On a composite IKG (data residency) there is no routing field: the `location` of the source and target nodes chooses the database - see *Composite IKG* below. `use_global_db`, the former data-residency setting, is refused when `true`, with `400` `use_global_db is removed: set the location of the source and target nodes instead` (`false` is accepted). On a regular IKG nothing changes.
 
 ### Relationship entry
 
@@ -29,6 +29,18 @@ POST <API_URL>/capture/v1/relationships/delete
 
 The endpoint nodes are not affected - only the relationship is removed.
 
+### Composite IKG (data residency)
+
+On a project with a composite database, the delete finds each relationship where the upsert put it, from the `location` of its `source` and `target` nodes:
+
+| Source and target | The relationship is in | Response key |
+|-------------------|------------------------|--------------|
+| The same location on both (e.g. `west` and `west`) | that location's database | `west` |
+| Different locations (e.g. `east` and `west`, `east` and `global`, `east` and none) | the global database | `global` |
+| No location on either | the default database | `__default` |
+
+Send the same locations you sent on the upsert: a relationship stored in the global database because its nodes were in `east` and `west` is found again only with `east` and `west` on its nodes. Every location is checked against `alias_mapping` (`422` `invalid locations: "…"`), and `__default` is reserved (`422`). On a regular IKG, or in a request without any location, nothing changes. Details: [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency).
+
 ## Response
 
 `200 OK` - one result per entry, in request order:
@@ -37,13 +49,16 @@ The endpoint nodes are not affected - only the relationship is removed.
 { "results": [ { "id": "gid:…" } ] }
 ```
 
+On a composite IKG, a request in which at least one node carries a `location` is answered instead with one key per location and the GIDs deleted there: `{"east": ["gid:…"], "global": ["gid:…"]}`; a location of the request where nothing was found is still listed, with an empty list.
+
 ## Error semantics
 
 | HTTP code | When | Likely fix |
 |-----------|------|------------|
 | `400 Bad Request` | Malformed body; `errors[]` lists details (missing `source` / `target` / `type`, batch size out of 1-250). | Fix the listed fields. |
 | `401 Unauthorized` | Invalid AppAgent credentials. | Refresh the AppAgent credentials. |
-| `422 Unprocessable Entity` | Well-formed but unprocessable (e.g. composite routing misuse). | Check `use_global_db` / `location` against the project's setup. |
+| `400 Bad Request` + `use_global_db is removed: set the location of the source and target nodes instead` | The request set `"use_global_db": true`. | Remove the field; on a composite IKG give the source and target nodes their `location`. |
+| `422 Unprocessable Entity` | Composite IKG: a `location` that is not an `alias_mapping` key (`invalid locations: "…"`), the reserved `__default`, or a `location` on a project without a composite database. | Match each `location` to an `alias_mapping` key, or drop it on a regular IKG. |
 | `404 Not Found` + `{"message": "knowledge graph not found for this project"}` | The project has no knowledge graph to write to: it was deleted, or it has not finished provisioning yet. The request itself is fine. | Check the project in the Hub or via `GET /configs/v1/projects/{id}`. If it is still provisioning, wait for it to complete and resend. If the graph was deleted, waiting will not help: provision a project again (and point the AppAgent credential at it) before re-ingesting. |
 | `503 Service Unavailable` + `{"message": "Unable to verify the AppAgent credential token, retry the request"}` | The credential could not be checked right now (transient); it was not judged. | Retry the same request with the same credential, with backoff. |
 | `503 Service Unavailable` (other) | The graph backend could not answer right now. Nothing is wrong with the request. | Retry with backoff. Batches are idempotent, so resending the same payload is safe. |
