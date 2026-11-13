@@ -37,6 +37,8 @@ The node itself, its remaining properties, and its relationships are not affecte
 { "results": [ { "id": "gid:…" } ] }
 ```
 
+On a composite IKG, a request in which at least one node carries a `location` is answered instead with one key per location and the GIDs found there: `{"east": ["gid:…"], "global": ["gid:…"]}`; a location of the request where nothing was found is still listed, with an empty list.
+
 ## Error semantics
 
 | HTTP code | When | Likely fix |

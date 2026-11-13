@@ -28,7 +28,7 @@ POST <API_URL>/capture/v1/nodes/delete
 
 ## Location behavior (composite IKG)
 
-Deleting a located node removes **both** its full data node in the location constituent and its proxy node in the global database. A node without `location` is deleted from the default database. A `location` that is not an `alias_mapping` key, or any `location` on a project without a composite database, fails the request. Details: [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency).
+On a composite IKG (data residency), deleting a located node removes its full data node in the location constituent and, if it was upserted with `create_proxy`, its proxy node in the global database. A node without `location` is deleted from the default database. A `location` that is not an `alias_mapping` key, or any `location` on a project without a composite database, fails the request. Details: [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency).
 
 ## Response
 
@@ -37,6 +37,8 @@ Deleting a located node removes **both** its full data node in the location cons
 ```json
 { "results": [ { "id": "gid:…" } ] }
 ```
+
+On a composite IKG, a request in which at least one node carries a `location` is answered instead with one key per location and the GIDs deleted there: `{"east": ["gid:…"], "global": ["gid:…"]}`, proxies under `global`; a location of the request where nothing was found is still listed, with an empty list.
 
 ## Error semantics
 

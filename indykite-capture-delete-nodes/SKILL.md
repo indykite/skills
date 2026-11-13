@@ -44,7 +44,7 @@ Do **not** activate this skill to:
 |---------------|----------|-------------|-----------------------------------------------------|
 | `external_id` | yes      | 1-256 chars | The node's caller-owned identifier.                |
 | `type`        | yes      | 2-64 chars  | The node's type.                                   |
-| `location`    | no       | 2-32 chars  | Composite IKG only: the node's logical location (an `alias_mapping` key). Deleting a located node removes both its data node and its global proxy. Omit on a regular IKG. |
+| `location`    | no       | 2-32 chars  | Composite IKG only: the node's logical location (an `alias_mapping` key). Deleting a located node removes its data node and, if it has one, its proxy in the global database. Omit on a regular IKG. |
 
 ### 2. Assemble the request body
 

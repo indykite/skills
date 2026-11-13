@@ -1,6 +1,6 @@
 ---
 name: indykite-capture-upsert-nodes
-description: Build the request-body JSON for the IndyKite Capture API batch node upsert (`POST /capture/v1/nodes`) - a `nodes` array (1-250 per request) of entities, each with `external_id`, `type`, optional `is_identity` / `labels` / `location`, and typed `properties` (values, external-data references, and per-property metadata such as source, assurance level, and verified time). Use when the user wants to ingest or update entities in the IndyKite Knowledge Graph (IKG) - "add these people and cars to the graph", "upsert this customer with verified email metadata", "prepare a nodes payload for the Capture API". Produces a ready-to-send JSON file; sending it is optional. Not for connecting nodes (indykite-capture-upsert-relationships), removing them (indykite-capture-delete-nodes), or CIQ policy-mediated writes (indykite-ciq-create-node).
+description: Build the request-body JSON for the IndyKite Capture API batch node upsert (`POST /capture/v1/nodes`) - a `nodes` array (1-250 per request) of entities, each with `external_id`, `type`, optional `is_identity` / `labels` / `location` / `create_proxy`, and typed `properties` (values, external-data references, and per-property metadata such as source, assurance level, and verified time). Use when the user wants to ingest or update entities in the IndyKite Knowledge Graph (IKG) - "add these people and cars to the graph", "upsert this customer with verified email metadata", "prepare a nodes payload for the Capture API". Produces a ready-to-send JSON file; sending it is optional. Not for connecting nodes (indykite-capture-upsert-relationships), removing them (indykite-capture-delete-nodes), or CIQ policy-mediated writes (indykite-ciq-create-node).
 license: Apache-2.0
 compatibility: Requires curl, bash 4+, and jq for the bundled helper script; authoring the JSON payload itself needs no tools. Network access to the regional IndyKite REST API (eu.api.indykite.com or us.api.indykite.com) is required at runtime.
 ---
@@ -51,6 +51,7 @@ For each entity decide:
 | `is_identity` | no       | `true` marks an identity node (a person or other actor, e.g. an AuthZEN subject); omit or `false` for plain entities. |
 | `labels`      | no       | Extra labels beyond `type`.                                                                 |
 | `location`    | no       | Composite-IKG routing only: a logical location (an `alias_mapping` key, 2-32 chars). Omit on a regular IKG. |
+| `create_proxy` | no      | Composite IKG only: `true` also writes a property-less proxy of the located node to the global database - needed when the node takes part in relationships across locations. Omit on a regular IKG. |
 | `properties`  | no       | Array of typed values - see step 2.                                                        |
 
 ### 2. Write the properties

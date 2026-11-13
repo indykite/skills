@@ -42,7 +42,7 @@ Same shape as in the create-node skill. Each entry creates one node:
   - Labels are **not** checked against the policy's `node_types` whitelist — only `type` is.
 - `properties` — array of `{type, value, metadata?}` items. `type` (property name) hardcoded; `value` may be `$param`.
 
-**Checked metadata values.** Three metadata types have a fixed value shape: `assurance_level` must be `1`, `2` or `3`; `verified_time` must be an RFC 3339 timestamp string; `source` must be a string. Other metadata types are not checked. A hardcoded value of the wrong shape is refused when the Knowledge Query is saved (`invalid <type> for node <name>`). A `$param` value is checked on execute, before anything is written: a wrong value writes nothing and answers `422` with `invalid_argument: invalid <type> metadata value in input params, '$<param>'`. (Since platform release 2.86.2; before, such a value failed with `500` or was stored unchecked.)
+**Checked metadata values.** Three metadata types have a fixed value shape: `assurance_level` must be `1`, `2` or `3`; `verified_time` must be an RFC 3339 timestamp string; `source` must be a string. Other metadata types are not checked. A hardcoded value of the wrong shape is refused when the Knowledge Query is saved (`invalid <type> for node <name>`). A `$param` value is checked on execute, before anything is written: a wrong value writes nothing and answers `422` with `invalid_argument: invalid <type> metadata value in input params, '$<param>'`.
 
 ## `upsert_relationships`
 
