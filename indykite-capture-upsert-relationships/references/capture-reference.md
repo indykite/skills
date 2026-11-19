@@ -24,15 +24,15 @@ POST <API_URL>/capture/v1/relationships
 |--------------|----------|---------|
 | `source`     | yes      | Node reference - below. |
 | `target`     | yes      | Node reference - below. |
-| `type`       | yes      | Relationship type (max 128 chars), conventionally an uppercase verb (`OWNS`, `ACCEPTED`, `COVERS`, `HAS`). |
-| `properties` | no       | Array of properties: `type` (max 128 chars) plus `value` (string / integer / float / boolean, or an array of those) or `external_value` (a string naming an External Data Resolver configuration). Relationship properties take no `metadata`; provenance is a node-property feature. |
+| `type`       | yes      | Relationship type, max 128 chars, UPPER_SNAKE_CASE: capital letters, words joined by single underscores (`CAN_DRIVE`); by convention an uppercase verb (`OWNS`, `ACCEPTED`, `COVERS`, `HAS`). A lowercase letter or a digit (`Owns`, `OWNS_2`) is refused. |
+| `properties` | no       | Array of properties: `type` (the property name: 2-128 chars, letters, digits and underscores, not starting with a digit) plus `value` (string / integer / float / boolean, or an array of those) or `external_value` (a string naming an External Data Resolver configuration). Relationship properties take no `metadata`; provenance is a node-property feature. |
 
 ### Node reference (`source` / `target`)
 
 | Field         | Required | Constraints | Meaning |
 |---------------|----------|-------------|---------|
 | `external_id` | yes      | 1-256 chars | The node's caller-owned identifier. |
-| `type`        | yes      | 2-64 chars  | The node's type. |
+| `type`        | yes      | 2-64 chars  | The node's type: PascalCase, letters only. |
 | `location`    | no       | 2-32 chars  | Composite IKG only: the node's logical location. |
 
 ## Composite IKG (data residency)
@@ -61,7 +61,7 @@ On a composite IKG, a request in which at least one node carries a `location` is
 
 | HTTP code | When | Likely fix |
 |-----------|------|------------|
-| `400 Bad Request` | Malformed body; `errors[]` lists details (missing `source` / `target` / `type`, batch size out of 1-250). | Fix the listed fields. |
+| `400 Bad Request` | Malformed body; `errors[]` lists details (missing `source` / `target` / `type`, batch size out of 1-250, a name that breaks a naming rule - node `type` PascalCase letters only, relationship `type` UPPER_SNAKE_CASE, property names 2-128 letters, digits and underscores not starting with a digit). | Fix the listed fields. |
 | `401 Unauthorized` | Invalid AppAgent credentials. | Refresh the AppAgent credentials. |
 | `400 Bad Request` + `use_global_db is removed: set the location of the source and target nodes instead` | The request set `"use_global_db": true`. | Remove the field; on a composite IKG give the source and target nodes their `location`. |
 | `422 Unprocessable Entity` | Composite IKG: a `location` that is not an `alias_mapping` key (`invalid locations: "…"`), the reserved `__default`, or a `location` on a project without a composite database. | Match each `location` to an `alias_mapping` key, or drop it on a regular IKG. |

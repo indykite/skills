@@ -44,7 +44,7 @@ Do **not** activate this skill to:
 |----------|----------|--------------------------------------------------------------|
 | `source` | yes      | `{ "external_id": …, "type": … }` of the outgoing node.     |
 | `target` | yes      | `{ "external_id": …, "type": … }` of the incoming node.     |
-| `type`   | yes      | The relationship type to remove between them (max 128 chars). |
+| `type`   | yes      | The relationship type to remove between them (UPPER_SNAKE_CASE, max 128 chars), spelled as it was upserted. |
 
 ### 2. Assemble the request body
 

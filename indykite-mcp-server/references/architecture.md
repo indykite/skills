@@ -31,7 +31,7 @@ Because the Bearer token is bound to the project's configured Token Introspect, 
 
 ### Optional delegation token: `X-IK-Token`
 
-When the caller is an agent acting on a user's behalf through the [Agent Gateway](https://developer.indykite.com/tutorials/tutorial-agent-gateway-mcp) in Token Service mode, the request also carries a **delegation token** minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service):
+When the caller is an agent acting on a user's behalf through the [Agent Gateway](https://developer.indykite.com/tutorials/tutorial-agent-gateway-delegation-chain) in Token Service mode, the request also carries a **delegation token** minted by the self-hosted [IndyKite Token Service](https://developer.indykite.com/guides/guide-token-service):
 
 - **Header**: `X-IK-Token: <delegation-token>`, sent as is with no prefix, beside the untouched `Authorization: Bearer` header. It never replaces the Bearer token.
 - **Validation**: introspected through the project's Token Introspect configurations like the Bearer token; its `sub` must equal the Bearer token's `sub`.

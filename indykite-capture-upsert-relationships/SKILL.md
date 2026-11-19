@@ -46,8 +46,8 @@ For each connection decide:
 |--------------|----------|---------------------------------------------------------------------|
 | `source`     | yes      | `{ "external_id": …, "type": … }` of the outgoing node.            |
 | `target`     | yes      | `{ "external_id": …, "type": … }` of the incoming node.            |
-| `type`       | yes      | Relationship type, conventionally an uppercase verb (max 128 chars). |
-| `properties` | no       | Array of `{ "type": …, "value": … }` (string / integer / float / boolean or arrays of those); `external_value` (a resolver name string) is accepted instead of `value`. No `metadata` on relationship properties. |
+| `type`       | yes      | Relationship type, max 128 chars, UPPER_SNAKE_CASE: capital letters, words joined by single underscores (`CAN_DRIVE`); by convention an uppercase verb. A lowercase letter or a digit (`Owns`, `OWNS_2`) is refused with `400`. |
+| `properties` | no       | Array of `{ "type": …, "value": … }` (`type` is the property name: 2-128 chars, letters, digits and underscores, not starting with a digit; `value` a string / integer / float / boolean or arrays of those); `external_value` (a resolver name string) is accepted instead of `value`. No `metadata` on relationship properties. |
 
 ### 2. Assemble the request body
 

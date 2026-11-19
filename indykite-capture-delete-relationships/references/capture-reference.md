@@ -24,7 +24,7 @@ POST <API_URL>/capture/v1/relationships/delete
 |--------------|----------|---------|
 | `source`     | yes      | `{ "external_id": (1-256 chars), "type": (2-64 chars), "location"?: (2-32 chars) }` - the outgoing node. |
 | `target`     | yes      | Same shape - the incoming node. |
-| `type`       | yes      | The relationship type to remove (max 128 chars). |
+| `type`       | yes      | The relationship type to remove (UPPER_SNAKE_CASE, max 128 chars), spelled as it was upserted. |
 | `properties` | no       | Accepted by the schema; identification is by (`source`, `target`, `type`). |
 
 The endpoint nodes are not affected - only the relationship is removed.
@@ -55,7 +55,7 @@ On a composite IKG, a request in which at least one node carries a `location` is
 
 | HTTP code | When | Likely fix |
 |-----------|------|------------|
-| `400 Bad Request` | Malformed body; `errors[]` lists details (missing `source` / `target` / `type`, batch size out of 1-250). | Fix the listed fields. |
+| `400 Bad Request` | Malformed body; `errors[]` lists details (missing `source` / `target` / `type`, batch size out of 1-250, a name that breaks a naming rule - node `type` PascalCase letters only, relationship `type` UPPER_SNAKE_CASE). | Fix the listed fields. |
 | `401 Unauthorized` | Invalid AppAgent credentials. | Refresh the AppAgent credentials. |
 | `400 Bad Request` + `use_global_db is removed: set the location of the source and target nodes instead` | The request set `"use_global_db": true`. | Remove the field; on a composite IKG give the source and target nodes their `location`. |
 | `422 Unprocessable Entity` | Composite IKG: a `location` that is not an `alias_mapping` key (`invalid locations: "…"`), the reserved `__default`, or a `location` on a project without a composite database. | Match each `location` to an `alias_mapping` key, or drop it on a regular IKG. |

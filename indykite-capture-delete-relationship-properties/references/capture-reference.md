@@ -24,7 +24,7 @@ POST <API_URL>/capture/v1/relationships/properties/delete
 |------------------|----------|---------|
 | `source`         | yes      | `{ "external_id": (1-256 chars), "type": (2-64 chars), "location"?: (2-32 chars) }` - the outgoing node. |
 | `target`         | yes      | Same shape - the incoming node. |
-| `type`           | yes      | The relationship type (max 128 chars). |
+| `type`           | yes      | The relationship type (UPPER_SNAKE_CASE, max 128 chars), spelled as it was upserted. |
 | `property_types` | yes      | 1-250 names of the properties to delete from this relationship. |
 | `properties`     | no       | Accepted by the schema; deletion is driven by `property_types`. |
 
@@ -56,7 +56,7 @@ On a composite IKG, a request in which at least one node carries a `location` is
 
 | HTTP code | When | Likely fix |
 |-----------|------|------------|
-| `400 Bad Request` | Malformed body; `errors[]` lists details (missing `source` / `target` / `type`, empty `property_types`, batch size out of 1-250). | Fix the listed fields. |
+| `400 Bad Request` | Malformed body; `errors[]` lists details (missing `source` / `target` / `type`, empty `property_types`, batch size out of 1-250, a name that breaks a naming rule - node `type` PascalCase letters only, relationship `type` UPPER_SNAKE_CASE, property names 2-128 letters, digits and underscores not starting with a digit). | Fix the listed fields. |
 | `401 Unauthorized` | Invalid AppAgent credentials. | Refresh the AppAgent credentials. |
 | `400 Bad Request` + `use_global_db is removed: set the location of the source and target nodes instead` | The request set `"use_global_db": true`. | Remove the field; on a composite IKG give the source and target nodes their `location`. |
 | `422 Unprocessable Entity` | Composite IKG: a `location` that is not an `alias_mapping` key (`invalid locations: "…"`), the reserved `__default`, or a `location` on a project without a composite database. | Match each `location` to an `alias_mapping` key, or drop it on a regular IKG. |

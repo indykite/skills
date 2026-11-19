@@ -47,16 +47,16 @@ For each entity decide:
 | Field         | Required | Meaning                                                                                    |
 |---------------|----------|--------------------------------------------------------------------------------------------|
 | `external_id` | yes      | Your identifier for the node (1-256 chars). Upserts key on (`type`, `external_id`).        |
-| `type`        | yes      | Node type / label, e.g. `Person`, `Car` (2-64 chars).                                      |
+| `type`        | yes      | Node type / label: 2-64 chars, PascalCase, letters only (`Person`, `PaymentMethod`). A digit, an underscore or a run of capitals (`Person2`, `payment_method`, `VIN`) is refused with `400`. |
 | `is_identity` | no       | `true` marks an identity node (a person or other actor, e.g. an AuthZEN subject); omit or `false` for plain entities. |
-| `labels`      | no       | Extra labels beyond `type`.                                                                 |
+| `labels`      | no       | Extra labels beyond `type`, each PascalCase, letters only, by the same rule. |
 | `location`    | no       | Composite-IKG routing only: a logical location (an `alias_mapping` key, 2-32 chars). Omit on a regular IKG. |
 | `create_proxy` | no      | Composite IKG only: `true` also writes a property-less proxy of the located node to the global database - needed when the node takes part in relationships across locations. Omit on a regular IKG. |
 | `properties`  | no       | Array of typed values - see step 2.                                                        |
 
 ### 2. Write the properties
 
-Each property is `{ "type": ..., "value": ... }`; `value` is a string, integer, float, boolean, or an array of those. Two optional extensions:
+Each property is `{ "type": ..., "value": ... }`; `type` is the property name - 2-128 chars, letters, digits and underscores, not starting with a digit (`given_name`; `given-name` or a single character is refused with `400`) - and `value` is a string, integer, float, boolean, or an array of those. Two optional extensions:
 
 - **`metadata`** - provenance for the single property: `source` (string), `assurance_level` (1, 2, or 3), `verified_time` (RFC 3339 timestamp), `custom_metadata` (object). Used e.g. by [trust scoring](https://developer.indykite.com/guides/guide-trust-score).
 - **`external_value`** - instead of `value`, a string naming the [External Data Resolver](https://developer.indykite.com/guides/guide-external-data-resolver), so the actual data never lives in the IKG.

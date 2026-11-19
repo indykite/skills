@@ -44,7 +44,7 @@ Do **not** activate this skill to:
 |------------------|----------|--------------------------------------------------------------|
 | `source`         | yes      | `{ "external_id": …, "type": … }` of the outgoing node.     |
 | `target`         | yes      | `{ "external_id": …, "type": … }` of the incoming node.     |
-| `type`           | yes      | The relationship type (max 128 chars).                       |
+| `type`           | yes      | The relationship type (UPPER_SNAKE_CASE, max 128 chars), spelled as it was upserted. |
 | `property_types` | yes      | 1-250 property names to delete from this relationship.       |
 
 ### 2. Assemble the request body

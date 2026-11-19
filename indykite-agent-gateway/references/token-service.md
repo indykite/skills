@@ -124,7 +124,7 @@ A map keyed by configuration **name** (required, unique, lower-cased by the load
 
 Each entry has:
 
-- `matcher` - `type: jwt` with `issuer` and `audience` (matched against the token's `iss` / `aud` claims), or `type: opaque` (matches non-JWT tokens and is the fallback for JWT-shaped tokens no `jwt` entry matches; at most one per token type).
+- `matcher` - `type: jwt` with `issuer` and `audience` (matched against the token's `iss` / `aud` claims; when a gateway sets `identity_provider.client_credential_audience`, the matcher for actor tokens must name the same audience), or `type: opaque` (matches non-JWT tokens and is the fallback for JWT-shaped tokens no `jwt` entry matches; at most one per token type).
 - `token_types` - any subset of `[subject_token, actor_token]`.
 - `validation` - exactly **one** of:
   - `offline` - verify signature and `exp` / `nbf` locally, with inline `keys` (public JWKs) or a `jwks_uri` (else discovered from the issuer's `.well-known/openid-configuration`); `cache_ttl` for fetched keys (default `1h`).
