@@ -23,9 +23,9 @@ POST <API_URL>/capture/v1/nodes
 | Field         | Required | Type    | Constraints | Meaning |
 |---------------|----------|---------|-------------|---------|
 | `external_id` | yes      | string  | 1-256 chars | Caller-owned identifier. The upsert keys on (`type`, `external_id`) - reposting updates the node. |
-| `type`        | yes      | string  | 2-64 chars  | Node type (graph label), e.g. `Person`, `Car`. |
+| `type`        | yes      | string  | 2-64 chars  | Node type (graph label), PascalCase, letters only (`Person`, `PaymentMethod`). A digit, an underscore or a run of capitals (`Person2`, `payment_method`, `VIN`) is refused. |
 | `is_identity` | no       | boolean | -           | `true` marks an identity node (person or other actor). |
-| `labels`      | no       | string[] | -          | Additional labels beyond `type`. |
+| `labels`      | no       | string[] | -          | Additional labels beyond `type`, each PascalCase, letters only, by the same rule as `type`. |
 | `location`    | no       | string  | 2-32 chars  | Composite IKG only: logical location to store the node in - must be a key of the project's `alias_mapping`. See [Data Residency guide](https://developer.indykite.com/guides/guide-data-residency). |
 | `create_proxy` | no      | boolean | default `false` | Composite IKG only: `true` also writes a proxy of the node (external ID, type and location, no properties) to the global database. Ignored for a node whose `location` is `global` and in a request where no node has a location. |
 | `properties`  | no       | array   | -           | Typed property values - below. |
@@ -34,7 +34,7 @@ POST <API_URL>/capture/v1/nodes
 
 | Field            | Required | Meaning |
 |------------------|----------|---------|
-| `type`           | yes      | Property name (max 128 chars), e.g. `email`. |
+| `type`           | yes      | Property name, e.g. `email`: 2-128 chars, letters, digits and underscores, not starting with a digit. A hyphen, a space or a single character (`given-name`, `e`) is refused. |
 | `value`          | no*      | String, integer, float, boolean, or an array of any of those. |
 | `external_value` | no*      | A string: the `name` of an [External Data Resolver](https://developer.indykite.com/guides/guide-external-data-resolver) configuration that fetches the value at query time instead of a stored value, e.g. `"external_value": "vehicle-pricing-resolver"`. |
 | `metadata`       | no       | Per-property provenance - below. |
@@ -80,7 +80,7 @@ On a composite IKG, a request in which at least one node carries a `location` is
 
 | HTTP code | When | Likely fix |
 |-----------|------|------------|
-| `400 Bad Request` | Malformed body; `errors[]` lists details (e.g. missing `external_id` / `type`, batch size out of 1-250, field length out of range). | Fix the listed fields. |
+| `400 Bad Request` | Malformed body; `errors[]` lists details (e.g. missing `external_id` / `type`, batch size out of 1-250, field length out of range, a name that breaks a naming rule - node `type` PascalCase letters only, relationship `type` UPPER_SNAKE_CASE, property names 2-128 letters, digits and underscores not starting with a digit). | Fix the listed fields. |
 | `401 Unauthorized` | Invalid AppAgent credentials. | Refresh the AppAgent credentials. |
 | `422 Unprocessable Entity` | Well-formed but unprocessable - e.g. unknown `location`, or `location` without a composite database. | Match `location` to an `alias_mapping` key, or drop it. |
 | `404 Not Found` + `{"message": "knowledge graph not found for this project"}` | The project has no knowledge graph to write to: it was deleted, or it has not finished provisioning yet. The request itself is fine. | Check the project in the Hub or via `GET /configs/v1/projects/{id}`. If it is still provisioning, wait for it to complete and resend. If the graph was deleted, waiting will not help: provision a project again (and point the AppAgent credential at it) before re-ingesting. |

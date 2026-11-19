@@ -35,6 +35,10 @@ identity_provider:
   introspect_endpoint: oauth-introspect
   client_credential_endpoint: oauth-token
   exchange_endpoint: oauth-token
+  # The audience parameter of the client credentials grant for the protected
+  # agent's token. Optional: the grant names no audience by default. Set it for
+  # an IdP that refuses a grant without one (Auth0: the identifier of an API).
+  # client_credential_audience: <ACTOR_TOKEN_AUDIENCE>
   # How long before expiry a kept client credentials token is renewed (10s).
   # client_credential_renew_before: 10s
   # REQUIRED in a2a mode: the security scheme named in the served agent card.

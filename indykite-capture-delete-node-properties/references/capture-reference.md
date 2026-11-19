@@ -43,7 +43,7 @@ On a composite IKG, a request in which at least one node carries a `location` is
 
 | HTTP code | When | Likely fix |
 |-----------|------|------------|
-| `400 Bad Request` | Malformed body; `errors[]` lists details (missing required field, empty `property_types`, batch size out of 1-250). | Fix the listed fields. |
+| `400 Bad Request` | Malformed body; `errors[]` lists details (missing required field, empty `property_types`, batch size out of 1-250, a name that breaks a naming rule - node `type` PascalCase letters only, property names 2-128 letters, digits and underscores not starting with a digit). | Fix the listed fields. |
 | `401 Unauthorized` | Invalid AppAgent credentials. | Refresh the AppAgent credentials. |
 | `422 Unprocessable Entity` | Well-formed but unprocessable - e.g. unknown `location`, or `location` without a composite database. | Match `location` to an `alias_mapping` key, or drop it. |
 | `404 Not Found` + `{"message": "knowledge graph not found for this project"}` | The project has no knowledge graph to write to: it was deleted, or it has not finished provisioning yet. The request itself is fine. | Check the project in the Hub or via `GET /configs/v1/projects/{id}`. If it is still provisioning, wait for it to complete and resend. If the graph was deleted, waiting will not help: provision a project again (and point the AppAgent credential at it) before re-ingesting. |

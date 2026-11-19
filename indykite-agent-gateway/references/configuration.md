@@ -13,7 +13,7 @@ IAG reads one YAML file passed with `--config=<file>`, or a directory of `.yaml`
 | Section                | Purpose                                                                                                |
 |------------------------|--------------------------------------------------------------------------------------------------------|
 | `service`              | Runtime: `name`, `port`, `base_url` (required), `environment`, `log_level`, `healthcheck_port`.        |
-| `identity_provider`    | IdP `base_url` and endpoints, `client_credential_renew_before`, `openid_configuration_url` (a2a), `issuer` (mcp). Always required. |
+| `identity_provider`    | IdP `base_url` and endpoints, `client_credential_audience`, `client_credential_renew_before`, `openid_configuration_url` (a2a), `issuer` (mcp). Always required. |
 | `token_service`        | Optional. The issuer that mints the delegation token instead of the IdP (the IndyKite Token Service, or an IdP that meets the issuer requirements): `base_url`, `exchange_endpoint`, `introspect_endpoint`, `audience`, `client_auth.*`. |
 | `protected_agent`      | Target `base_url`, downstream `protocol` (`a2a` default, or `mcp`), `node_type`, client credentials (`authentication.client_id` / `client_secret`), `authentication.audiences`. |
 | `a2a`                  | Optional. Agent card cache: `cache_ttl`, `cache_update_after`, `cache_update_after_error`.             |
@@ -43,6 +43,7 @@ IAG reads one YAML file passed with `--config=<file>`, or a directory of `.yaml`
 | `introspect_endpoint`            | Token introspection endpoint (RFC 7662). |
 | `client_credential_endpoint`     | Token endpoint for the client credentials grant. |
 | `exchange_endpoint`              | Token endpoint for the exchange grant (RFC 8693), used when no `token_service` is configured. Usually the same endpoint. |
+| `client_credential_audience`     | Optional: the `audience` parameter of the client credentials grant for the protected agent's token, one value. Left out, the grant names no audience. Set it for an IdP that refuses a grant without an audience - Auth0 does: use the identifier of an API registered there, and authorize the application of the agent for that API. The service that does the token exchange reads this token, so with the IndyKite Token Service and a `jwt` matcher for actor tokens, the matcher must name the same audience. The token for the Intent Agent keeps `intent_agent.audience`. |
 | `client_credential_renew_before` | Optional, default `10s`: how long before its expiry a kept client credentials token is renewed. `0` takes the default; a negative value is refused at startup. |
 | `openid_configuration_url`       | **Required in `a2a` mode**: the OpenID Connect discovery URL of the IdP, the security scheme the served agent card names. |
 | `issuer`                         | **Required in `mcp` mode**: the issuer identifier of the IdP, exactly as it appears in its metadata and in the `iss` of its tokens (absolute URL, no query or fragment). Listed in `authorization_servers` of the gateway's protected resource metadata. |
@@ -101,7 +102,7 @@ With `ibac.enabled` on, a gateway in front of an A2A agent asks the [Intent Agen
 
 **The intent in the delegation token (a2a, with `token_service`).** A message the Intent Agent found an intent in gets a second exchange of the delegation token: the same subject token and actor as the first, plus the intent's evaluations that fit the skills of the agent (below) in the `intent` parameter, exactly as the Intent Agent wrote them, with no field it left out or left empty, which the issuer writes into `act.intent` of this hop. The gateway authorizes on the token of the first exchange; the agent receives the token of the second in `X-IK-Token`, so the next hop and the platform see what this hop is about to do. This needs an issuer that knows the `intent` parameter, such as the IndyKite Token Service ([`token-service.md`](token-service.md)): a token that comes back without all the evaluations sent in the second exchange is refused with `502` `cannot delegate the token with the intent`. The gateway reads an intent of at most 64 evaluations; without `token_service`, a larger one is a `502`. With `token_service`, two limits apply: the intent the Intent Agent extracted may have at most 64 evaluations, and the evaluations that fit the skills of the agent - the ones the second exchange sends - at most what the Token Service accepts (`idp.max_intent_evaluations`, `10` by default). An intent over either limit is neither forwarded nor cut down: the gateway answers in place of the agent, as for a failed task, with the error `The request asks for too much at once: its intent has <n> evaluations, too many for one request.`, the reason `intent_too_large` and the obligation `Send the request in smaller parts.` Keep `idp.max_intent_evaluations` at least as large as the number of evaluations the agent's skills cover in your users' intents. A delegation token the Token Service finds too large, from either exchange, is refused with `403` `Authorization check failed`; a `429` of the second exchange goes to the caller, as on the first.
 
-**The skills of the agent (a2a, with `token_service`).** Before the second exchange, the gateway compares the intent of every A2A message with the skills of the agent the caller may use - the permitted skills with capability checks on, every skill of the agent with them off. A skill covers an evaluation when the evaluation's subject type, resource type and action match one of its `x-coaz-mappings` (in the skill entry of the agent card). Only the evaluations a skill covers go into the second exchange, so the agent's `X-IK-Token` carries only that part of the intent; an intent that fits no skill refuses the message with `403`, and the agent does not get it. The Token Service's evaluation limit counts only the evaluations that fit. A skill with a mapping that cannot be read covers nothing. A skill without a mapping covers every evaluation with `ibac.capabilities.unmapped: allow` and nothing with `deny` - and since a message does not name the skill it uses, one permitted skill without a mapping lets the whole intent through under `allow`: give every skill a mapping, or set `deny`. A card that cannot be read refuses the message with `502`. A message without text is compared with the newest intent of its chain, if it carries one. Each comparison writes an `IBAC_DISCOVERY` record with every evaluation and the skills it matched; the `INTENT` record says how many evaluations fit.
+**The skills of the agent (a2a, with `token_service`).** Before the second exchange, the gateway compares the intent of every A2A message with the skills of the agent the caller may use - the permitted skills with capability checks on, every skill of the agent with them off. A skill covers an evaluation when the evaluation's subject type, resource type and action match one of its `x-coaz-mappings` (in the skill entry of the agent card). Only the evaluations a skill covers go into the second exchange, so the agent's `X-IK-Token` carries only that part of the intent; an intent that fits no skill refuses the message with `403`, and the agent does not get it. The Token Service's evaluation limit counts only the evaluations that fit. A skill with a mapping that cannot be read covers nothing. A skill without a mapping covers every evaluation with `ibac.capabilities.unmapped: allow` and nothing with `deny` - and since a message does not name the skill it uses, one permitted skill without a mapping lets the whole intent through under `allow`: give every skill a mapping, or set `deny`. When the agent card, or its skills with their mappings, cannot be read, the message is refused with `502` and `["cannot read the skills of the agent"]`. A message without text has no intent of its own and is not sent to the Intent Agent: it is compared with the newest intent of its chain, if it carries one. Each comparison writes an `IBAC_DISCOVERY` record with every evaluation and the skills it matched; the `INTENT` record says how many evaluations fit.
 
 **The mapping check (mcp, an intent in the delegation token).** When the delegation token of the request carries an intent, written by an earlier hop, the gateway also checks each invocation (`tools/call`, `resources/read`, `resources/subscribe`, `prompts/get`, `subscriptions/listen`) against the `x-coaz-mappings` of the capability it names. It keeps a catalog of the server's tools, resources and prompts with their mappings, filled from every list that passes through it (before filtering) and kept for `ibac.capabilities.cache_ttl`; a list adds and refreshes entries and removes none, since a list can be one page of several. For a capability it has not seen listed, it first lists the server itself - every page of that kind, with the tokens of the request - and that list fills the catalog and never reaches the caller; a server that cannot be listed fails the call with `502` `cannot list the capabilities of the MCP server`. Then:
 
@@ -123,7 +124,7 @@ The platform is not asked when no evaluation is resolved - right for a mapping t
 | `intent_agent.base_url` | -              | Where the Intent Agent serves its agent card; an absolute `http` or `https` URL. |
 | `intent_agent.audience` | `intent_agent` | Audience of the client credentials token the gateway gets for the Intent Agent; must match the Intent Agent's `EXPECTED_TOKEN_AUDIENCE`. |
 | `intent_agent.timeout`  | `45s`          | How long one prompt may take, the token grant included; longer answers `504`. Must be positive. |
-| `ibac.capabilities.cache_ttl` | `5m`     | How long the gateway keeps a capability with its mappings after it was last listed: a tool, resource or prompt of an MCP server (mcp mode), a skill of an extended card (a2a mode). Must be positive. |
+| `ibac.capabilities.cache_ttl` | `5m`     | How long the gateway keeps a capability with its mappings after it was last listed: a tool, resource or prompt of an MCP server (mcp mode), a skill of the card the agent publishes or of the extended card (a2a mode; for a skill on both cards, the entry of the published card counts). Must be positive. |
 | `ibac.capabilities.unmapped`  | `allow`  | With an intent in the delegation token: mcp mode, the call of a capability without a mapping goes on (`allow`, the permitted set alone decides) or is refused with `403` (`deny`); a2a mode, a skill without a mapping stays on the extended card (`allow`) or is dropped (`deny`). A mapping that cannot be read refuses the call, or drops the skill, in both settings. |
 | `audit.include_prompt`  | `false`        | Adds the prompt, the reason of a failed task, and the text the model answered with in place of an intent, to the `INTENT` audit records. Off, those records carry none of them, since all three can quote the user. |
 
@@ -155,7 +156,7 @@ Example: to restrict a gateway to `wf1`, set `input_params` to `workflow_ids: ["
 | `mcp` | the path of `service.base_url` | `allowed_origins` | `GET, POST, DELETE` |
 | `mcp` | any other path | none - the path is `404` | - |
 | `a2a` | `/.well-known/agent-card.json`, a `GET` without `Authorization` (public card) | every origin (`*`) | `GET` |
-| `a2a` | `/.well-known/agent-card.json` otherwise (extended card, JSON-RPC), and any other path | `allowed_origins` | `GET, POST` |
+| `a2a` | `/.well-known/agent-card.json` otherwise (a `GET` with `Authorization`: the extended card, or the public card for a caller the gateway refuses; JSON-RPC), and any other path | `allowed_origins` | `GET, POST` |
 
 - `OPTIONS` on these paths is answered by the gateway with `204` and `Allow: <methods>` before the token is read; nothing is forwarded. A preflight from an allowed origin also gets `Access-Control-Allow-Origin` (`*` on a public path or with `*` listed, else the request's origin), `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers: Authorization, X-IK-Token, Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID, Mcp-Method, Mcp-Name, A2A-Version, A2A-Extensions` (on the MCP endpoint also the `Mcp-Param-{Name}` headers the preflight asks for) and `Access-Control-Max-Age: 7200`. On the agent card path only a `GET` preflight that does not name `Authorization` counts as public.
 - Other requests from an allowed origin get `Access-Control-Allow-Origin` and `Access-Control-Expose-Headers: WWW-Authenticate, Mcp-Session-Id` on every answer, the gateway's `400` / `401` / `403` and forwarded answers and streams included. Answers on non-public paths carry `Vary: Origin`; answers on public paths always carry `Access-Control-Allow-Origin: *`.
@@ -201,6 +202,39 @@ audit:
     auth:
       type: no-auth
 ```
+
+## Telemetry
+
+Every step a request waits for is a span in the trace of the request, named `agent-gateway <step>`, and a duration in the histogram `indykite_agent_gateway_step_duration_seconds`. The span and the metric carry the same labels:
+
+| Label     | Values |
+|-----------|--------|
+| `step`    | The step, see the next table. |
+| `outcome` | `ok`: the step succeeded. `refused`: the step answered no - a denied decision, a token the IdP or the Token Service reports inactive, an intent that does not match, a failed task of the Intent Agent. `canceled`: the step failed because its request ended first, such as when the caller went away. `error`: the step failed; an introspection answered with a status, such as `401` for the credentials of the gateway, is an `error`. Only the span of an `error` step has the error status, so an alert on `error` does not fire on what callers do. |
+| `cache`   | `hit`: answered from the cache of the gateway. `miss`: the request made the call. `shared`: the request waited for the same call of another request. `none`: a step without a cache, a value that cannot be kept, or a request that stopped waiting. |
+
+| `step`               | What it measures | More labels | `cache` |
+|----------------------|------------------|-------------|---------|
+| `introspection`      | An introspection of a token. | `peer` | `none` |
+| `token_exchange`     | A token exchange, the first one or the one with the intent. | `peer`, `exchange` (`first`, `intent`) | `none` |
+| `actor_token`        | The client credentials token of the gateway. | - | `hit`, `miss`, `shared`, `none` |
+| `whoami`             | ContX IQ `whoami`. | - | `hit`, `miss`, `shared`, `none` |
+| `kbac_admission`     | The AuthZEN admission evaluation. | - | `hit`, `miss`, `shared` |
+| `kbac_permitted_set` | One AuthZEN resource search of the permitted set. | `resource_type` | `hit`, `miss`, `shared` |
+| `intent_agent`       | The call of the Intent Agent. | - | `none` |
+| `ibac_discovery`     | Filtering a list or a card by the intent. | - | `none` |
+| `ibac_usage`         | Checking a call against the intent. | - | `none` |
+| `platform_checks`    | The AuthZEN `evaluations` request with the resolved evaluations. | - | `hit`, `miss`, `shared` |
+| `catalog_fill`       | Listing the MCP server, or reading the agent cards, to learn the capabilities and their mappings. | `kind` | `none` |
+| `agent_card`         | Reading the card an A2A agent publishes, for every call to the agent. | `agent` (`protected_agent`, `intent_agent`) | `hit`, `miss`, `shared`, `none` |
+
+- `peer` is `identity_provider` or `token_service`.
+- The count of the histogram by `cache` gives the hits and the misses of each cache. A `whoami` for a token without a subject is not kept, and is `none`.
+- A caller that gives up because a service is slow is `canceled` too, so watch the duration of a step as well as its errors.
+- The Intent Agent answers both a prompt without an intent and a failure of its own with a failed task, so an `intent_agent` step that is `refused` can also be an outage of the Intent Agent; only a call that fails, a bad answer or a timeout is an `error`.
+- `catalog_fill` runs for a capability the gateway has not seen listed. In front of an A2A agent with `ibac.enabled`, a Token Service and capability checks off, it also runs for every message, so its count then follows the messages.
+- A step can run within another step, so the durations of the steps of a request do not add up to the duration of the request: `agent_card` runs within `intent_agent` and, when the skills of the protected agent are read, within `catalog_fill`.
+- A call to AuthZEN and ContX IQ carries the trace on, so the IndyKite service continues the same trace. A call to the IdP or the Token Service sends no trace header.
 
 ## Startup errors
 
