@@ -17,7 +17,7 @@
       "type": "Server"
     },
     "condition": {
-      "cypher": "MATCH (subject:Person), (resource:Server) WHERE resource.property.price <= $max_price"
+      "cypher": "MATCH (subject:Person), (resource:Server) MATCH (resource)-[:HAS]->(price:Property {type:'price'}) WHERE price.value <= $max_price"
     }
   },
   "status": "ACTIVE"
