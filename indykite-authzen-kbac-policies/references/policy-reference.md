@@ -131,7 +131,9 @@ The claim sets of the two request tokens are bound as Cypher parameters, so the 
 
 ```cypher
 MATCH (subject:Person)-[:OWNS]->(resource:Car)
-WHERE resource.delegated_to = $ik_token.act.sub AND resource.driver = $token.sub
+MATCH (resource)-[:HAS]->(delegated_to:Property {type:'delegated_to'})
+MATCH (resource)-[:HAS]->(driver:Property {type:'driver'})
+WHERE delegated_to.value = $ik_token.act.sub AND driver.value = $token.sub
 ```
 
 To check the **whole** delegation chain rather than one hop, the platform also derives two lists from the nested `act` claims, oldest hop first: `$ik_token.act_chain` (the `sub` of every hop) and `$ik_token.act_chain_types` (the `type` of every hop, `null` for a hop without one). Compared with a variable-length path, they allow exactly the chain the graph permits:
