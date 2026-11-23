@@ -80,8 +80,11 @@ The condition is a single `cypher` string. Two hard rules:
 
 ```cypher
 MATCH (subject:Person), (resource:Server)
-WHERE resource.property.price <= $max_price
+MATCH (resource)-[:HAS]->(price:Property {type:'price'})
+WHERE price.value <= $max_price
 ```
+
+A property is tested through its own node: match `(node)-[:HAS]->(p:Property {type:'<name>'})` and compare `p.value`. The `<var>.property.<name>` path belongs to ContX IQ policies; in a KBAC condition it reads nothing, the policy is still saved, and every decision is `false`.
 
 For relationship-based rules, match the relationship instead of (or in addition to) a property check:
 

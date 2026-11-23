@@ -86,7 +86,8 @@ Property comparison:
 
 ```cypher
 MATCH (subject:Person), (resource:Server)
-WHERE resource.property.price <= $max_price
+MATCH (resource)-[:HAS]->(price:Property {type:'price'})
+WHERE price.value <= $max_price
 ```
 
 Relationship requirement:
@@ -99,7 +100,8 @@ Combined (relationship + property + per-request param):
 
 ```cypher
 MATCH (subject:Person)-[:CAN_AFFORD]->(resource:Server)
-WHERE resource.property.price <= $max_price
+MATCH (resource)-[:HAS]->(price:Property {type:'price'})
+WHERE price.value <= $max_price
 ```
 
 Multi-hop (e.g. access via a teammate who owns the resource):
@@ -110,14 +112,14 @@ MATCH (subject:Person)-[:TEAMMATE_OF|MANAGES]-(peer:Person)-[:OWNS]->(resource:N
 
 ### Attribute references in the condition
 
-Inside the `WHERE` clause, reference node attributes with these forms:
+Reference node attributes with these forms:
 
-| Pattern                 | Meaning                    | Example                    |
-|-------------------------|----------------------------|----------------------------|
-| `<var>.property.<name>` | A named property on a node | `resource.property.price`  |
-| `<var>.external_id`     | A node's external id       | `subject.external_id`      |
+| Pattern                                                      | Meaning                    | Example                                                                           |
+|--------------------------------------------------------------|----------------------------|-----------------------------------------------------------------------------------|
+| `(<var>)-[:HAS]->(<p>:Property {type:'<name>'})`, `<p>.value` | A named property on a node | `MATCH (resource)-[:HAS]->(price:Property {type:'price'}) WHERE price.value <= 10` |
+| `<var>.external_id`                                          | A node's external id       | `subject.external_id`                                                             |
 
-`<var>` is a variable bound in the `MATCH` pattern. A typo silently matches nothing → a `false` decision. Use standard Cypher comparison operators (`=`, `<>`, `<`, `<=`, `>`, `>=`, `IN`, `STARTS WITH`, …) and `AND` / `OR` / `NOT` to combine clauses.
+`<var>` is a variable bound in the `MATCH` pattern. A property is its own `Property` node, linked to its node by `HAS`: match it and compare its `value`. The `<var>.property.<name>` path belongs to ContX IQ policies; in a KBAC condition it reads nothing, the policy is still saved, and every decision is `false`. A typo silently matches nothing → a `false` decision. Use standard Cypher comparison operators (`=`, `<>`, `<`, `<=`, `>`, `>=`, `IN`, `STARTS WITH`, …) and `AND` / `OR` / `NOT` to combine clauses.
 
 ### Partial parameters
 

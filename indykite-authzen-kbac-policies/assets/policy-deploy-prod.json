@@ -17,7 +17,7 @@
       "type": "Environment"
     },
     "condition": {
-      "cypher": "MATCH (subject:Person)-[:HAS_ROLE]->(role:Role), (resource:Environment) WHERE role.property.name = 'deployer' AND resource.property.name = 'prod'"
+      "cypher": "MATCH (subject:Person)-[:HAS_ROLE]->(role:Role), (resource:Environment) MATCH (role)-[:HAS]->(role_name:Property {type:'name'}) MATCH (resource)-[:HAS]->(env_name:Property {type:'name'}) WHERE role_name.value = 'deployer' AND env_name.value = 'prod'"
     }
   },
   "status": "ACTIVE"
