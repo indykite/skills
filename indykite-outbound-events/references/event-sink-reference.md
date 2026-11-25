@@ -65,6 +65,19 @@ Every block also carries the read-only `last_error` when the provider has failed
 
 The four write-only fields - `password`, `access_key`, `connection_string`, `credentials_json` - come back as empty strings in every read. An update therefore has to send them again.
 
+### Write-only fields at send time
+
+In the flow of this skill these fields stay placeholders in the body file. `jq` sets them from the environment as the request is sent ([`../SKILL.md`](../SKILL.md), step 4), with one argument and one assignment per provider and variable names of the user's choice:
+
+| Block               | `jq` argument                          | Assignment |
+|---------------------|----------------------------------------|------------|
+| `kafka`             | `--arg pw "$KAFKA_PASSWORD"`           | `.providers["<name>"].kafka.password = $pw` |
+| `azure_event_grid`  | `--arg key "$EVENT_GRID_ACCESS_KEY"`   | `.providers["<name>"].azure_event_grid.access_key = $key` |
+| `azure_service_bus` | `--arg cs "$SERVICE_BUS_CONNECTION"`   | `.providers["<name>"].azure_service_bus.connection_string = $cs` |
+| `pubsub`            | `--rawfile sa "$PUBSUB_KEY_FILE"`      | `.providers["<name>"].pubsub.credentials_json = $sa` |
+
+`--rawfile` reads the Pub/Sub key file and passes its content as one string (`jq` 1.6 or later). A Kafka provider without SASL has no `password`: leave the field out of the body and the argument out of the command.
+
 ## Routes
 
 | Field                                            | Required | Meaning |
@@ -272,7 +285,8 @@ A Kafka broker given as a host name that resolves to such an address is refused 
 | `412` on update or delete | The `If-Match` value is stale. | Read the sink again and use its current ETag. |
 | `401` | No Service Account token in `Authorization: Bearer`, or one that is not valid or expired. The Config API takes no other kind of token. | Send a current Service Account token. |
 | `403` | The account's role does not allow the operation, or the sink belongs to another organization. | Use an account with Config API write access to the project. |
-| An update built from a read is refused, or the provider fails afterwards | A read returns the write-only fields as empty strings, and the update sent those back. | Send the update again with the provider's real values. |
+| An update built from a read is refused, or the provider fails afterwards | A read returns the write-only fields as empty strings, and the update sent those back. | Send the update again with the write-only fields filled in as in step 4 of [`../SKILL.md`](../SKILL.md). |
+| `last_error` `invalid access key or topic endpoint` right after a create or an update | A provider's write-only field went out as its placeholder, or empty: the `jq` command had no assignment for that provider, or its variable was not set. | Add the assignment for each provider, set the variables, and send the update again. |
 | Created with `201`, but no event arrives | The connection failed after the save, or no route matches. | Read the sink: fix what `last_error` names; otherwise check the route's `event_type` and filters against the operation. |
 | CDC events never arrive | `include_cdc_events` is `false`, or was left out of the last update. | Send the update with `include_cdc_events: true` and a route for `indykite.audit.cdc.*`. |
 | The same event arrives twice | Delivery is at least once; an event matching several routes is sent again to all of them when one send fails. | Where each event should go to one destination, set `stop_processing: true` on each route. In every case, deduplicate on the CloudEvents `id`. |

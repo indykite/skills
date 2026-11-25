@@ -86,7 +86,7 @@ The state is only as fresh as the last call: an entry recovers on the next succe
 |-----------------------------------------------------------|-----------------------------------------------------------------------------------|-----|
 | Webhook unreachable or refusing                           | Log shows the delivery error; the request itself still succeeded.                 | Fix `AUDIT_HTTP_URL` / auth; a failed delivery never fails a request. |
 | Async queue full                                          | Log `dropping payload, async queue is full`.                                      | Raise `AUDIT_ASYNC_BUFFER_SIZE` or speed up the sink. |
-| Records vanished with the pod (Helm, `file` delivery)     | The chart mounts an `emptyDir`.                                                    | Use `webhook` delivery, or mount a persistent volume at `AUDIT_FILE_STORAGE_PATH`. |
+| Records vanished with the pod (Helm, `file` delivery)     | The chart mounts an `emptyDir`.                                                    | Use `webhook` delivery; the chart has no value for another volume. |
 
 ## Useful one-liners
 

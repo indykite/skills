@@ -37,7 +37,7 @@ Do **not** activate this skill when the user wants to:
 
 - An IndyKite **project**, and its GID in `PROJECT_GID` - it becomes the sink's `project_id`.
 - A **Service Account token** with Config API write access, in `SERVICE_ACCOUNT_TOKEN` - used for every `/configs/v1/event-sinks` call.
-- The **destination** already exists and can be reached from the public internet: the Kafka brokers and topic, the Event Grid topic endpoint, the Service Bus queue or topic, or the Pub/Sub topic - with the access values the provider block asks for.
+- The **destination** already exists and can be reached from the public internet: the Kafka brokers and topic, the Event Grid topic endpoint, the Service Bus queue or topic, or the Pub/Sub topic. Its access values (`password`, `access_key`, `connection_string`, `credentials_json`) are not written into the body file: the user sets them in environment variables - for Pub/Sub, the path of the key file - and step 4 fills them in when the request is sent.
 - The **event types** to send (step 2). A project has **at most one** event sink: to add a destination to a project that has one, update it (step 6).
 
 If any of these are missing, say so before writing JSON.
@@ -112,7 +112,7 @@ Routes are evaluated in order. An event goes to each route it matches, until a m
 }
 ```
 
-`name` is 2-63 chars of lowercase letters, digits and hyphens, unique in the project, and cannot be changed later. Ready bodies with placeholders: [`assets/event-sink-kafka-capture.json`](assets/event-sink-kafka-capture.json) (one provider) and [`assets/event-sink-multi-provider.json`](assets/event-sink-multi-provider.json) (all four provider types, four routes). Copy one to a working file and fill in the destination values there.
+`name` is 2-63 chars of lowercase letters, digits and hyphens, unique in the project, and cannot be changed later. Ready bodies with placeholders: [`assets/event-sink-kafka-capture.json`](assets/event-sink-kafka-capture.json) (one provider) and [`assets/event-sink-multi-provider.json`](assets/event-sink-multi-provider.json) (all four provider types, four routes). Copy one to a working file and set the hosts, topics and names there. Leave the placeholders of the four write-only fields (`password`, `access_key`, `connection_string`, `credentials_json`) as they are: step 4 fills them in when the request is sent.
 
 ### 4. Create the sink
 
@@ -122,14 +122,19 @@ POST <API_URL>/configs/v1/event-sinks
 
 Authenticate with the Service Account token: `Authorization: Bearer <SERVICE_ACCOUNT_TOKEN>`.
 
+`jq` sets `project_id` and the write-only field of each provider from the environment as the request is sent, so the body file keeps its placeholders:
+
 ```bash
-# set project_id in the filled-in body, then POST
-jq --arg pid "$PROJECT_GID" '.project_id = $pid' event-sink.json \
+# project_id and the Kafka password come from the environment at send time
+jq --arg pid "$PROJECT_GID" --arg pw "$KAFKA_PASSWORD" \
+    '.project_id = $pid | .providers["kafka-provider"].kafka.password = $pw' event-sink.json \
   | curl -i -X POST "$API_URL/configs/v1/event-sinks" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $SERVICE_ACCOUNT_TOKEN" \
       -d @-
 ```
+
+Each provider takes one `jq` argument and one assignment of this kind; the line for each of the four provider types is in [`references/event-sink-reference.md`](references/event-sink-reference.md#write-only-fields-at-send-time).
 
 A `201 Created` returns the sink's `id` (a `gid:…`), `create_time`, `created_by`, `update_time`, `updated_by`, and an **ETag** header (`-i` prints the response headers). Keep the `id` and the ETag for step 6. Two refusals are specific to event sinks:
 
@@ -157,7 +162,7 @@ All with the Service Account token:
 
 - **Read**: `GET /configs/v1/event-sinks/{id}`, or by name with `GET /configs/v1/event-sinks/{name}?project_id={PROJECT_GID}`.
 - **List**: `GET /configs/v1/event-sinks?project_id={PROJECT_GID}`. Without `full_fetch=true` the item's `providers` and `routes` are empty.
-- **Update**: `PUT /configs/v1/event-sinks/{id}` is a full replacement of `providers` and `routes`, both required. Send every provider again **with its write-only fields**, since a read never returns them, and every route. `include_cdc_events` left out means `false`. `name` and `project_id` cannot change. `If-Match: <etag>` is optional and recommended: a stale value is refused with `412`. Every update clears `last_error` on all providers and starts a new connection check.
+- **Update**: `PUT /configs/v1/event-sinks/{id}` is a full replacement of `providers` and `routes`, both required. Send every provider again **with its write-only fields**, filled in at send time as in step 4, since a read never returns them, and every route. `include_cdc_events` left out means `false`. `name` and `project_id` cannot change. `If-Match: <etag>` is optional and recommended: a stale value is refused with `412`. Every update clears `last_error` on all providers and starts a new connection check.
 - **Delete**: `DELETE /configs/v1/event-sinks/{id}`, with the same optional `If-Match`. It returns the deleted `id`; events produced from then on are not delivered anywhere.
 
 There is no switch to pause one route or one provider. Remove a route in an update, or a provider together with the routes that name it, and put them back later. An update must keep at least one provider and one route: to stop the only destination, delete the sink and create it again later - it gets a new `id`.
