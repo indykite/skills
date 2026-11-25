@@ -1,0 +1,32 @@
+{
+  "project_id": "<project-gid>",
+  "name": "outbound-events",
+  "display_name": "Outbound Events",
+  "description": "Capture events to Kafka",
+  "include_cdc_events": false,
+  "providers": {
+    "kafka-provider": {
+      "kafka": {
+        "brokers": [
+          "<broker-1-host>:9092",
+          "<broker-2-host>:9092"
+        ],
+        "topic": "<topic>",
+        "username": "<kafka-username>",
+        "password": "<kafka-password>",
+        "disable_tls": false,
+        "tls_skip_verify": false
+      }
+    }
+  },
+  "routes": [
+    {
+      "provider_id": "kafka-provider",
+      "display_name": "Capture Events",
+      "stop_processing": true,
+      "event_type_key_values_filter": {
+        "event_type": "indykite.audit.capture.*"
+      }
+    }
+  ]
+}

@@ -65,6 +65,7 @@ Each row is one skill — what it does and a representative prompt it's *designe
 | [`indykite-ciq-add-relationship-property`](indykite-ciq-add-relationship-property/SKILL.md) | Author a CIQ policy + Knowledge Query that sets one or more properties on an existing relationship. | "Annotate an existing `PLAYED_AT` relationship with a `verified` flag and timestamp." |
 | [`indykite-ciq-delete`](indykite-ciq-delete/SKILL.md) | Author a CIQ policy + Knowledge Query that deletes a node, a relationship, or one or more properties. | "Clear the `music_mood` property from a `Person` — GDPR-style erase." |
 | [`indykite-audit-logs`](indykite-audit-logs/SKILL.md) | Read and export a project's tamper-proof audit trail (`GET /audit/v1/logs`, `/manifests`, `/checkpoints`, public JWKS) - the signed event batches, the manifests that link them, and the keys that signed them (`Audit` permission). | "Export last week's audit events together with the chain manifests and signing keys." |
+| [`indykite-outbound-events`](indykite-outbound-events/SKILL.md) | Configure the project's event sink through the Config API (`/configs/v1/event-sinks`) - providers (Kafka, Azure Event Grid, Azure Service Bus, Google Cloud Pub/Sub), ordered routes with event-type filters, CDC events, and each provider's `last_error`. | "Send all Capture events of this project to our Kafka topic." |
 
 ## Install
 
