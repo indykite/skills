@@ -52,6 +52,26 @@ If `Authorization` is missing or invalid, the server returns:
 - HTTP **`401 Unauthorized`**, and
 - the **`.well-known/oauth-protected-resource`** metadata document defined by [RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728).
 
+The same document is served without a token at `GET <MCP_URL>/mcp/v1/<project_gid>/.well-known/oauth-protected-resource`. Its `resource` is the MCP endpoint of the project, the same URL the client calls:
+
+```json
+{
+  "resource": "<MCP_URL>/mcp/v1/<project_gid>",
+  "authorization_servers": ["<issuer of your identity provider>"],
+  "bearer_methods_supported": ["header"],
+  "scopes_supported": ["<scope>"],
+  "resource_documentation": "<MCP_URL>/docs"
+}
+```
+
+| Field                      | Value |
+|----------------------------|-------|
+| `resource`                 | The MCP endpoint of the project: `<MCP_URL>/mcp/v1/<project_gid>`. |
+| `authorization_servers`    | The identity providers whose tokens the project accepts. Left out when the project has none. |
+| `bearer_methods_supported` | Always `["header"]`: the token goes in `Authorization: Bearer`. |
+| `scopes_supported`         | The scopes advertised for the project. Left out when the project has none. |
+| `resource_documentation`   | `<MCP_URL>/docs`. |
+
 This metadata advertises which identity providers and scopes the resource expects. **The list is configured per project** — contact IndyKite to register your IdPs and scopes; otherwise the metadata returned will not point clients at the right authorization server. The `scopes_supported` field in your MCP server configuration is what the metadata mirrors.
 
 ## JSON-RPC over HTTP POST

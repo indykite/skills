@@ -23,7 +23,7 @@ Activate this skill when the user wants to:
 Do **not** activate this skill when the user wants to:
 
 - **configure the signing key** (platform-managed vs GCP KMS / AWS KMS / Azure Key Vault) - that is the Config API `/configs/v1/audit-signings` object with a Service Account token, see the [Audit Signing guide](https://developer.indykite.com/guides/guide-audit-signing);
-- **push events to their own Kafka / Pub/Sub / webhook** as they happen - [Outbound Events](https://developer.indykite.com/guides/guide-outbound-events), a Config API event sink;
+- **push events to their own Kafka / Pub/Sub / webhook** as they happen - [Outbound Events](https://developer.indykite.com/guides/guide-outbound-events), a Config API event sink - use [`indykite-outbound-events`](../indykite-outbound-events/SKILL.md);
 - read the **Agent Gateway's or Token Service's audit records** (`AUTHORIZED` / `NOT_AUTHORIZED`, `TOKEN_EXCHANGED`) - those are written by the customer-deployed gateway to its own webhook or file, see [`indykite-agent-gateway`](../indykite-agent-gateway/SKILL.md);
 - read **graph data** or the **schema** - [`indykite-ciq-read`](../indykite-ciq-read/SKILL.md), [`indykite-data-schema`](../indykite-data-schema/SKILL.md).
 

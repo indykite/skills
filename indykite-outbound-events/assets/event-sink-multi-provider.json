@@ -1,0 +1,79 @@
+{
+  "project_id": "<project-gid>",
+  "name": "multi-provider-events",
+  "display_name": "Multi Provider Events",
+  "description": "Person captures to Kafka, CIQ executions to Event Grid, config changes to Service Bus, everything else captured to Pub/Sub",
+  "include_cdc_events": false,
+  "providers": {
+    "kafka-provider": {
+      "kafka": {
+        "brokers": [
+          "<broker-1-host>:9092",
+          "<broker-2-host>:9092"
+        ],
+        "topic": "<topic>",
+        "username": "<kafka-username>",
+        "password": "<kafka-password>"
+      }
+    },
+    "azure-grid-provider": {
+      "azure_event_grid": {
+        "topic_endpoint": "https://<topic-name>.<region>.eventgrid.azure.net/api/events",
+        "access_key": "<event-grid-access-key>"
+      }
+    },
+    "azure-bus-provider": {
+      "azure_service_bus": {
+        "connection_string": "<service-bus-connection-string>",
+        "queue_or_topic_name": "<queue-or-topic>"
+      }
+    },
+    "pubsub-provider": {
+      "pubsub": {
+        "project_id": "<gcp-project-id>",
+        "topic_name": "<pubsub-topic>",
+        "credentials_json": "<service-account-key-json>"
+      }
+    }
+  },
+  "routes": [
+    {
+      "provider_id": "kafka-provider",
+      "display_name": "Person Captures",
+      "stop_processing": true,
+      "event_type_key_values_filter": {
+        "event_type": "indykite.audit.capture.upsert.node",
+        "context_key_value": [
+          {
+            "key": "captureLabel",
+            "value": "Person"
+          }
+        ]
+      }
+    },
+    {
+      "provider_id": "azure-grid-provider",
+      "display_name": "CIQ Executions",
+      "stop_processing": true,
+      "event_type_key_values_filter": {
+        "event_type": "indykite.audit.ciq.execute"
+      }
+    },
+    {
+      "provider_id": "azure-bus-provider",
+      "display_name": "Config Changes",
+      "stop_processing": true,
+      "event_type_key_values_filter": {
+        "event_type": "indykite.audit.config.*"
+      }
+    },
+    {
+      "provider_id": "pubsub-provider",
+      "display_name": "Other Capture Events",
+      "stop_processing": true,
+      "event_type_key_values_filter": {
+        "event_type": "indykite.audit.capture.*"
+      }
+    }
+  ]
+}
