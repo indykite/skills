@@ -122,19 +122,19 @@ POST <API_URL>/configs/v1/event-sinks
 
 Authenticate with the Service Account token: `Authorization: Bearer <SERVICE_ACCOUNT_TOKEN>`.
 
-`jq` sets `project_id` and the write-only field of each provider from the environment as the request is sent, so the body file keeps its placeholders:
+`jq` sets `project_id` and the write-only field of each provider as the request is sent, so the body file keeps its placeholders. It reads each value from its own environment with `env.<NAME>`, so the variable has to be exported in the shell that runs the command:
 
 ```bash
 # project_id and the Kafka password come from the environment at send time
-jq --arg pid "$PROJECT_GID" --arg pw "$KAFKA_PASSWORD" \
-    '.project_id = $pid | .providers["kafka-provider"].kafka.password = $pw' event-sink.json \
+jq --arg pid "$PROJECT_GID" \
+    '.project_id = $pid | .providers["kafka-provider"].kafka.password = env.KAFKA_PASSWORD' event-sink.json \
   | curl -i -X POST "$API_URL/configs/v1/event-sinks" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $SERVICE_ACCOUNT_TOKEN" \
       -d @-
 ```
 
-Each provider takes one `jq` argument and one assignment of this kind; the line for each of the four provider types is in [`references/event-sink-reference.md`](references/event-sink-reference.md#write-only-fields-at-send-time).
+Each provider takes one assignment of this kind; the line for each of the four provider types is in [`references/event-sink-reference.md`](references/event-sink-reference.md#write-only-fields-at-send-time).
 
 A `201 Created` returns the sink's `id` (a `gid:…`), `create_time`, `created_by`, `update_time`, `updated_by`, and an **ETag** header (`-i` prints the response headers). Keep the `id` and the ETag for step 6. Two refusals are specific to event sinks:
 
