@@ -79,7 +79,7 @@ Rules:
 
 - Routes are evaluated in order; an event goes to every route it matches until one with `stop_processing: true` matches.
 - Put specific routes before wildcard routes.
-- Prefer `stop_processing: true` on each route. When the send to one route fails, the event is sent again later to all the routes it matches, also to those that already received it, so a provider that accepted the event gets it a second time. An event that goes to one route only is not duplicated that way.
+- Prefer `stop_processing: true` on each route. When the send to one route fails, the event is sent again later to all the routes it matches, also to those that already received it, so a provider that accepted the event gets it a second time. An event that goes to one route only is not duplicated that way. When the same event must reach several destinations, leave it `false` on the routes that must let later routes match, and deduplicate on the `id` of the CloudEvents envelope in the consumers.
 - A route whose provider is switched off after a failure still stops the routes after it when it has `stop_processing`.
 
 ### Filters
@@ -204,7 +204,7 @@ If-Match: <current-etag>
 
 Returns `{ "id": "<deleted sink GID>" }`. Events produced from then on are not delivered anywhere.
 
-To stop one route or one provider without deleting the sink, remove it in an update and put it back later.
+To stop one route or one provider without deleting the sink, remove the route in an update, or the provider together with the routes that name it, and put them back later. An update must keep at least one provider and one route: to stop the only destination, delete the sink and create it again later - it gets a new `id`.
 
 ## `last_error`
 
@@ -275,7 +275,7 @@ A Kafka broker given as a host name that resolves to such an address is refused 
 | An update built from a read is refused, or the provider fails afterwards | A read returns the write-only fields as empty strings, and the update sent those back. | Send the update again with the provider's real values. |
 | Created with `201`, but no event arrives | The connection failed after the save, or no route matches. | Read the sink: fix what `last_error` names; otherwise check the route's `event_type` and filters against the operation. |
 | CDC events never arrive | `include_cdc_events` is `false`, or was left out of the last update. | Send the update with `include_cdc_events: true` and a route for `indykite.audit.cdc.*`. |
-| The same event arrives twice | Delivery is at least once; an event matching several routes is sent again to all of them when one send fails. | Set `stop_processing: true` on each route, and deduplicate on the CloudEvents `id`. |
+| The same event arrives twice | Delivery is at least once; an event matching several routes is sent again to all of them when one send fails. | Where each event should go to one destination, set `stop_processing: true` on each route. In every case, deduplicate on the CloudEvents `id`. |
 | A list shows a sink with no providers or routes | The list was read without `full_fetch=true`. | Add `full_fetch=true`, or read the sink by `id`. |
 
 ## References

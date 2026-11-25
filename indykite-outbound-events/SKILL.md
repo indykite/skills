@@ -79,10 +79,10 @@ The event types, by family:
 
 The full list, and which filters each type accepts, is in [`references/event-sink-reference.md`](references/event-sink-reference.md#event-types).
 
-Routes are evaluated in order, and an event goes to every route it matches. Two rules follow:
+Routes are evaluated in order. An event goes to each route it matches, until a matching route has `stop_processing: true`: the routes after it are then skipped. Two rules follow:
 
 - Put specific routes before wildcard routes.
-- Set `stop_processing: true` on each route. When the send to one route fails, the event is sent again later to all the routes it matches, also to those that already received it; an event that goes to one route only is not duplicated that way.
+- Prefer `stop_processing: true` on each route, so that an event goes to one route only. When the send to one route fails, the event is sent again later to all the routes it matches, also to those that already received it; an event that goes to one route only is not duplicated that way. When the same event must reach several destinations, leave it `false` on the routes that must let later routes match, and deduplicate on the `id` of the CloudEvents envelope in the consumers.
 
 ### 3. Assemble the body
 
@@ -125,13 +125,13 @@ Authenticate with the Service Account token: `Authorization: Bearer <SERVICE_ACC
 ```bash
 # set project_id in the filled-in body, then POST
 jq --arg pid "$PROJECT_GID" '.project_id = $pid' event-sink.json \
-  | curl -X POST "$API_URL/configs/v1/event-sinks" \
+  | curl -i -X POST "$API_URL/configs/v1/event-sinks" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $SERVICE_ACCOUNT_TOKEN" \
       -d @-
 ```
 
-A `201 Created` returns the sink's `id` (a `gid:…`), `create_time`, `created_by`, `update_time`, `updated_by`, and an **ETag** header. Keep the `id` and the ETag for step 6. Two refusals are specific to event sinks:
+A `201 Created` returns the sink's `id` (a `gid:…`), `create_time`, `created_by`, `update_time`, `updated_by`, and an **ETag** header (`-i` prints the response headers). Keep the `id` and the ETag for step 6. Two refusals are specific to event sinks:
 
 - `409` with `event sink already exists in project` - the project has its sink; update that one.
 - `422` with an `errors` list - validation failed before anything was stored; fix everything it lists. A destination can be refused this way, e.g. `kafka broker: destination is not permitted` - a provider points at a private, loopback or link-local address, or an Event Grid endpoint is not `https`. The list is in [`references/event-sink-reference.md`](references/event-sink-reference.md#destinations-refused-when-saving).
@@ -160,7 +160,7 @@ All with the Service Account token:
 - **Update**: `PUT /configs/v1/event-sinks/{id}` is a full replacement of `providers` and `routes`, both required. Send every provider again **with its write-only fields**, since a read never returns them, and every route. `include_cdc_events` left out means `false`. `name` and `project_id` cannot change. `If-Match: <etag>` is optional and recommended: a stale value is refused with `412`. Every update clears `last_error` on all providers and starts a new connection check.
 - **Delete**: `DELETE /configs/v1/event-sinks/{id}`, with the same optional `If-Match`. It returns the deleted `id`; events produced from then on are not delivered anywhere.
 
-There is no switch to pause one route or one provider: remove it in an update and put it back later.
+There is no switch to pause one route or one provider. Remove a route in an update, or a provider together with the routes that name it, and put them back later. An update must keep at least one provider and one route: to stop the only destination, delete the sink and create it again later - it gets a new `id`.
 
 ## Delivery in brief
 
